@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "902477245270",
+    "project_id": "libmate-we158-ceb13",
+    "storage_bucket": "libmate-we158-ceb13.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:902477245270:android:b622f261189ac71a2044f7",
+        "android_client_info": {
+          "package_name": "com.example.libmate_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCP876Qt-DeA7mU39n20VK2r5ISSS5_x8Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

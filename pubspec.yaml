@@ -31,6 +31,12 @@ dependencies:
   flutter:
     sdk: flutter
 
+  firebase_core: ^4.0.0
+
+  # Required by Flutter's web plugin registrant for web builds.
+  flutter_web_plugins:
+    sdk: flutter
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
