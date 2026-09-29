@@ -14,7 +14,13 @@ class AuthProvider extends ChangeNotifier {
       _userRepository = userRepository ?? UserRepository() {
     _authStateSubscription = _authRepository.authStateChanges.listen((user) {
       _user = user;
-      notifyListeners();
+      if (user == null) {
+        _profile = null;
+        notifyListeners();
+      } else {
+        notifyListeners();
+        fetchCurrentUserProfile();
+      }
     });
   }
 
@@ -25,12 +31,14 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   AppUser? _profile;
   bool _isLoading = false;
+  bool _isProfileLoading = false;
   String? _errorMessage;
 
   User? get user => _user;
   AppUser? get profile => _profile;
   UserRole? get role => _profile?.role;
   bool get isLoading => _isLoading;
+  bool get isProfileLoading => _isProfileLoading;
   String? get errorMessage => _errorMessage;
   bool get isSignedIn => _user != null;
 
@@ -40,11 +48,12 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
+  // Security: public sign-up always creates a STUDENT account. Librarian and
+  // manager accounts are provisioned separately and must never be self-assigned.
   Future<bool> signUp({
     required String email,
     required String password,
     required String name,
-    UserRole role = UserRole.student,
   }) async {
     final success = await _runAuthAction(
       () => _authRepository.signUp(email: email, password: password),
@@ -55,7 +64,7 @@ class AuthProvider extends ChangeNotifier {
         uid: _user!.uid,
         name: name,
         email: email,
-        role: role,
+        role: UserRole.student,
         createdAt: now,
         updatedAt: now,
       );
@@ -74,11 +83,15 @@ class AuthProvider extends ChangeNotifier {
   Future<void> fetchCurrentUserProfile() async {
     final uid = _user?.uid;
     if (uid == null) return;
+    _isProfileLoading = true;
+    notifyListeners();
     try {
       _profile = await _userRepository.getUserProfile(uid);
-      notifyListeners();
     } catch (_) {
+      _profile = null;
       _errorMessage = 'Failed to load user profile.';
+    } finally {
+      _isProfileLoading = false;
       notifyListeners();
     }
   }
