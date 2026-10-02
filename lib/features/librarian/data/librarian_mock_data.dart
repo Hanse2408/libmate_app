@@ -1,5 +1,7 @@
 import '../models/book_record.dart';
+import '../models/borrowing_record.dart';
 import '../models/librarian_notification.dart';
+import '../models/member_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
 
@@ -455,6 +457,120 @@ class LibrarianMockData {
         createdAt: now.subtract(hours(98)),
         isRead: true,
       ),
+    ];
+  }
+
+  /// Loans: active, due today, overdue and returned. Some active loans are
+  /// for books another student has reserved, so they cannot be renewed.
+  static List<BorrowingRecord> borrowings() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    DateTime day(int offset) => today.add(Duration(days: offset));
+
+    // (book id, title, ISBN) of the books on loan.
+    const cleanCode = ('B001', 'Clean Code', '9780132350884');
+    const algorithms = ('B002', 'Introduction to Algorithms', '9780262046305');
+    const databases = ('B003', 'Database System Concepts', '9780078022159');
+    const hci = ('B004', 'Human-Computer Interaction', '9780130461094');
+    const networking = ('B005', 'Computer Networking: A Top-Down Approach', '9780133594140');
+    const patterns = ('B006', 'Design Patterns', '9780201633610');
+    const os = ('B007', 'Operating System Concepts', '9781119800361');
+    const madolDoova = ('B008', 'Madol Doova', '9789552101012');
+    const accounting = ('B009', 'Financial Accounting', '9781119594604');
+
+    /// [issued], [due] and [returned] are day offsets from today.
+    BorrowingRecord loan(
+      String id,
+      String memberId,
+      String memberName,
+      (String, String, String) book,
+      int issued,
+      int due, {
+      int? returned,
+      int renewals = 0,
+    }) {
+      return BorrowingRecord(
+        id: id,
+        memberId: memberId,
+        memberName: memberName,
+        bookId: book.$1,
+        bookTitle: book.$2,
+        isbn: book.$3,
+        issuedAt: day(issued),
+        dueDate: day(due),
+        returnedAt: returned == null ? null : day(returned),
+        renewals: renewals,
+      );
+    }
+
+    return [
+      loan('LN-2001', 'IT23004512', 'Nethmi Perera', cleanCode, -10, 4),
+      loan('LN-2002', 'IT23007789', 'Kavindu Silva', cleanCode, -14, 0),
+      loan('LN-2003', 'IT23003341', 'Sachini Fernando', algorithms, -20, -6),
+      loan('LN-2004', 'IT23817194', 'Tharindu Jayasinghe', algorithms, -12, 2),
+      loan('LN-2005', 'IT23002267', 'Hiruni Bandara', algorithms, -16, -2),
+      loan('LN-2006', 'IT23008831', 'Pasan Gunawardena', algorithms, -5, 9),
+      loan('LN-2007', 'IT23001178', 'Ishara Wickramasinghe', databases, -14, 0),
+      loan('LN-2008', 'IT23006654', 'Dilshan Rathnayake', hci, -3, 11),
+      loan('LN-2009', 'IT23005590', 'Ruwani Dissanayake', hci, -21, 7, renewals: 1),
+      loan('LN-2010', 'IT23826854', 'Janith Gunasekara', patterns, -18, -4),
+      loan('LN-2011', 'IT23865894', 'Nimali Perera', patterns, -9, 5),
+      loan('LN-2012', 'IT23010045', 'Hansi Wijesinghe', os, -8, 6),
+      loan('LN-2013', 'IT23011237', 'Ruwan Darshana', os, -15, -1),
+      loan('LN-2014', 'IT23004512', 'Nethmi Perera', madolDoova, -4, 10),
+      loan('LN-2015', 'IT23007789', 'Kavindu Silva', accounting, -11, 3),
+      loan('LN-2016', 'IT23003341', 'Sachini Fernando', accounting, -13, 1),
+      loan('LN-1990', 'IT23008831', 'Pasan Gunawardena', networking, -20, -6, returned: -1),
+      loan('LN-1991', 'IT23004512', 'Nethmi Perera', cleanCode, -40, -26, returned: -27),
+      loan('LN-1992', 'IT23006654', 'Dilshan Rathnayake', networking, -30, -16, returned: -15),
+      loan('LN-1993', 'IT23010045', 'Hansi Wijesinghe', hci, -25, -11, returned: -12),
+    ];
+  }
+
+  /// Members are the students who appear in the reservations and loans,
+  /// plus one member with no activity and one suspended account.
+  static List<MemberRecord> members() {
+    DateTime since(int year, int month) => DateTime(year, month);
+    const it = 'BSc (Hons) Information Technology';
+    const se = 'BSc (Hons) Software Engineering';
+    const ds = 'BSc (Hons) Data Science';
+
+    MemberRecord member(
+      String id,
+      String name,
+      String email,
+      String phone,
+      String programme,
+      DateTime memberSince, {
+      MemberStatus status = MemberStatus.active,
+    }) {
+      return MemberRecord(
+        id: id,
+        name: name,
+        email: email,
+        phone: phone,
+        programme: programme,
+        memberSince: memberSince,
+        status: status,
+      );
+    }
+
+    return [
+      member('IT23004512', 'Nethmi Perera', 'nethmi.p@gmail.com', '077 123 4512', it, since(2023, 2)),
+      member('IT23007789', 'Kavindu Silva', 'kavindu.s@gmail.com', '071 555 7789', se, since(2023, 2)),
+      member('IT23003341', 'Sachini Fernando', 'sachini.f@gmail.com', '076 220 3341', it, since(2023, 3)),
+      member('IT23817194', 'Tharindu Jayasinghe', 'tharindu.j@gmail.com', '070 817 1940', ds, since(2023, 6)),
+      member('IT23001178', 'Ishara Wickramasinghe', 'ishara.w@gmail.com', '077 900 1178', se, since(2023, 2)),
+      member('IT23006654', 'Dilshan Rathnayake', 'dilshan.r@gmail.com', '072 410 6654', it, since(2024, 1)),
+      member('IT23002267', 'Hiruni Bandara', 'hiruni.b@gmail.com', '075 330 2267', ds, since(2023, 9)),
+      member('IT23008831', 'Pasan Gunawardena', 'pasan.g@gmail.com', '071 908 8831', se, since(2023, 2)),
+      member('IT23005590', 'Ruwani Dissanayake', 'ruwani.d@gmail.com', '077 645 5590', it, since(2024, 2)),
+      member('IT23826854', 'Janith Gunasekara', 'janith.s@gmail.com', '070 382 6854', it, since(2023, 2)),
+      member('IT23865894', 'Nimali Perera', 'nimali.p@gmail.com', '076 386 5894', se, since(2023, 7)),
+      member('IT23010045', 'Hansi Wijesinghe', 'hansi.w@gmail.com', '072 101 0045', ds, since(2024, 3)),
+      member('IT23011237', 'Ruwan Darshana', 'ruwan.d@gmail.com', '075 111 1237', it, since(2024, 3)),
+      member('IT23514658', 'Nilumi Dakshika', 'it23514658@my.sliit.lk', '071 351 4658', it, since(2023, 2)),
+      member('IT23012876', 'Amaya Senanayake', 'amaya.s@gmail.com', '077 128 7600', se, since(2024, 1), status: MemberStatus.suspended),
     ];
   }
 }

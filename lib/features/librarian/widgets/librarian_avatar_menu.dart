@@ -11,11 +11,15 @@ class LibrarianAvatarMenu extends StatelessWidget {
     required this.name,
     required this.email,
     required this.onSignOut,
+    this.links = const [],
   });
 
   final String name;
   final String email;
   final VoidCallback onSignOut;
+
+  /// Extra menu entries (icon, label, action), e.g. Borrowing or Members.
+  final List<(IconData, String, VoidCallback)> links;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,13 @@ class LibrarianAvatarMenu extends StatelessWidget {
       tooltip: 'Account',
       offset: const Offset(0, 56),
       onSelected: (value) {
-        if (value == 'signOut') onSignOut();
+        if (value == 'signOut') {
+          onSignOut();
+          return;
+        }
+        for (final (_, label, action) in links) {
+          if (label == value) action();
+        }
       },
       itemBuilder: (context) => [
         PopupMenuItem<String>(
@@ -34,6 +44,16 @@ class LibrarianAvatarMenu extends StatelessWidget {
             subtitle: Text(email),
           ),
         ),
+        if (links.isNotEmpty) const PopupMenuDivider(),
+        for (final (icon, label, _) in links)
+          PopupMenuItem<String>(
+            value: label,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(icon),
+              title: Text(label),
+            ),
+          ),
         const PopupMenuDivider(),
         const PopupMenuItem<String>(
           value: 'signOut',

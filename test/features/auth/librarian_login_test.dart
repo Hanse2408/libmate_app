@@ -152,10 +152,49 @@ void main() {
       await _signOut(tester);
       expect(router.currentPath, AppRoutes.login);
 
-      for (final path in [LibrarianRoutes.dashboard, LibrarianRoutes.books, LibrarianRoutes.reservationDetails('RSV-1001')]) {
+      for (final path in [
+        LibrarianRoutes.dashboard,
+        LibrarianRoutes.books,
+        LibrarianRoutes.reservationDetails('RSV-1001'),
+        LibrarianRoutes.borrowings,
+        LibrarianRoutes.borrowingDetails('LN-2001'),
+        LibrarianRoutes.members,
+        LibrarianRoutes.memberDetails('IT23004512'),
+        LibrarianRoutes.reports,
+        LibrarianRoutes.settings,
+      ]) {
         router.go(path);
         await tester.pumpAndSettle();
         expect(router.currentPath, AppRoutes.login, reason: path);
+      }
+    });
+
+    testWidgets('Log Out on the Settings screen returns to Login', (tester) async {
+      final router = await _pumpApp(tester, size: const Size(400, 900));
+      await _login(tester);
+
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+      expect(router.currentPath, LibrarianRoutes.settings);
+      expect(find.text('janith@gmail.com'), findsWidgets);
+
+      await tapVisible(tester, find.text('Log Out'));
+      expect(router.currentPath, AppRoutes.login);
+    });
+
+    testWidgets('new sections are reachable after login', (tester) async {
+      final router = await _pumpApp(tester, size: const Size(400, 900));
+      await _login(tester);
+
+      for (final path in [
+        LibrarianRoutes.borrowings,
+        LibrarianRoutes.members,
+        LibrarianRoutes.reports,
+        LibrarianRoutes.settings,
+      ]) {
+        router.go(path);
+        await tester.pumpAndSettle();
+        expect(router.currentPath, path);
       }
     });
 

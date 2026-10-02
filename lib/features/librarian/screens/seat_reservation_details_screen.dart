@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes/librarian_routes.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
 import '../theme/librarian_theme.dart';
@@ -50,7 +52,11 @@ class SeatReservationDetailsScreen extends StatelessWidget {
         ),
         ReservationReference(reservationId: reservation.id),
         ReservationStatusBanner(reservation: reservation, blocker: blocker),
-        StudentInfoCard(reservation: reservation),
+        StudentInfoCard.fromReservation(
+          reservation,
+          onViewMember: () =>
+              context.go(LibrarianRoutes.memberDetails(reservation.studentId)),
+        ),
         InfoSectionCard(
           title: 'Reservation Information',
           children: [

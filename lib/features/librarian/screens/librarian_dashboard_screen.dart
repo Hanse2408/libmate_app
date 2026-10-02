@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../models/borrowing_record.dart';
 import '../models/reservation_record.dart';
 import '../providers/librarian_dashboard_summary.dart';
 import '../providers/reservation_filter.dart';
@@ -164,6 +165,21 @@ class LibrarianDashboardScreen extends StatelessWidget {
               label: 'Add New Seat',
               onTap: () => context.go(LibrarianRoutes.addSeat),
             ),
+            QuickActionTile(
+              icon: Icons.swap_horiz,
+              label: 'Borrowing',
+              onTap: () => context.go(LibrarianRoutes.borrowings),
+            ),
+            QuickActionTile(
+              icon: Icons.people_outline,
+              label: 'Members',
+              onTap: () => context.go(LibrarianRoutes.members),
+            ),
+            QuickActionTile(
+              icon: Icons.bar_chart,
+              label: 'Reports',
+              onTap: () => context.go(LibrarianRoutes.reports),
+            ),
           ],
         ),
       ],
@@ -195,6 +211,18 @@ class LibrarianDashboardScreen extends StatelessWidget {
               : '${summary.conflictCount} booking conflicts detected.',
           actionLabel: 'View',
           onTap: () => context.go(_pendingReservations),
+        ),
+      if (summary.overdueLoans > 0)
+        AttentionCard(
+          icon: Icons.assignment_late_outlined,
+          color: LibrarianColors.unavailable,
+          message: summary.overdueLoans == 1
+              ? '1 borrowed book is overdue.'
+              : '${summary.overdueLoans} borrowed books are overdue.',
+          actionLabel: 'View',
+          onTap: () => context.go(
+            LibrarianRoutes.borrowingsFiltered(BorrowingStatus.overdue),
+          ),
         ),
       if (summary.outOfStockBooks > 0)
         AttentionCard(
@@ -284,8 +312,28 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
           unreadCount: unreadCount,
           onPressed: () => context.go(LibrarianRoutes.notifications),
         ),
+        IconButton(
+          tooltip: 'Settings',
+          onPressed: () => context.go(LibrarianRoutes.settings),
+          icon: const Icon(
+            Icons.settings_outlined,
+            size: 28,
+            color: LibrarianColors.text,
+          ),
+        ),
         const SizedBox(width: LibrarianSpacing.sm),
-        LibrarianAvatarMenu(name: name, email: email, onSignOut: onSignOut),
+        LibrarianAvatarMenu(
+          name: name,
+          email: email,
+          onSignOut: onSignOut,
+          // Secondary navigation for sections not in the bottom bar.
+          links: [
+            (Icons.swap_horiz, 'Borrowing', () => context.go(LibrarianRoutes.borrowings)),
+            (Icons.people_outline, 'Members', () => context.go(LibrarianRoutes.members)),
+            (Icons.bar_chart, 'Reports', () => context.go(LibrarianRoutes.reports)),
+            (Icons.settings_outlined, 'Settings', () => context.go(LibrarianRoutes.settings)),
+          ],
+        ),
         const SizedBox(width: LibrarianSpacing.md + 4),
       ],
     );

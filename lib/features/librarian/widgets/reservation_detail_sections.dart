@@ -30,22 +30,53 @@ class ReservationReference extends StatelessWidget {
 }
 
 class StudentInfoCard extends StatelessWidget {
-  const StudentInfoCard({super.key, required this.reservation});
+  const StudentInfoCard({
+    super.key,
+    required this.name,
+    required this.studentId,
+    required this.email,
+    this.title = 'Student Information',
+    this.onViewMember,
+  });
 
-  final ReservationRecord reservation;
+  StudentInfoCard.fromReservation(ReservationRecord reservation, {Key? key, VoidCallback? onViewMember})
+    : this(
+        key: key,
+        name: reservation.studentName,
+        studentId: reservation.studentId,
+        email: reservation.studentEmail,
+        onViewMember: onViewMember,
+      );
+
+  final String name;
+  final String studentId;
+  final String email;
+  final String title;
+
+  /// Shows a "View member" link to Member Details when set.
+  final VoidCallback? onViewMember;
 
   @override
   Widget build(BuildContext context) {
     return InfoSectionCard(
-      title: 'Student Information',
+      title: title,
       children: [
         InfoGrid(
           items: [
-            InfoItem('Name', reservation.studentName),
-            InfoItem('Student ID', reservation.studentId),
-            InfoItem('Contact', reservation.studentEmail, wide: true),
+            InfoItem('Name', name),
+            InfoItem('Student ID', studentId),
+            InfoItem('Contact', email, wide: true),
           ],
         ),
+        if (onViewMember != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onViewMember,
+              icon: const Icon(Icons.person_outline),
+              label: const Text('View member'),
+            ),
+          ),
       ],
     );
   }

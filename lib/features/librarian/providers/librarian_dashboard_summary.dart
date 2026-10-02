@@ -1,4 +1,5 @@
 import '../data/librarian_mock_repository.dart';
+import '../models/borrowing_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
 
@@ -18,6 +19,7 @@ class LibrarianDashboardSummary {
     required this.maintenanceSeats,
     required this.outOfStockBooks,
     required this.unreadNotifications,
+    required this.overdueLoans,
   });
 
   factory LibrarianDashboardSummary.fromRepository(
@@ -56,6 +58,9 @@ class LibrarianDashboardSummary {
       maintenanceSeats: seatsWith(SeatStatus.maintenance),
       outOfStockBooks: repository.books.where((b) => !b.isAvailable).length,
       unreadNotifications: repository.unreadNotificationCount,
+      overdueLoans: repository.borrowings
+          .where((loan) => loan.status == BorrowingStatus.overdue)
+          .length,
     );
   }
 
@@ -76,6 +81,9 @@ class LibrarianDashboardSummary {
 
   final int outOfStockBooks;
   final int unreadNotifications;
+
+  /// Borrowed books past their due date.
+  final int overdueLoans;
 
   int get todayChange => todayCount - yesterdayCount;
 

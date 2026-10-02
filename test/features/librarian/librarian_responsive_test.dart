@@ -22,6 +22,15 @@ void main() {
     LibrarianRoutes.addBook,
     LibrarianRoutes.editBook('B001'),
     LibrarianRoutes.notifications,
+    LibrarianRoutes.borrowings,
+    LibrarianRoutes.borrowingDetails('LN-2003'), // overdue
+    LibrarianRoutes.borrowingDetails('LN-2001'), // renew blocked
+    LibrarianRoutes.borrowingDetails('LN-1990'), // returned
+    LibrarianRoutes.members,
+    LibrarianRoutes.memberDetails('IT23003341'), // has overdue items
+    LibrarianRoutes.memberDetails('IT23012876'), // suspended, no activity
+    LibrarianRoutes.reports,
+    LibrarianRoutes.settings,
   ];
 
   for (final width in [360.0, 390.0, 720.0, 1280.0]) {

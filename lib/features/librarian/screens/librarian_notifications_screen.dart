@@ -9,6 +9,7 @@ import '../widgets/librarian_empty_state.dart';
 import '../widgets/librarian_page.dart';
 import '../widgets/librarian_page_header.dart';
 import '../widgets/librarian_search_field.dart';
+import '../widgets/librarian_tab_chip.dart';
 import '../widgets/notification_tile.dart';
 
 enum _NotificationFilter { all, unread, reservations, books }
@@ -87,7 +88,7 @@ class _LibrarianNotificationsScreenState
               runSpacing: LibrarianSpacing.sm,
               children: [
                 for (final filter in _NotificationFilter.values)
-                  _FilterChipButton(
+                  LibrarianTabChip(
                     label: switch (filter) {
                       _NotificationFilter.all => 'All',
                       _NotificationFilter.unread => 'Unread ($unread)',
@@ -148,46 +149,5 @@ class _LibrarianNotificationsScreenState
           ),
         ),
     ];
-  }
-}
-
-/// Rounded chip: solid blue when selected, white with an outline otherwise.
-class _FilterChipButton extends StatelessWidget {
-  const _FilterChipButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? LibrarianColors.primary : LibrarianColors.card,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: selected ? LibrarianColors.primary : LibrarianColors.border,
-          width: 1.5,
-        ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : LibrarianColors.text,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

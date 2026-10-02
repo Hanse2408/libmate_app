@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes/librarian_routes.dart';
 import '../models/book_record.dart';
 import '../models/reservation_record.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_formatters.dart';
-import '../widgets/book_cover.dart';
+import '../widgets/book_summary_card.dart';
 import '../widgets/info_grid.dart';
 import '../widgets/info_section_card.dart';
 import '../widgets/librarian_page.dart';
@@ -51,7 +53,7 @@ class BookReservationDetailsScreen extends StatelessWidget {
         ),
         ReservationReference(reservationId: reservation.id),
         ReservationStatusBanner(reservation: reservation, blocker: blocker),
-        _BookSummaryCard(book: book, fallbackTitle: reservation.itemName),
+        BookSummaryCard(book: book, fallbackTitle: reservation.itemName),
         InfoSectionCard(
           title: 'Reservation Info',
           children: [
@@ -75,85 +77,13 @@ class BookReservationDetailsScreen extends StatelessWidget {
             ),
           ],
         ),
-        StudentInfoCard(reservation: reservation),
+        StudentInfoCard.fromReservation(
+          reservation,
+          onViewMember: () =>
+              context.go(LibrarianRoutes.memberDetails(reservation.studentId)),
+        ),
         AdditionalInfoCard(note: reservation.note),
         ReservationActionsCard(reservation: reservation),
-      ],
-    );
-  }
-}
-
-class _BookSummaryCard extends StatelessWidget {
-  const _BookSummaryCard({required this.book, required this.fallbackTitle});
-
-  final BookRecord? book;
-  final String fallbackTitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = book?.title ?? fallbackTitle;
-
-    return InfoSectionCard(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            BookCover(title: title, width: 92, height: 124),
-            const SizedBox(width: LibrarianSpacing.md + 4),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: LibrarianColors.text,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (book != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      book!.author,
-                      style: const TextStyle(
-                        color: LibrarianColors.secondaryText,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: LibrarianSpacing.sm + 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: LibrarianColors.primary.withValues(alpha: 0.4),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Text(
-                        book!.category,
-                        style: const TextStyle(
-                          color: LibrarianColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: LibrarianSpacing.sm + 4),
-                    Text(
-                      'ISBN: ${book!.isbn}',
-                      style: const TextStyle(color: LibrarianColors.secondaryText),
-                    ),
-                  ] else
-                    const Text(
-                      'This book is no longer in the catalogue.',
-                      style: TextStyle(color: LibrarianColors.unavailable),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }

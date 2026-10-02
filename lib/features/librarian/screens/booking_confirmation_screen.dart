@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
-import '../data/librarian_mock_repository.dart';
 import '../models/reservation_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
@@ -84,7 +83,11 @@ class BookingConfirmationScreen extends StatelessWidget {
           children: [
             const Divider(height: 1),
             const SizedBox(height: LibrarianSpacing.sm),
-            for (final (icon, label, value) in _summaryRows(reservation, approved))
+            for (final (icon, label, value) in _summaryRows(
+              reservation,
+              approved,
+              repository.settings.loanPeriodDays,
+            ))
               _SummaryRow(
                 icon: icon,
                 label: label,
@@ -143,6 +146,7 @@ class BookingConfirmationScreen extends StatelessWidget {
   static List<(IconData, String, String)> _summaryRows(
     ReservationRecord r,
     bool approved,
+    int loanDays,
   ) {
     final date = LibrarianFormatters.date(r.date);
     return [
@@ -150,7 +154,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         (Icons.menu_book_outlined, 'Book Title', r.itemName),
         (Icons.calendar_today_outlined, 'Pickup By', date),
         if (approved)
-          (Icons.schedule, 'Period', '${LibrarianMockRepository.loanPeriodDays} Days'),
+          (Icons.schedule, 'Period', '$loanDays Days'),
       ] else ...[
         (Icons.chair_outlined, 'Seat', r.itemName),
         (Icons.calendar_today_outlined, 'Date', date),

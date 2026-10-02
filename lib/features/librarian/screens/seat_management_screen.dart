@@ -12,7 +12,8 @@ import '../widgets/librarian_empty_state.dart';
 import '../widgets/librarian_message_banner.dart';
 import '../widgets/librarian_page.dart';
 import '../widgets/librarian_page_header.dart';
-import '../widgets/seat_count_tile.dart';
+import '../widgets/count_tile.dart';
+import '../widgets/responsive_grid.dart';
 import '../widgets/seat_details_panel.dart';
 import '../widgets/seat_map_card.dart';
 import '../widgets/status_chip.dart';
@@ -94,17 +95,18 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
                 message: _message!,
                 onClose: () => setState(() => _message = null),
               ),
-            Row(
+            ResponsiveGrid(
               children: [
                 for (final status in [
                   SeatStatus.available,
                   SeatStatus.reserved,
                   SeatStatus.occupied,
-                ]) ...[
-                  if (status != SeatStatus.available)
-                    const SizedBox(width: LibrarianSpacing.md),
-                  Expanded(child: SeatCountTile(status: status, count: count(status))),
-                ],
+                ])
+                  CountTile(
+                    label: status.label,
+                    count: count(status),
+                    color: StatusChip.seatColor(status),
+                  ),
               ],
             ),
             const SizedBox(height: LibrarianSpacing.lg),

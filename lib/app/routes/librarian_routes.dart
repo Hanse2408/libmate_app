@@ -2,15 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/librarian/models/borrowing_record.dart';
 import '../../features/librarian/models/reservation_record.dart';
 import '../../features/librarian/providers/reservation_filter.dart';
 import '../../features/librarian/screens/add_book_screen.dart';
 import '../../features/librarian/screens/add_seat_screen.dart';
 import '../../features/librarian/screens/book_management_screen.dart';
 import '../../features/librarian/screens/booking_confirmation_screen.dart';
+import '../../features/librarian/screens/borrowing_details_screen.dart';
+import '../../features/librarian/screens/borrowing_management_screen.dart';
 import '../../features/librarian/screens/librarian_dashboard_screen.dart';
 import '../../features/librarian/screens/librarian_notifications_screen.dart';
+import '../../features/librarian/screens/librarian_settings_screen.dart';
 import '../../features/librarian/screens/librarian_shell.dart';
+import '../../features/librarian/screens/member_details_screen.dart';
+import '../../features/librarian/screens/member_management_screen.dart';
+import '../../features/librarian/screens/reports_screen.dart';
 import '../../features/librarian/screens/reservation_details_screen.dart';
 import '../../features/librarian/screens/reservation_management_screen.dart';
 import '../../features/librarian/screens/seat_management_screen.dart';
@@ -25,7 +32,8 @@ import 'app_routes.dart';
 ///
 /// Optional query parameters:
 /// - reservations: `status` (e.g. pending) and `date` (e.g. today) filters.
-/// - reservation details: `from`, the page the back button returns to.
+/// - borrowings: `status` (e.g. overdue) tab.
+/// - reservation / borrowing details: `from`, the page Back returns to.
 /// Seats / Books accept a success message through GoRouter's `extra`.
 class LibrarianRoutes {
   const LibrarianRoutes._();
@@ -37,11 +45,21 @@ class LibrarianRoutes {
   static const String books = '$dashboard/books';
   static const String addBook = '$books/add';
   static const String notifications = '$dashboard/notifications';
+  static const String borrowings = '$dashboard/borrowings';
+  static const String members = '$dashboard/members';
+  static const String reports = '$dashboard/reports';
+  static const String settings = '$dashboard/settings';
 
   static String reservationDetails(String id) => '$reservations/$id';
   static String reservationConfirmation(String id) =>
       '$reservations/$id/confirmation';
   static String editBook(String id) => '$books/$id/edit';
+  static String borrowingDetails(String id) => '$borrowings/$id';
+  static String memberDetails(String id) => '$members/$id';
+
+  /// Borrowing list opened on a status tab, e.g. from the Dashboard.
+  static String borrowingsFiltered(BorrowingStatus status) =>
+      Uri(path: borrowings, queryParameters: {'status': status.name}).toString();
 
   /// Reservations list opened with filters, e.g. from the Dashboard.
   static String reservationsFiltered({
@@ -85,16 +103,10 @@ class LibrarianRoutes {
               routes: [
                 GoRoute(
                   path: ':id',
-                  builder: (context, state) {
-                    final from = state.uri.queryParameters['from'];
-                    return ReservationDetailsScreen(
-                      reservationId: state.pathParameters['id']!,
-                      // Only allow going back to Librarian pages.
-                      backTo: (from != null && from.startsWith(dashboard))
-                          ? from
-                          : null,
-                    );
-                  },
+                  builder: (context, state) => ReservationDetailsScreen(
+                    reservationId: state.pathParameters['id']!,
+                    backTo: _backTo(state),
+                  ),
                   routes: [
                     GoRoute(
                       path: 'confirmation',
@@ -137,10 +149,54 @@ class LibrarianRoutes {
               path: 'notifications',
               builder: (context, state) => const LibrarianNotificationsScreen(),
             ),
+            GoRoute(
+              path: 'borrowings',
+              builder: (context, state) => BorrowingManagementScreen(
+                key: ValueKey(state.uri.query),
+                initialStatus: _byName(
+                  BorrowingStatus.values,
+                  state.uri.queryParameters['status'],
+                ),
+              ),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) => BorrowingDetailsScreen(
+                    loanId: state.pathParameters['id']!,
+                    backTo: _backTo(state),
+                  ),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'members',
+              builder: (context, state) => const MemberManagementScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) =>
+                      MemberDetailsScreen(memberId: state.pathParameters['id']!),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'reports',
+              builder: (context, state) => const ReportsScreen(),
+            ),
+            GoRoute(
+              path: 'settings',
+              builder: (context, state) => const LibrarianSettingsScreen(),
+            ),
           ],
         ),
       ],
     );
+  }
+
+  /// The `from` query parameter, only if it is a Librarian page.
+  static String? _backTo(GoRouterState state) {
+    final from = state.uri.queryParameters['from'];
+    return (from != null && from.startsWith(dashboard)) ? from : null;
   }
 
   /// Enum value from its name, or null if missing / unknown.

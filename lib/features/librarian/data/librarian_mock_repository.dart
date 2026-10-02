@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 
 import '../models/action_result.dart';
 import '../models/book_record.dart';
+import '../models/borrowing_record.dart';
 import '../models/librarian_notification.dart';
+import '../models/librarian_settings.dart';
+import '../models/member_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
 import 'librarian_mock_data.dart';
@@ -21,21 +24,27 @@ class LibrarianMockRepository extends ChangeNotifier {
     : _books = List.of(LibrarianMockData.books()),
       _seats = List.of(LibrarianMockData.seats()),
       _reservations = List.of(LibrarianMockData.reservations()),
-      _notifications = List.of(LibrarianMockData.notifications());
-
-  /// Standard loan period for an approved book reservation.
-  static const int loanPeriodDays = 14;
+      _notifications = List.of(LibrarianMockData.notifications()),
+      _borrowings = List.of(LibrarianMockData.borrowings()),
+      _members = List.of(LibrarianMockData.members());
 
   final List<BookRecord> _books;
   final List<SeatRecord> _seats;
   final List<ReservationRecord> _reservations;
   final List<LibrarianNotification> _notifications;
+  final List<BorrowingRecord> _borrowings;
+  final List<MemberRecord> _members;
+  LibrarianSettings _settings = const LibrarianSettings();
 
   List<BookRecord> get books => List.unmodifiable(_books);
   List<SeatRecord> get seats => List.unmodifiable(_seats);
   List<ReservationRecord> get reservations => List.unmodifiable(_reservations);
   List<LibrarianNotification> get notifications =>
       List.unmodifiable(_notifications);
+
+  List<BorrowingRecord> get borrowings => List.unmodifiable(_borrowings);
+  List<MemberRecord> get members => List.unmodifiable(_members);
+  LibrarianSettings get settings => _settings;
 
   int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
 
@@ -47,6 +56,12 @@ class LibrarianMockRepository extends ChangeNotifier {
   BookRecord? bookById(String id) => _firstWhereOrNull(_books, (b) => b.id == id);
 
   SeatRecord? seatById(String id) => _firstWhereOrNull(_seats, (s) => s.id == id);
+
+  BorrowingRecord? borrowingById(String id) =>
+      _firstWhereOrNull(_borrowings, (b) => b.id == id);
+
+  MemberRecord? memberById(String id) =>
+      _firstWhereOrNull(_members, (m) => m.id == id);
 
   /// The approved booking currently holding a seat (today or later), if any.
   ReservationRecord? activeReservationForSeat(String seatId) {
@@ -287,6 +302,135 @@ class LibrarianMockRepository extends ChangeNotifier {
   Future<void> updateSeatStatus(String seatId, SeatStatus status) async {
     _setSeatStatus(seatId, status);
     notifyListeners();
+  }
+
+  // ---------------- Borrowings (circulation) ----------------
+
+  /// Why [loan] cannot be renewed right now, or null if it can.
+  /// Used by renewBorrowing and to enable/explain the Renew button.
+  String? renewBlocker(BorrowingRecord loan) {
+    final status = loan.status;
+    if (status == BorrowingStatus.returned) {
+      return 'This book has already been returned.';
+    }
+    if (status == BorrowingStatus.overdue) {
+      return 'Overdue loans cannot be renewed. Please return the book first.';
+    }
+    if (loan.renewals >= LibrarianSettings.maxRenewals) {
+      return 'This loan has already been renewed ${LibrarianSettings.maxRenewals} times.';
+    }
+    final waiting = _reservations.any(
+      (r) =>
+          r.type == ReservationType.book &&
+          r.itemId == loan.bookId &&
+          r.isPending,
+    );
+    if (waiting) {
+      return 'Another student has reserved this book, so it cannot be renewed.';
+    }
+    return null;
+  }
+
+  /// Marks a loan as returned and puts the copy back on the shelf.
+  /// A returned loan cannot be returned again.
+  Future<ActionResult> markBorrowingReturned(String id) async {
+    final index = _borrowings.indexWhere((b) => b.id == id);
+    if (index == -1) return const ActionResult.failure('Loan not found.');
+    final loan = _borrowings[index];
+    if (loan.isReturned) {
+      return const ActionResult.failure('This book has already been returned.');
+    }
+
+    _borrowings[index] = loan.copyWith(returnedAt: DateTime.now());
+    final bookIndex = _books.indexWhere((b) => b.id == loan.bookId);
+    if (bookIndex != -1) {
+      final book = _books[bookIndex];
+      if (book.availableCopies < book.totalCopies) {
+        _books[bookIndex] = book.copyWith(availableCopies: book.availableCopies + 1);
+      }
+    }
+    _addNotification(
+      type: LibrarianNotificationType.bookReturned,
+      title: 'Book Returned',
+      message: '${loan.memberName} returned "${loan.bookTitle}".',
+    );
+    notifyListeners();
+    return const ActionResult.success();
+  }
+
+  /// Extends the due date by the default loan period (see Settings).
+  /// Refused if [renewBlocker] returns a reason.
+  Future<ActionResult> renewBorrowing(String id) async {
+    final index = _borrowings.indexWhere((b) => b.id == id);
+    if (index == -1) return const ActionResult.failure('Loan not found.');
+    final loan = _borrowings[index];
+
+    final blocker = renewBlocker(loan);
+    if (blocker != null) return ActionResult.failure(blocker);
+
+    _borrowings[index] = loan.copyWith(
+      dueDate: loan.dueDate.add(Duration(days: _settings.loanPeriodDays)),
+      renewals: loan.renewals + 1,
+    );
+    notifyListeners();
+    return const ActionResult.success();
+  }
+
+  // ---------------- Members ----------------
+
+  List<BorrowingRecord> borrowingsForMember(String memberId) =>
+      _borrowings.where((b) => b.memberId == memberId).toList();
+
+  List<ReservationRecord> reservationsForMember(String memberId) =>
+      _reservations.where((r) => r.studentId == memberId).toList();
+
+  /// Books the member has now (not yet returned).
+  int currentLoanCount(String memberId) =>
+      _borrowings.where((b) => b.memberId == memberId && !b.isReturned).length;
+
+  int overdueLoanCount(String memberId) => _borrowings
+      .where((b) => b.memberId == memberId && b.status == BorrowingStatus.overdue)
+      .length;
+
+  /// Pending or approved reservations.
+  int activeReservationCount(String memberId) => _reservations
+      .where(
+        (r) =>
+            r.studentId == memberId &&
+            (r.isPending || r.status == ReservationStatus.approved),
+      )
+      .length;
+
+  Future<ActionResult> updateMemberStatus(String id, MemberStatus status) async {
+    final index = _members.indexWhere((m) => m.id == id);
+    if (index == -1) return const ActionResult.failure('Member not found.');
+    if (_members[index].status == status) {
+      return ActionResult.failure('This account is already ${status.label.toLowerCase()}.');
+    }
+    _members[index] = _members[index].copyWith(status: status);
+    notifyListeners();
+    return const ActionResult.success();
+  }
+
+  // ---------------- Settings ----------------
+
+  /// Saves new settings after checking the values make sense.
+  Future<ActionResult> updateSettings(LibrarianSettings settings) async {
+    if (settings.openingHour >= settings.closingHour) {
+      return const ActionResult.failure('Closing time must be after opening time.');
+    }
+    if (settings.maxBorrowLimit < 1 || settings.maxBorrowLimit > 20) {
+      return const ActionResult.failure('Borrowing limit must be between 1 and 20 books.');
+    }
+    if (settings.loanPeriodDays < 1 || settings.loanPeriodDays > 60) {
+      return const ActionResult.failure('Borrowing period must be between 1 and 60 days.');
+    }
+    if (settings.seatBookingHours < 1 || settings.seatBookingHours > 8) {
+      return const ActionResult.failure('Seat booking duration must be between 1 and 8 hours.');
+    }
+    _settings = settings;
+    notifyListeners();
+    return const ActionResult.success();
   }
 
   // ---------------- Notifications ----------------

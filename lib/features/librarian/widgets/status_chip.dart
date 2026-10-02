@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/book_record.dart';
+import '../models/borrowing_record.dart';
+import '../models/member_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
 import '../theme/librarian_theme.dart';
@@ -19,6 +21,28 @@ class StatusChip extends StatelessWidget {
 
   factory StatusChip.bookStock(BookStock stock) {
     return StatusChip(label: stock.label, color: bookStockColor(stock));
+  }
+
+  factory StatusChip.borrowing(BorrowingStatus status) {
+    return StatusChip(label: status.label, color: borrowingColor(status));
+  }
+
+  factory StatusChip.member(MemberStatus status) {
+    return StatusChip(
+      label: status.label,
+      color: status == MemberStatus.active
+          ? LibrarianColors.available
+          : LibrarianColors.secondaryText,
+    );
+  }
+
+  static Color borrowingColor(BorrowingStatus status) {
+    return switch (status) {
+      BorrowingStatus.active => LibrarianColors.available,
+      BorrowingStatus.dueToday => LibrarianColors.gold,
+      BorrowingStatus.overdue => LibrarianColors.unavailable,
+      BorrowingStatus.returned => LibrarianColors.primary,
+    };
   }
 
   static Color bookStockColor(BookStock stock) {
