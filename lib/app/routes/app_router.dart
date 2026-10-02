@@ -3,11 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
-import '../../features/librarian/screens/librarian_dashboard_screen.dart';
 import '../../features/manager/screens/manager_dashboard_screen.dart';
 import '../../features/student/common/screens/student_home_screen.dart';
 import '../../models/user.dart';
 import 'app_routes.dart';
+import 'librarian_routes.dart';
 
 /// Builds the app's GoRouter and redirects by Firebase auth state + Firestore role.
 class AppRouter {
@@ -23,16 +23,13 @@ class AppRouter {
           ),
           GoRoute(
             path: AppRoutes.login,
-            builder: (context, state) => const LoginScreen(),
+            builder: (context, state) => LoginScreen(authProvider: authProvider),
           ),
           GoRoute(
             path: AppRoutes.studentHome,
             builder: (context, state) => const StudentHomeScreen(),
           ),
-          GoRoute(
-            path: AppRoutes.librarianDashboard,
-            builder: (context, state) => const LibrarianDashboardScreen(),
-          ),
+          LibrarianRoutes.shellRoute(authProvider),
           GoRoute(
             path: AppRoutes.managerDashboard,
             builder: (context, state) => const ManagerDashboardScreen(),
@@ -44,7 +41,8 @@ class AppRouter {
 
   static String? _redirect(AuthProvider authProvider, GoRouterState state) {
     final location = state.matchedLocation;
-    final loggedIn = authProvider.user != null;
+    // Firebase user, or the temporary librarian session (see AuthProvider).
+    final loggedIn = authProvider.isSignedIn;
 
     if (!loggedIn) {
       return location == AppRoutes.login ? null : AppRoutes.login;
@@ -67,7 +65,10 @@ class AppRouter {
       UserRole.manager => AppRoutes.managerDashboard,
     };
 
-    return location == destination ? null : destination;
+    // Allow the role's home and its sub-pages (e.g. /librarian/books).
+    final isInOwnArea =
+        location == destination || location.startsWith('$destination/');
+    return isInOwnArea ? null : destination;
   }
 }
 

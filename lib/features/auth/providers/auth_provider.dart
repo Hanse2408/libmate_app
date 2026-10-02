@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../../models/user.dart';
 import '../../../repositories/auth_repository.dart';
 import '../../../repositories/user_repository.dart';
+import 'temporary_librarian_login.dart';
 
 /// Manages auth loading/user/error state for the UI layer.
 class AuthProvider extends ChangeNotifier {
@@ -15,7 +16,8 @@ class AuthProvider extends ChangeNotifier {
     _authStateSubscription = _authRepository.authStateChanges.listen((user) {
       _user = user;
       if (user == null) {
-        _profile = null;
+        // TEMPORARY LIBRARIAN LOGIN: keep the mock session's profile.
+        if (!_isTemporaryLibrarianSession) _profile = null;
         notifyListeners();
       } else {
         notifyListeners();
@@ -34,13 +36,44 @@ class AuthProvider extends ChangeNotifier {
   bool _isProfileLoading = false;
   String? _errorMessage;
 
+  // TEMPORARY LIBRARIAN LOGIN
+  // Replace with Firebase Auth when backend/database integration is available.
+  bool _isTemporaryLibrarianSession = false;
+
   User? get user => _user;
   AppUser? get profile => _profile;
   UserRole? get role => _profile?.role;
   bool get isLoading => _isLoading;
   bool get isProfileLoading => _isProfileLoading;
   String? get errorMessage => _errorMessage;
-  bool get isSignedIn => _user != null;
+  bool get isSignedIn => _user != null || _isTemporaryLibrarianSession;
+  bool get isTemporaryLibrarianSession => _isTemporaryLibrarianSession;
+
+  // TEMPORARY LIBRARIAN LOGIN
+  // Replace with Firebase Auth when backend/database integration is available.
+  // Checks the development-only credentials (no Firebase / Firestore call).
+  // On success the router sees a librarian profile and opens /librarian.
+  bool signInTemporaryLibrarian({
+    required String email,
+    required String password,
+  }) {
+    if (!TemporaryLibrarianLogin.matches(email, password)) {
+      _errorMessage = 'Invalid email or password.';
+      notifyListeners();
+      return false;
+    }
+    _errorMessage = null;
+    _isTemporaryLibrarianSession = true;
+    _profile = TemporaryLibrarianLogin.profile;
+    notifyListeners();
+    return true;
+  }
+
+  void clearError() {
+    if (_errorMessage == null) return;
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   Future<bool> signIn({required String email, required String password}) {
     return _runAuthAction(
@@ -97,6 +130,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // TEMPORARY LIBRARIAN LOGIN: the mock session has no Firebase user.
+    if (_isTemporaryLibrarianSession) {
+      _isTemporaryLibrarianSession = false;
+      _profile = null;
+      _errorMessage = null;
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
