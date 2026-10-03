@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/signup_screen.dart';
 import '../../features/librarian/screens/librarian_dashboard_screen.dart';
 import '../../features/manager/screens/manager_dashboard_screen.dart';
 import '../../features/student/common/screens/student_home_screen.dart';
@@ -23,11 +24,18 @@ class AppRouter {
           ),
           GoRoute(
             path: AppRoutes.login,
-            builder: (context, state) => const LoginScreen(),
+            builder: (context, state) =>
+                LoginScreen(authProvider: authProvider),
+          ),
+          GoRoute(
+            path: AppRoutes.signup,
+            builder: (context, state) =>
+                SignupScreen(authProvider: authProvider),
           ),
           GoRoute(
             path: AppRoutes.studentHome,
-            builder: (context, state) => const StudentHomeScreen(),
+            builder: (context, state) =>
+                StudentHomeScreen(authProvider: authProvider),
           ),
           GoRoute(
             path: AppRoutes.librarianDashboard,
@@ -47,7 +55,9 @@ class AppRouter {
     final loggedIn = authProvider.user != null;
 
     if (!loggedIn) {
-      return location == AppRoutes.login ? null : AppRoutes.login;
+      return location == AppRoutes.login || location == AppRoutes.signup
+          ? null
+          : AppRoutes.login;
     }
 
     // Signed in but the Firestore profile/role hasn't resolved yet.
