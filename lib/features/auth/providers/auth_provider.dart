@@ -33,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isProfileLoading = false;
   String? _errorMessage;
+  UserRole? _expectedLoginRole;
 
   User? get user => _user;
   AppUser? get profile => _profile;
@@ -42,10 +43,17 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isSignedIn => _user != null;
 
-  Future<bool> signIn({required String email, required String password}) {
-    return _runAuthAction(
+  Future<bool> signIn({
+    required String email,
+    required String password,
+    required UserRole selectedRole,
+  }) async {
+    _expectedLoginRole = selectedRole;
+    final success = await _runAuthAction(
       () => _authRepository.signIn(email: email, password: password),
     );
+    if (!success) _expectedLoginRole = null;
+    return success;
   }
 
   // Security: public sign-up always creates a STUDENT account. Librarian and
@@ -54,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String name,
+    required String studentId,
   }) async {
     final success = await _runAuthAction(
       () => _authRepository.signUp(email: email, password: password),
@@ -63,6 +72,7 @@ class AuthProvider extends ChangeNotifier {
       final newProfile = AppUser(
         uid: _user!.uid,
         name: name,
+        studentId: studentId,
         email: email,
         role: UserRole.student,
         createdAt: now,
@@ -86,7 +96,26 @@ class AuthProvider extends ChangeNotifier {
     _isProfileLoading = true;
     notifyListeners();
     try {
-      _profile = await _userRepository.getUserProfile(uid);
+      final loadedProfile = await _userRepository.getUserProfile(uid);
+      final expectedRole = _expectedLoginRole;
+      _expectedLoginRole = null;
+
+      if (loadedProfile != null &&
+          expectedRole != null &&
+          loadedProfile.role != expectedRole) {
+        _profile = null;
+        _errorMessage =
+            'This account is registered as ${_roleLabel(loadedProfile.role)}. '
+            'Please select ${_roleLabel(expectedRole)}.';
+        try {
+          await _authRepository.signOut();
+          _user = null;
+        } catch (_) {
+          _errorMessage = '$_errorMessage Sign-out failed; please try again.';
+        }
+      } else {
+        _profile = loadedProfile;
+      }
     } catch (_) {
       _profile = null;
       _errorMessage = 'Failed to load user profile.';
@@ -94,6 +123,10 @@ class AuthProvider extends ChangeNotifier {
       _isProfileLoading = false;
       notifyListeners();
     }
+  }
+
+  String _roleLabel(UserRole role) {
+    return '${role.name[0].toUpperCase()}${role.name.substring(1)}';
   }
 
   Future<void> signOut() async {

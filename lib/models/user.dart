@@ -23,12 +23,14 @@ class AppUser {
     required this.name,
     required this.email,
     required this.role,
+    this.studentId,
     this.createdAt,
     this.updatedAt,
   });
 
   final String uid;
   final String name;
+  final String? studentId;
   final String email;
   final UserRole role;
   final DateTime? createdAt;
@@ -38,8 +40,11 @@ class AppUser {
     return AppUser(
       uid: map['uid'] as String,
       name: map['name'] as String? ?? '',
+      studentId: map['studentId'] as String?,
       email: map['email'] as String? ?? '',
-      role: UserRole.fromValue(map['role'] as String? ?? UserRole.student.value),
+      role: UserRole.fromValue(
+        map['role'] as String? ?? UserRole.student.value,
+      ),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -49,15 +54,19 @@ class AppUser {
     return {
       'uid': uid,
       'name': name,
+      'studentId': studentId,
       'email': email,
       'role': role.value,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 
   AppUser copyWith({
     String? name,
+    String? studentId,
     String? email,
     UserRole? role,
     DateTime? createdAt,
@@ -66,6 +75,7 @@ class AppUser {
     return AppUser(
       uid: uid,
       name: name ?? this.name,
+      studentId: studentId ?? this.studentId,
       email: email ?? this.email,
       role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
