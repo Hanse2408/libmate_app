@@ -2,8 +2,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';*/
 import 'package:flutter/material.dart';
+
+import '../../../auth/providers/auth_provider.dart';
 class StudentHomeScreen extends StatefulWidget {
-  const StudentHomeScreen({super.key});
+  const StudentHomeScreen({
+    super.key,
+    required this.authProvider,
+  });
+
+  final AuthProvider authProvider;
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
