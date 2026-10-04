@@ -8,4 +8,15 @@ class AppRoutes {
   static const String studentHome = '/student';
   static const String librarianDashboard = '/librarian';
   static const String managerDashboard = '/manager';
+  static const String managerReservations = '/manager/reservations';
+  static const String managerReservationDetails =
+      '/manager/reservations/details';
+  static const String managerConflict = '/manager/conflict';
+  static const String managerReassignSeat = '/manager/reassign-seat';
+  static const String managerResolved = '/manager/resolved';
+  static const String managerReadingRoom = '/manager/reading-room';
+  static const String managerReports = '/manager/reports';
+  static const String managerPolicies = '/manager/policies';
+  static const String managerUsers = '/manager/users';
+  static const String managerNotifications = '/manager/notifications';
 }
