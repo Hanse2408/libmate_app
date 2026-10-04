@@ -1,0 +1,163 @@
+rules_version = '2';
+
+// LibMate Cloud Firestore security rules.
+// Deploy: firebase deploy --only firestore:rules  (or paste into the Firebase
+// console > Firestore Database > Rules). Roles come from users/{uid}.role.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(profilePath());
+    }
+
+    function role() {
+      return get(profilePath()).data.role;
+    }
+
+    // Librarians and managers manage the library.
+    function isStaff() {
+      return hasProfile() && role() in ['librarian', 'manager'];
+    }
+
+    function isStudent() {
+      return hasProfile() && role() == 'student';
+    }
+
+    // Suspended members cannot make new reservations.
+    function isActiveStudent() {
+      return isStudent() && get(profilePath()).data.get('accountStatus', 'active') != 'suspended';
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ---------------- Users ----------------
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+
+      // Public sign-up creates STUDENT profiles only; librarian and manager
+      // accounts are created by an administrator in the console.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'student'
+        && !('accountStatus' in request.resource.data);
+
+      // Users may edit their own profile but never their role or status.
+      // Staff may only suspend / reactivate (accountStatus).
+      allow update: if (signedIn() && request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['uid', 'role', 'accountStatus']))
+        || (isStaff() && changedOnly(['accountStatus', 'updatedAt']));
+
+      allow delete: if false;
+    }
+
+    // ---------------- Catalogue ----------------
+    function validBook() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() > 0
+        && d.author is string && d.author.size() > 0
+        && d.isbn is string && d.isbnKey is string
+        && d.totalCopies is int && d.totalCopies >= 1
+        && d.availableCopies is int
+        && d.availableCopies >= 0 && d.availableCopies <= d.totalCopies;
+    }
+
+    match /books/{bookId} {
+      allow read: if signedIn();
+      allow create, update: if isStaff() && validBook();
+      allow delete: if isStaff();
+    }
+
+    match /seats/{seatId} {
+      allow read: if signedIn();
+      allow create, update: if isStaff()
+        && request.resource.data.seatNumber is string
+        && request.resource.data.seatKey is string
+        && request.resource.data.status in ['available', 'reserved', 'occupied', 'maintenance'];
+      allow delete: if isStaff();
+    }
+
+    // ---------------- Reservations ----------------
+    match /reservations/{reservationId} {
+      // Students only see their own reservations.
+      allow read: if isStaff()
+        || (signedIn() && resource.data.studentUid == request.auth.uid);
+
+      // A student requests a reservation for themselves; it starts pending.
+      allow create: if isActiveStudent()
+        && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && ((request.resource.data.type == 'book'
+              && exists(/databases/$(database)/documents/books/$(request.resource.data.itemId)))
+          || (request.resource.data.type == 'seat'
+              && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))));
+
+      // Staff approve / reject / complete. A student may only cancel their
+      // own pending reservation or seat booking (not an approved book).
+      allow update: if isStaff()
+        || (signedIn()
+          && resource.data.studentUid == request.auth.uid
+          && resource.data.status in ['pending', 'approved']
+          && !(resource.data.type == 'book' && resource.data.status == 'approved')
+          && request.resource.data.status == 'cancelled'
+          && changedOnly(['status', 'updatedAt']));
+
+      allow delete: if false;
+    }
+
+    // One document per booked seat-hour: {seatId}_{yyyyMMdd}_{HH}.
+    // "create" only succeeds if the document does not exist yet, so two
+    // students can never hold the same seat-hour (overlap protection).
+    match /seatSlots/{slotId} {
+      allow read: if signedIn();
+      allow create: if isActiveStudent()
+        && request.resource.data.studentUid == request.auth.uid
+        && slotId.matches(request.resource.data.seatId + '_[0-9]{8}_[0-9]{2}')
+        && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.studentUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.itemId == request.resource.data.seatId;
+      allow update: if false;
+      allow delete: if isStaff()
+        || (signedIn() && resource.data.studentUid == request.auth.uid);
+    }
+
+    // ---------------- Circulation ----------------
+    match /borrowings/{loanId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.memberUid == request.auth.uid);
+      allow write: if isStaff();
+    }
+
+    // ---------------- Notifications ----------------
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isStaff();
+      // Students can only send "new request" / "cancelled" alerts to staff.
+      allow create: if isStaff()
+        || (isStudent()
+          && request.resource.data.audience == 'librarian'
+          && request.resource.data.type in ['newRequest', 'cancelled']
+          && request.resource.data.isRead == false);
+    }
+
+    // ---------------- Settings ----------------
+    match /settings/{settingsId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
