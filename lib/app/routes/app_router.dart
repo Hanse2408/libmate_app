@@ -7,6 +7,13 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/librarian/data/librarian_repository.dart';
 import '../../features/manager/screens/manager_dashboard_screen.dart';
+import '../../features/manager/screens/manager_reservation_screens.dart';
+import '../../features/manager/screens/manager_reading_room_screen.dart';
+import '../../features/manager/screens/manager_reports_screen.dart';
+import '../../features/manager/screens/manager_policies_screen.dart';
+import '../../features/manager/screens/manager_users_screen.dart';
+import '../../features/manager/screens/manager_notifications_screen.dart';
+import '../../features/manager/data/manager_mock_data.dart';
 import '../../features/student/common/data/student_library_repository.dart';
 import '../../features/student/common/screens/student_home_screen.dart';
 import '../../models/user.dart';
@@ -57,6 +64,52 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.managerDashboard,
             builder: (context, state) => const ManagerDashboardScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerReservations,
+            builder: (context, state) => const ManagerReservationsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerReservationDetails,
+            builder: (context, state) => ManagerReservationDetailsScreen(
+              reservation: state.extra is ManagerReservation
+                  ? state.extra! as ManagerReservation
+                  : managerReservations[1],
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.managerConflict,
+            builder: (context, state) => const ManagerConflictScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerReassignSeat,
+            builder: (context, state) => const ManagerReassignSeatScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerResolved,
+            builder: (context, state) => ManagerResolvedScreen(
+              newSeat: state.extra is String ? state.extra! as String : 'A08',
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.managerReadingRoom,
+            builder: (context, state) => const ManagerReadingRoomScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerReports,
+            builder: (context, state) => const ManagerReportsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerPolicies,
+            builder: (context, state) => const ManagerPoliciesScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerUsers,
+            builder: (context, state) => const ManagerUsersScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.managerNotifications,
+            builder: (context, state) => const ManagerNotificationsScreen(),
           ),
         ],
       );

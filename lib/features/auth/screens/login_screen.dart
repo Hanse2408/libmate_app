@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
+import '../../../app/theme/app_theme.dart';
 import '../../../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_widgets.dart';
@@ -58,6 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = widget.authProvider;
+    if (_selectedRole == 'Manager') {
+      return _buildManagerLogin(authProvider);
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -272,6 +276,205 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  Widget _buildManagerLogin(AuthProvider authProvider) {
+    return Theme(
+      data: AppTheme.light,
+      child: Builder(
+        builder: (context) {
+          final colors = Theme.of(context).colorScheme;
+          return Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28,
+                        vertical: 28,
+                      ),
+                      shrinkWrap: true,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.menu_book_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          'LibMate',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.primary,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Library Management System',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontSize: 10),
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          'Manager Login',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontSize: 16),
+                        ),
+                        const SizedBox(height: 21),
+                        _ManagerLoginField(
+                          label: 'Email',
+                          hint: 'manager@libmate.com',
+                          controller: _emailController,
+                          validator: (value) => value?.trim().isEmpty ?? true
+                              ? 'Email is required.'
+                              : null,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 15),
+                        _ManagerLoginField(
+                          label: 'Password',
+                          hint: '••••••••',
+                          controller: _passwordController,
+                          validator: (value) => value?.isEmpty ?? true
+                              ? 'Password is required.'
+                              : null,
+                          obscureText: !_passwordVisible,
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () => _passwordVisible = !_passwordVisible,
+                            ),
+                            icon: Icon(
+                              _passwordVisible
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) =>
+                                  setState(() => _rememberMe = value ?? false),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            Text(
+                              'Remember me',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                        if (authProvider.errorMessage != null) ...[
+                          const SizedBox(height: 7),
+                          _AuthErrorMessage(
+                            message: authProvider.errorMessage!,
+                          ),
+                        ],
+                        const SizedBox(height: 7),
+                        AuthPrimaryButton(
+                          label: 'Login',
+                          isLoading: authProvider.isLoading,
+                          onPressed: _signIn,
+                        ),
+                        const SizedBox(height: 7),
+                        TextButton(
+                          onPressed: () {},
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _selectedRole = 'Student'),
+                          child: const Text('Back to role selection'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ManagerLoginField extends StatelessWidget {
+  const _ManagerLoginField({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    required this.validator,
+    this.keyboardType,
+    this.obscureText = false,
+    this.suffixIcon,
+  });
+
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final String? Function(String?) validator;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? suffixIcon;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 5),
+      TextFormField(
+        controller: controller,
+        validator: validator,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        style: const TextStyle(fontSize: 12),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: Theme.of(context).textTheme.bodySmall?.color,
+            fontSize: 11,
+          ),
+          suffixIcon: suffixIcon,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 11,
+          ),
+          isDense: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    ],
+  );
 }
 
 class _RoleChoice extends StatelessWidget {
