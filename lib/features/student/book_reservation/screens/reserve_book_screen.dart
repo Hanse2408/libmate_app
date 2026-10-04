@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../../models/book_reservation.dart';
+import '../providers/book_reservation_provider.dart';
 
 class ReserveBookScreen extends StatefulWidget {
   const ReserveBookScreen({super.key});
@@ -8,6 +12,9 @@ class ReserveBookScreen extends StatefulWidget {
 }
 
 class _ReserveBookScreenState extends State<ReserveBookScreen> {
+  final BookReservationProvider _reservationProvider =
+    BookReservationProvider();
+
   DateTime _pickupDate = DateTime(2025, 9, 15);
   int _loanPeriod = 14;
   String _pickupLocation = 'Main Desk (Floor 1)';
@@ -709,50 +716,86 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     }
   }
 
-  void _confirmReservation() {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+ Future<void> _confirmReservation() async {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please sign in to make a reservation.'),
+      ),
+    );
+    return;
+  }
+
+  final reservation = BookReservation(
+    reservationId: '',
+    userId: user.uid,
+    bookId: 'CLEAN_CODE',
+    pickupDate: _pickupDate,
+    loanPeriodDays: _loanPeriod,
+    status: 'PENDING',
+    receiptCode: 'RC-${DateTime.now().millisecondsSinceEpoch}',
+  );
+
+  final reservationId =
+      await _reservationProvider.createReservation(reservation);
+
+  if (!mounted) return;
+
+  if (reservationId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Failed to create reservation. Please try again.'),
+      ),
+    );
+    return;
+  }
+
+  showDialog<void>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Text(
+          'Reservation Confirmed',
+          style: TextStyle(
+            color: Color(0xFF172033),
+            fontWeight: FontWeight.w700,
           ),
-          title: const Text(
-            'Reservation Confirmed',
-            style: TextStyle(
-              color: Color(0xFF172033),
-              fontWeight: FontWeight.w700,
-            ),
+        ),
+        content: Text(
+          'Your Clean Code reservation has been created.\n\n'
+          'Pickup: ${_formatDate(_pickupDate)}\n'
+          'Loan period: $_loanPeriod days\n'
+          'Location: $_pickupLocation\n\n'
+          'Receipt Code: ${reservation.receiptCode}',
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.5,
           ),
-          content: Text(
-            'Your Clean Code reservation has been created.\n\n'
-            'Pickup: ${_formatDate(_pickupDate)}\n'
-            'Loan period: $_loanPeriod days\n'
-            'Location: $_pickupLocation',
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontWeight: FontWeight.w700,
-                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF2563EB),
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          ),
+        ],
+      );
+    },
+  );
+}
 
   String _formatDate(DateTime date) {
     const months = [

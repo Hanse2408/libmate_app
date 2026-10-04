@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/book.dart';
+import '../providers/book_provider.dart';
+
 class FindBooksScreen extends StatefulWidget {
   const FindBooksScreen({super.key});
 
@@ -8,7 +11,14 @@ class FindBooksScreen extends StatefulWidget {
 }
 
 class _FindBooksScreenState extends State<FindBooksScreen> {
+  final BookProvider _bookProvider = BookProvider();
   final TextEditingController _searchController = TextEditingController();
+
+  void _onProviderChanged() {
+  if (mounted) {
+    setState(() {});
+  }
+}
 
   String _selectedCategory = 'All';
 
@@ -21,49 +31,11 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     'Fiction',
   ];
 
-  final List<Book> _books = [
-    Book(
-      title: 'Clean Code',
-      author: 'Robert C. Martin',
-      category: 'Programming',
-      available: true,
-      description:
-          'A handbook of agile software craftsmanship that helps developers write clean, readable, and maintainable code.',
-      color: Color(0xFF2563EB),
-    ),
-    Book(
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      category: 'Self-Help',
-      available: true,
-      description:
-          'A practical guide to building good habits, breaking bad ones, and making small changes that lead to remarkable results.',
-      color: Color(0xFFF2B84B),
-    ),
-    Book(
-      title: 'Thinking, Fast and Slow',
-      author: 'Daniel Kahneman',
-      category: 'Psychology',
-      available: false,
-      description:
-          'An exploration of the two systems that drive the way people think and make decisions.',
-      color: Color(0xFF64748B),
-    ),
-    Book(
-      title: 'Deep Work',
-      author: 'Cal Newport',
-      category: 'Self-Help',
-      available: true,
-      description:
-          'A guide to focused work and developing the ability to concentrate without distraction.',
-      color: Color(0xFF1E3A8A),
-    ),
-  ];
 
-  List<Book> get _filteredBooks {
+    List<Book> get _filteredBooks {
     final searchText = _searchController.text.toLowerCase().trim();
 
-    return _books.where((book) {
+    return _bookProvider.books.where((book) {
       final matchesCategory =
           _selectedCategory == 'All' ||
           book.category == _selectedCategory;
@@ -78,11 +50,13 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     }).toList();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
+ @override
+void initState() {
+  super.initState();
+  _searchController.addListener(_onSearchChanged);
+  _bookProvider.addListener(_onProviderChanged);
+  _bookProvider.loadBooks();
+}
 
   void _onSearchChanged() {
     setState(() {});
@@ -93,6 +67,10 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     _searchController
       ..removeListener(_onSearchChanged)
       ..dispose();
+
+    _bookProvider.removeListener(_onProviderChanged);
+    _bookProvider.dispose();
+
     super.dispose();
   }
 
@@ -446,48 +424,31 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
-  Widget _buildBookCover(Book book) {
-    return Container(
-      width: 82,
-      height: 112,
-      decoration: BoxDecoration(
-        color: book.color,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: book.color.withValues(alpha: 0.18),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.menu_book_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              book.title,
-              maxLines: 3,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+ Widget _buildBookCover(Book book) {
+  return Container(
+    width: 82,
+    height: 112,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 4),
         ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        book.coverAsset,
+        width: 82,
+        height: 112,
+        fit: BoxFit.cover,
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState() {
     return Container(
@@ -772,20 +733,3 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
   }
 }
 
-class Book {
-  const Book({
-    required this.title,
-    required this.author,
-    required this.category,
-    required this.available,
-    required this.description,
-    required this.color,
-  });
-
-  final String title;
-  final String author;
-  final String category;
-  final bool available;
-  final String description;
-  final Color color;
-}

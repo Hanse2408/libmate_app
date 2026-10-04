@@ -27,7 +27,8 @@ class BookProvider extends ChangeNotifier {
     try {
       _books = await _bookRepository.getBooks();
     } catch (e) {
-      _error = 'Failed to load books.';
+        _error = 'Failed to load books: $e';
+        debugPrint('BOOK LOAD ERROR: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -34,17 +34,16 @@ class BookService {
   }
 
   Future<Book?> getBook(String bookId) async {
-    final doc = await _booksCollection.doc(bookId).get();
+    final snapshot = await _booksCollection
+        .where('bookId', isEqualTo: bookId)
+        .limit(1)
+        .get();
 
-    if (!doc.exists) {
+    if (snapshot.docs.isEmpty) {
       return null;
     }
 
-    final data = doc.data();
-
-    if (data == null) {
-      return null;
-    }
+    final data = snapshot.docs.first.data();
 
     return Book(
       bookId: data['bookId'] as String,
