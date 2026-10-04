@@ -1,4 +1,4 @@
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 import '../models/borrowing_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
@@ -44,7 +44,7 @@ class LibrarianReport {
   });
 
   factory LibrarianReport.fromRepository(
-    LibrarianMockRepository repository,
+    LibrarianRepository repository,
     ReportPeriod period, {
     DateTime? now,
   }) {

@@ -1,4 +1,4 @@
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 import '../models/member_record.dart';
 
 enum MemberFilterOption {
@@ -18,7 +18,7 @@ class MemberFilter {
   final String query;
   final MemberFilterOption option;
 
-  List<MemberRecord> apply(LibrarianMockRepository repository) {
+  List<MemberRecord> apply(LibrarianRepository repository) {
     final text = query.trim().toLowerCase();
     return repository.members.where((member) {
       final optionOk = switch (option) {

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Groups used by the filter chips on the Notifications screen.
 enum NotificationCategory { reservations, books, seats }
 
@@ -38,6 +40,35 @@ class LibrarianNotification {
   /// Set when tapping the notification should open a reservation.
   final String? reservationId;
   final bool isRead;
+
+  /// Reads a `notifications/{id}` document (audience "librarian").
+  factory LibrarianNotification.fromMap(String id, Map<String, dynamic> map) {
+    var type = LibrarianNotificationType.newRequest;
+    for (final value in LibrarianNotificationType.values) {
+      if (value.name == map['type']) type = value;
+    }
+    return LibrarianNotification(
+      id: id,
+      type: type,
+      title: map['title'] as String? ?? '',
+      message: map['message'] as String? ?? '',
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      reservationId: map['reservationId'] as String?,
+      isRead: map['isRead'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'audience': 'librarian',
+      'type': type.name,
+      'title': title,
+      'message': message,
+      'createdAt': FieldValue.serverTimestamp(),
+      'reservationId': reservationId,
+      'isRead': isRead,
+    };
+  }
 
   LibrarianNotification copyWith({bool? isRead}) {
     return LibrarianNotification(

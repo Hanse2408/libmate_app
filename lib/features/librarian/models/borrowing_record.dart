@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum BorrowingStatus {
   active('Active'),
   dueToday('Due Today'),
@@ -8,8 +10,9 @@ enum BorrowingStatus {
   final String label;
 }
 
-/// A book a member has borrowed (a loan). Local model used with mock data
-/// until a shared model / Firestore collection exists.
+/// A book a member has borrowed (a loan), stored in Firestore at
+/// `borrowings/{id}`. Created when a librarian marks an approved book
+/// reservation as collected.
 ///
 /// The status is calculated from the dates, so a loan becomes "Due Today"
 /// or "Overdue" automatically as days pass.
@@ -42,6 +45,35 @@ class BorrowingRecord {
   final int renewals;
 
   bool get isReturned => returnedAt != null;
+
+  factory BorrowingRecord.fromMap(String id, Map<String, dynamic> map) {
+    return BorrowingRecord(
+      id: id,
+      memberId: map['memberId'] as String? ?? '',
+      memberName: map['memberName'] as String? ?? '',
+      bookId: map['bookId'] as String? ?? '',
+      bookTitle: map['bookTitle'] as String? ?? '',
+      isbn: map['isbn'] as String? ?? '',
+      issuedAt: (map['issuedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      dueDate: (map['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      returnedAt: (map['returnedAt'] as Timestamp?)?.toDate(),
+      renewals: (map['renewals'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'memberId': memberId,
+      'memberName': memberName,
+      'bookId': bookId,
+      'bookTitle': bookTitle,
+      'isbn': isbn,
+      'issuedAt': Timestamp.fromDate(issuedAt),
+      'dueDate': Timestamp.fromDate(dueDate),
+      'returnedAt': returnedAt == null ? null : Timestamp.fromDate(returnedAt!),
+      'renewals': renewals,
+    };
+  }
 
   BorrowingStatus get status => statusOn(DateTime.now());
 

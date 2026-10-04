@@ -33,6 +33,24 @@ class LibrarianValidators {
     return null;
   }
 
+  /// Optional published year: empty, or a year from 1000 to next year.
+  static String? optionalYear(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    final year = int.tryParse(text);
+    if (year == null || year < 1000 || year > DateTime.now().year + 1) {
+      return 'Enter a valid year, e.g. 2008';
+    }
+    return null;
+  }
+
+  /// Optional page count: empty, or a whole number from 1 to 10000.
+  static String? optionalPages(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    return positiveCount(text, 'Pages', max: 10000);
+  }
+
   /// One or two letters followed by 1-3 digits, e.g. "D09" or "AB12".
   static String? seatNumber(String? value) {
     final missing = required(value, 'Seat number');

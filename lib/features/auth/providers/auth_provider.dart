@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import '../../../models/user.dart';
 import '../../../repositories/auth_repository.dart';
 import '../../../repositories/user_repository.dart';
-import 'temporary_librarian_login.dart';
 
 /// Manages auth loading/user/error state for the UI layer.
 class AuthProvider extends ChangeNotifier {
@@ -16,8 +15,7 @@ class AuthProvider extends ChangeNotifier {
     _authStateSubscription = _authRepository.authStateChanges.listen((user) {
       _user = user;
       if (user == null) {
-        // TEMPORARY LIBRARIAN LOGIN: keep the mock session's profile.
-        if (!_isTemporaryLibrarianSession) _profile = null;
+        _profile = null;
         notifyListeners();
       } else {
         notifyListeners();
@@ -35,10 +33,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isProfileLoading = false;
   String? _errorMessage;
-
-  // TEMPORARY LIBRARIAN LOGIN
-  // Replace with Firebase Auth when backend/database integration is available.
-  bool _isTemporaryLibrarianSession = false;
+  UserRole? _expectedLoginRole;
 
   User? get user => _user;
   AppUser? get profile => _profile;
@@ -46,39 +41,19 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isProfileLoading => _isProfileLoading;
   String? get errorMessage => _errorMessage;
-  bool get isSignedIn => _user != null || _isTemporaryLibrarianSession;
-  bool get isTemporaryLibrarianSession => _isTemporaryLibrarianSession;
+  bool get isSignedIn => _user != null;
 
-  // TEMPORARY LIBRARIAN LOGIN
-  // Replace with Firebase Auth when backend/database integration is available.
-  // Checks the development-only credentials (no Firebase / Firestore call).
-  // On success the router sees a librarian profile and opens /librarian.
-  bool signInTemporaryLibrarian({
+  Future<bool> signIn({
     required String email,
     required String password,
-  }) {
-    if (!TemporaryLibrarianLogin.matches(email, password)) {
-      _errorMessage = 'Invalid email or password.';
-      notifyListeners();
-      return false;
-    }
-    _errorMessage = null;
-    _isTemporaryLibrarianSession = true;
-    _profile = TemporaryLibrarianLogin.profile;
-    notifyListeners();
-    return true;
-  }
-
-  void clearError() {
-    if (_errorMessage == null) return;
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  Future<bool> signIn({required String email, required String password}) {
-    return _runAuthAction(
+    required UserRole selectedRole,
+  }) async {
+    _expectedLoginRole = selectedRole;
+    final success = await _runAuthAction(
       () => _authRepository.signIn(email: email, password: password),
     );
+    if (!success) _expectedLoginRole = null;
+    return success;
   }
 
   // Security: public sign-up always creates a STUDENT account. Librarian and
@@ -87,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String name,
+    required String studentId,
   }) async {
     final success = await _runAuthAction(
       () => _authRepository.signUp(email: email, password: password),
@@ -96,6 +72,7 @@ class AuthProvider extends ChangeNotifier {
       final newProfile = AppUser(
         uid: _user!.uid,
         name: name,
+        studentId: studentId,
         email: email,
         role: UserRole.student,
         createdAt: now,
@@ -119,7 +96,26 @@ class AuthProvider extends ChangeNotifier {
     _isProfileLoading = true;
     notifyListeners();
     try {
-      _profile = await _userRepository.getUserProfile(uid);
+      final loadedProfile = await _userRepository.getUserProfile(uid);
+      final expectedRole = _expectedLoginRole;
+      _expectedLoginRole = null;
+
+      if (loadedProfile != null &&
+          expectedRole != null &&
+          loadedProfile.role != expectedRole) {
+        _profile = null;
+        _errorMessage =
+            'This account is registered as ${_roleLabel(loadedProfile.role)}. '
+            'Please select ${_roleLabel(expectedRole)}.';
+        try {
+          await _authRepository.signOut();
+          _user = null;
+        } catch (_) {
+          _errorMessage = '$_errorMessage Sign-out failed; please try again.';
+        }
+      } else {
+        _profile = loadedProfile;
+      }
     } catch (_) {
       _profile = null;
       _errorMessage = 'Failed to load user profile.';
@@ -129,16 +125,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
-    // TEMPORARY LIBRARIAN LOGIN: the mock session has no Firebase user.
-    if (_isTemporaryLibrarianSession) {
-      _isTemporaryLibrarianSession = false;
-      _profile = null;
-      _errorMessage = null;
-      notifyListeners();
-      return;
-    }
+  String _roleLabel(UserRole role) {
+    return '${role.name[0].toUpperCase()}${role.name.substring(1)}';
+  }
 
+  Future<void> signOut() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

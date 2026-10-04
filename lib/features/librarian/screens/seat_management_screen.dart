@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 import '../models/seat_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
@@ -79,6 +79,7 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
                 seat: selected,
                 reservation: repository.activeReservationForSeat(selected.id),
                 onUpdateStatus: () => _changeStatus(repository, selected),
+                onEdit: () => context.go(LibrarianRoutes.editSeat(selected.id)),
               );
 
         return LibrarianPage(
@@ -110,7 +111,15 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
               ],
             ),
             const SizedBox(height: LibrarianSpacing.lg),
-            if (seats.isEmpty)
+            if (repository.isLoading && seats.isEmpty)
+              const Center(child: CircularProgressIndicator())
+            else if (repository.loadError != null && seats.isEmpty)
+              LibrarianEmptyState(
+                icon: Icons.cloud_off,
+                title: 'Seats could not be loaded',
+                message: repository.loadError!,
+              )
+            else if (seats.isEmpty)
               const LibrarianEmptyState(
                 icon: Icons.chair_outlined,
                 title: 'No seats yet',
@@ -141,7 +150,7 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
   /// Bottom sheet to change a seat's status. "Reserved" is not offered
   /// because seats become reserved by approving a reservation.
   Future<void> _changeStatus(
-    LibrarianMockRepository repository,
+    LibrarianRepository repository,
     SeatRecord seat,
   ) async {
     final newStatus = await showModalBottomSheet<SeatStatus>(
@@ -191,11 +200,19 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
     );
 
     if (newStatus == null || newStatus == seat.status) return;
-    await repository.updateSeatStatus(seat.id, newStatus);
+    final result = await repository.updateSeatStatus(seat.id, newStatus);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Seat ${seat.seatNumber} is now ${newStatus.label}.')),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            result.success
+                ? 'Seat ${seat.seatNumber} is now ${newStatus.label}.'
+                : result.message!,
+          ),
+        ),
+      );
   }
 }
 

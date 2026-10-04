@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/reservation_record.dart';
+import '../../../core/widgets/stored_image.dart';
 import '../models/seat_record.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_formatters.dart';
@@ -15,11 +16,15 @@ class SeatDetailsPanel extends StatelessWidget {
     required this.seat,
     required this.reservation,
     required this.onUpdateStatus,
+    this.onEdit,
   });
 
   final SeatRecord seat;
   final ReservationRecord? reservation;
   final VoidCallback onUpdateStatus;
+
+  /// Opens the Edit Seat form (details, photo, delete).
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +61,20 @@ class SeatDetailsPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: LibrarianSpacing.sm),
+        if (seat.imageUrl != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: LibrarianSpacing.sm),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: StoredImage(
+                  url: seat.imageUrl,
+                  fallback: const ColoredBox(color: LibrarianColors.lightBlue),
+                ),
+              ),
+            ),
+          ),
         for (final (label, value) in rows)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -93,17 +112,21 @@ class SeatDetailsPanel extends StatelessWidget {
           ),
           child: const Text('Update Seat Status'),
         ),
+        if (onEdit != null) ...[
+          const SizedBox(height: LibrarianSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit Seat'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 50)),
+          ),
+        ],
       ],
     );
   }
 
   String _features() {
-    final features = [
-      if (seat.hasPowerOutlet) 'Power outlet',
-      if (seat.hasReadingLamp) 'Reading lamp',
-      if (seat.isAccessible) 'Accessible',
-      if (seat.isNearWindow) 'Near window',
-    ];
+    final features = seat.features;
     return features.isEmpty ? 'None' : features.join(', ');
   }
 }

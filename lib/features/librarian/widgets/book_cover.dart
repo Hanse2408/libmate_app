@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/stored_image.dart';
 import '../theme/librarian_theme.dart';
 
-/// Generated book cover (coloured block + title) used until real cover
-/// images can be uploaded. The colour is picked from the title, so the same
-/// book always gets the same cover.
+/// Book cover: the bundled cover image when there is one ([coverAsset]),
+/// otherwise a generated cover (coloured block + title). The colour is
+/// picked from the title, so the same book always gets the same cover.
 class BookCover extends StatelessWidget {
   const BookCover({
     super.key,
     required this.title,
     this.width = 64,
     this.height = 88,
+    this.coverAsset,
   });
+
+  /// Cover image path in the project, e.g. "assets/images/books/book1.jpg".
+  final String? coverAsset;
 
   final String title;
   final double width;
@@ -27,6 +32,19 @@ class BookCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final generated = _generated();
+    if (coverAsset == null || coverAsset!.isEmpty) return generated;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: StoredImage(url: coverAsset, fallback: generated),
+      ),
+    );
+  }
+
+  Widget _generated() {
     // Sum of character codes: a simple hash that is the same on every run.
     final hash = title.codeUnits.fold<int>(0, (sum, code) => sum + code);
     final color = _palette[hash % _palette.length];

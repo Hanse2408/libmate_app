@@ -7,6 +7,7 @@ import 'package:libmate_app/core/services/auth_service.dart';
 import 'package:libmate_app/core/services/user_service.dart';
 import 'package:libmate_app/features/auth/providers/auth_provider.dart';
 import 'package:libmate_app/features/librarian/data/librarian_mock_repository.dart';
+import 'package:libmate_app/features/librarian/data/librarian_repository.dart';
 import 'package:libmate_app/features/librarian/providers/librarian_scope.dart';
 import 'package:libmate_app/repositories/auth_repository.dart';
 import 'package:libmate_app/repositories/user_repository.dart';
@@ -33,10 +34,19 @@ AuthProvider buildFakeAuthProvider() {
 }
 
 /// A router containing only the Librarian area, starting at [initialLocation].
-GoRouter buildLibrarianRouter(String initialLocation) {
+/// Uses the in-memory sample data unless [createRepository] is given.
+GoRouter buildLibrarianRouter(
+  String initialLocation, {
+  LibrarianRepository Function()? createRepository,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
-    routes: [LibrarianRoutes.shellRoute(buildFakeAuthProvider())],
+    routes: [
+      LibrarianRoutes.shellRoute(
+        buildFakeAuthProvider(),
+        createRepository: createRepository ?? LibrarianMockRepository.new,
+      ),
+    ],
   );
 }
 
@@ -45,19 +55,20 @@ Future<GoRouter> pumpLibrarian(
   WidgetTester tester,
   String location, {
   Size size = const Size(400, 900),
+  LibrarianRepository Function()? createRepository,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  final router = buildLibrarianRouter(location);
+  final router = buildLibrarianRouter(location, createRepository: createRepository);
   await tester.pumpWidget(MaterialApp.router(routerConfig: router));
   await tester.pumpAndSettle();
   return router;
 }
 
-/// The live mock repository used by the pumped Librarian screens.
-LibrarianMockRepository repositoryOf(WidgetTester tester) {
+/// The live repository used by the pumped Librarian screens.
+LibrarianRepository repositoryOf(WidgetTester tester) {
   return LibrarianScope.read(tester.element(find.byType(NavigationBar))).repository;
 }
 

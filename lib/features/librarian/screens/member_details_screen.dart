@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 import '../models/borrowing_record.dart';
 import '../models/member_record.dart';
 import '../models/reservation_record.dart';
@@ -224,7 +224,7 @@ class _AccountStatusCard extends StatelessWidget {
   const _AccountStatusCard({required this.member, required this.repository});
 
   final MemberRecord member;
-  final LibrarianMockRepository repository;
+  final LibrarianRepository repository;
 
   Future<void> _changeStatus(BuildContext context) async {
     final suspend = member.isActive;

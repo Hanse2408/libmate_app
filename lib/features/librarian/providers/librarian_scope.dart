@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../auth/providers/auth_provider.dart';
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 
 /// Makes the Librarian's shared state available to every Librarian screen.
 ///
@@ -17,7 +17,7 @@ class LibrarianScope extends InheritedWidget {
     required super.child,
   });
 
-  final LibrarianMockRepository repository;
+  final LibrarianRepository repository;
 
   /// Existing app-wide auth state, used for the librarian's name and sign out.
   final AuthProvider authProvider;

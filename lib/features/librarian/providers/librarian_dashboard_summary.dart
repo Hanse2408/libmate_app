@@ -1,4 +1,4 @@
-import '../data/librarian_mock_repository.dart';
+import '../data/librarian_repository.dart';
 import '../models/borrowing_record.dart';
 import '../models/reservation_record.dart';
 import '../models/seat_record.dart';
@@ -23,7 +23,7 @@ class LibrarianDashboardSummary {
   });
 
   factory LibrarianDashboardSummary.fromRepository(
-    LibrarianMockRepository repository, {
+    LibrarianRepository repository, {
     DateTime? now,
   }) {
     final today = _dateOnly(now ?? DateTime.now());

@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../models/user.dart';
-// Uses the agreed LibMate colours, currently defined with the Librarian
-// theme; move to app_theme.dart once the shared theme is filled in.
-import '../../librarian/theme/librarian_theme.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/login_role_card.dart';
-import '../widgets/login_text_field.dart';
+import '../widgets/auth_widgets.dart';
 
-/// LibMate login (Figma). After a successful sign-in the router redirects to
-/// the user's area automatically (e.g. /librarian), so this screen never
-/// navigates by itself.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.authProvider});
 
@@ -22,391 +17,351 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _passwordVisible = false;
+  bool _rememberMe = true;
+  String _selectedRole = 'Student';
 
-  UserRole? _role;
-  String? _roleError;
-  bool _showPassword = false;
-  bool _rememberMe = true; // Takes effect once Firebase Auth persistence is set up.
-
-  static const List<(UserRole, String, IconData)> _roles = [
-    (UserRole.student, 'Student', Icons.school_outlined),
-    (UserRole.librarian, 'Librarian', Icons.people_outline),
-    (UserRole.manager, 'Administrator', Icons.location_on_outlined),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    widget.authProvider.addListener(_handleProviderChange);
+  }
 
   @override
   void dispose() {
-    _email.dispose();
-    _password.dispose();
+    widget.authProvider.removeListener(_handleProviderChange);
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _selectRole(UserRole role) {
-    setState(() {
-      _role = role;
-      _roleError = null;
-    });
-    widget.authProvider.clearError();
+  void _handleProviderChange() {
+    if (mounted) setState(() {});
   }
 
-  Future<void> _login() async {
-    final formValid = _formKey.currentState!.validate();
-    setState(() {
-      _roleError = _role == null ? 'Please choose how you are logging in.' : null;
-    });
-    if (!formValid || _role == null) return;
-
-    if (_role == UserRole.librarian) {
-      // TEMPORARY LIBRARIAN LOGIN
-      // Replace with Firebase Auth when backend/database integration is available.
-      widget.authProvider.signInTemporaryLibrarian(
-        email: _email.text,
-        password: _password.text,
-      );
-    } else {
-      // Existing Firebase Auth sign-in for students and administrators.
-      await widget.authProvider.signIn(
-        email: _email.text.trim(),
-        password: _password.text,
-      );
-    }
-  }
-
-  /// Actions in the design that need the real account system.
-  void _notAvailableYet(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature will be available once LibMate accounts are connected.'),
-      ),
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+    await widget.authProvider.signIn(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      selectedRole: switch (_selectedRole) {
+        'Student' => UserRole.student,
+        'Librarian' => UserRole.librarian,
+        'Manager' => UserRole.manager,
+        _ => UserRole.student,
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: LibrarianTheme.light,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            const _BackgroundCircles(),
-            SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: LibrarianSpacing.lg,
-                    vertical: LibrarianSpacing.lg,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 460),
-                    child: ListenableBuilder(
-                      listenable: widget.authProvider,
-                      builder: (context, _) => _buildForm(),
+    final authProvider = widget.authProvider;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: AuthPageBackground(
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 27, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AuthBrandHeader(),
+                  const SizedBox(height: 31),
+                  const Text(
+                    'Welcome Back!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF172033),
+                      fontSize: 25,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildForm() {
-    final auth = widget.authProvider;
-
-    return Form(
-      key: _formKey,
-      child: AutofillGroup(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _Header(),
-            const SizedBox(height: LibrarianSpacing.lg + 8),
-            const Text(
-              'Login as',
-              style: TextStyle(
-                color: LibrarianColors.text,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: LibrarianSpacing.sm + 4),
-            Row(
-              children: [
-                for (final (role, label, icon) in _roles) ...[
-                  if (role != UserRole.student)
-                    const SizedBox(width: LibrarianSpacing.md),
-                  Expanded(
-                    child: LoginRoleCard(
-                      icon: icon,
-                      label: label,
-                      selected: _role == role,
-                      onTap: () => _selectRole(role),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'Sign in to continue your library journey.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Login as',
+                    style: TextStyle(
+                      color: Color(0xFF172033),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _RoleChoice(
+                        label: 'Student',
+                        icon: Icons.school_outlined,
+                        selected: _selectedRole == 'Student',
+                        onTap: () => setState(() => _selectedRole = 'Student'),
+                      ),
+                      const SizedBox(width: 12),
+                      _RoleChoice(
+                        label: 'Librarian',
+                        icon: Icons.people_outline,
+                        selected: _selectedRole == 'Librarian',
+                        onTap: () =>
+                            setState(() => _selectedRole = 'Librarian'),
+                      ),
+                      const SizedBox(width: 12),
+                      _RoleChoice(
+                        label: 'Manager',
+                        icon: Icons.location_on_outlined,
+                        selected: _selectedRole == 'Manager',
+                        onTap: () => setState(() => _selectedRole = 'Manager'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 29),
+                  AuthInput(
+                    label: 'Email Address',
+                    hint: 'Enter your email address',
+                    controller: _emailController,
+                    icon: Icons.mail_outline,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: validateAuthEmail,
+                  ),
+                  const SizedBox(height: 17),
+                  AuthInput(
+                    label: 'Password',
+                    hint: 'Enter your password',
+                    controller: _passwordController,
+                    icon: Icons.lock_outline,
+                    obscureText: !_passwordVisible,
+                    textInputAction: TextInputAction.done,
+                    validator: (value) => validateRequired(value, 'Password'),
+                    suffixIcon: IconButton(
+                      tooltip: _passwordVisible
+                          ? 'Hide password'
+                          : 'Show password',
+                      onPressed: () =>
+                          setState(() => _passwordVisible = !_passwordVisible),
+                      icon: Icon(
+                        _passwordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: const Color(0xFF64748B),
+                        size: 21,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Checkbox(
+                          value: _rememberMe,
+                          onChanged: (value) =>
+                              setState(() => _rememberMe = value ?? false),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Remember me',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {},
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (authProvider.errorMessage != null) ...[
+                    const SizedBox(height: 10),
+                    _AuthErrorMessage(message: authProvider.errorMessage!),
+                  ],
+                  const SizedBox(height: 22),
+                  AuthPrimaryButton(
+                    label: 'Login',
+                    isLoading: authProvider.isLoading,
+                    onPressed: _signIn,
+                  ),
+                  const SizedBox(height: 17),
+                  const _OrDivider(),
+                  const SizedBox(height: 17),
+                  SizedBox(
+                    height: 47,
+                    child: OutlinedButton.icon(
+                      onPressed: () {},
+                      icon: const Text(
+                        'G',
+                        style: TextStyle(
+                          color: Color(0xFF4285F4),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          color: Color(0xFF172033),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFFDCE4EF)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Don't have an account? ",
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => context.go(AppRoutes.signup),
+                        child: const Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
-            ),
-            if (_roleError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: LibrarianSpacing.sm),
-                child: Text(
-                  _roleError!,
-                  style: const TextStyle(color: LibrarianColors.unavailable),
-                ),
-              ),
-            const SizedBox(height: LibrarianSpacing.lg + 4),
-            LoginTextField(
-              label: 'Email or User ID',
-              hint: 'Enter your email or user ID',
-              icon: Icons.mail_outline,
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              validator: (value) => (value == null || value.trim().isEmpty)
-                  ? 'Please enter your email or user ID'
-                  : null,
-            ),
-            const SizedBox(height: LibrarianSpacing.lg),
-            LoginTextField(
-              label: 'Password',
-              hint: 'Enter your password',
-              icon: Icons.lock_outline,
-              controller: _password,
-              obscureText: !_showPassword,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.password],
-              onSubmitted: (_) => _login(),
-              validator: (value) => (value == null || value.isEmpty)
-                  ? 'Please enter your password'
-                  : null,
-              trailing: IconButton(
-                tooltip: _showPassword ? 'Hide password' : 'Show password',
-                icon: Icon(
-                  _showPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: LibrarianColors.secondaryText,
-                ),
-                onPressed: () => setState(() => _showPassword = !_showPassword),
               ),
             ),
-            const SizedBox(height: LibrarianSpacing.sm),
-            Row(
-              children: [
-                Checkbox(
-                  value: _rememberMe,
-                  visualDensity: VisualDensity.compact,
-                  onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Remember me',
-                    style: TextStyle(
-                      color: LibrarianColors.secondaryText,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                // Flexible + FittedBox: the link shrinks instead of
-                // overflowing on narrow (360px) phones.
-                Flexible(
-                  child: TextButton(
-                    onPressed: () => _notAvailableYet('Password reset'),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Forgot password?',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (auth.errorMessage != null)
-              Container(
-                margin: const EdgeInsets.only(top: LibrarianSpacing.sm),
-                padding: const EdgeInsets.all(LibrarianSpacing.sm + 4),
-                decoration: BoxDecoration(
-                  color: LibrarianColors.unavailable.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: LibrarianColors.unavailable.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: LibrarianColors.unavailable),
-                    const SizedBox(width: LibrarianSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        auth.errorMessage!,
-                        style: const TextStyle(color: LibrarianColors.unavailable),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: LibrarianSpacing.md + 4),
-            FilledButton(
-              onPressed: auth.isLoading ? null : _login,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 58),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
-                ),
-                textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-              ),
-              child: auth.isLoading
-                  ? const SizedBox.square(
-                      dimension: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    )
-                  : const Text('Login'),
-            ),
-            const SizedBox(height: LibrarianSpacing.lg),
-            const Row(
-              children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: LibrarianSpacing.md),
-                  child: Text(
-                    'OR',
-                    style: TextStyle(color: LibrarianColors.secondaryText),
-                  ),
-                ),
-                Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: LibrarianSpacing.lg),
-            OutlinedButton.icon(
-              onPressed: () => _notAvailableYet('Google sign-in'),
-              icon: const Text(
-                'G',
-                style: TextStyle(
-                  color: LibrarianColors.primary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              label: const Text('Continue with Google'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 58),
-                backgroundColor: LibrarianColors.card,
-                foregroundColor: LibrarianColors.text,
-                side: const BorderSide(color: LibrarianColors.border, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
-                ),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: LibrarianSpacing.lg),
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                const Text(
-                  "Don't have an account?",
-                  style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 16),
-                ),
-                TextButton(
-                  onPressed: () => _notAvailableYet('Sign up'),
-                  child: const Text(
-                    'Sign Up',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header();
+class _RoleChoice extends StatelessWidget {
+  const _RoleChoice({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 72,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF93B8FF),
+              width: selected ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: const Color(0xFF64748B), size: 21),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF172033),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
       children: [
-        Icon(Icons.menu_book, size: 80, color: LibrarianColors.primary),
-        SizedBox(height: LibrarianSpacing.sm),
-        Text(
-          'LibMate',
-          style: TextStyle(
-            color: LibrarianColors.text,
-            fontSize: 40,
-            fontWeight: FontWeight.w800,
+        Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        SizedBox(height: LibrarianSpacing.xs),
-        Text(
-          'LEARN • RESERVE • BELONG',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: LibrarianColors.primary,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        ),
-        SizedBox(height: LibrarianSpacing.lg + 8),
-        Text(
-          'Welcome Back!',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: LibrarianColors.text,
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        SizedBox(height: LibrarianSpacing.sm),
-        Text(
-          'Sign in to continue your library journey.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
-        ),
+        Expanded(child: Divider(color: Color(0xFFE2E8F0))),
       ],
     );
   }
 }
 
-/// The soft light-blue circles behind the login form (see Figma).
-class _BackgroundCircles extends StatelessWidget {
-  const _BackgroundCircles();
+class _AuthErrorMessage extends StatelessWidget {
+  const _AuthErrorMessage({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    Widget circle(double size) => Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: LibrarianColors.lightBlue.withValues(alpha: 0.8),
-      ),
-    );
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(top: -120, left: -120, child: circle(340)),
-          Positioned(top: 120, right: -160, child: circle(420)),
-          Positioned(bottom: -140, left: -100, child: circle(320)),
-        ],
-      ),
+    return Text(
+      message,
+      style: const TextStyle(color: Color(0xFFDC4C4C), fontSize: 13),
+      textAlign: TextAlign.center,
     );
   }
 }

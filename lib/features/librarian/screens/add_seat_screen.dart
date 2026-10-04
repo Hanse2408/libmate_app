@@ -2,20 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../../../core/services/image_storage_service.dart';
+import '../data/librarian_repository.dart';
+import '../models/action_result.dart';
 import '../models/seat_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_validators.dart';
 import '../widgets/form_action_buttons.dart';
+import '../widgets/image_upload_field.dart';
 import '../widgets/info_section_card.dart';
 import '../widgets/labeled_text_field.dart';
+import '../widgets/librarian_empty_state.dart';
 import '../widgets/librarian_page.dart';
 import '../widgets/librarian_page_header.dart';
-import '../widgets/seat_tile.dart';
 
 /// Add New Seat form (Figma): preview, seat details, seat type and features.
+/// With a [seatId] the same form edits that seat.
 class AddSeatScreen extends StatefulWidget {
-  const AddSeatScreen({super.key});
+  const AddSeatScreen({super.key, this.seatId});
+
+  final String? seatId;
 
   @override
   State<AddSeatScreen> createState() => _AddSeatScreenState();
@@ -34,8 +41,49 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
   bool _accessible = false;
   bool _window = false;
 
+  LibrarianRepository? _repository;
+  SeatRecord? _editing;
+
+  /// New photo picked in this form (uploaded on save).
+  ImageUpload? _image;
+  bool _removeImage = false;
+  bool _saving = false;
+  double? _uploadProgress;
+
+  bool get _isEdit => widget.seatId != null;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_repository != null) return;
+    _repository = LibrarianScope.read(context).repository..addListener(_onDataChanged);
+    _fillForm();
+  }
+
+  /// When editing, the seat may arrive from Firestore after the page opens.
+  void _onDataChanged() {
+    if (_isEdit && _editing == null) setState(_fillForm);
+  }
+
+  void _fillForm() {
+    if (!_isEdit || _editing != null) return;
+    final seat = _repository!.seatById(widget.seatId!);
+    if (seat == null) return;
+    _editing = seat;
+    _seatNumber.text = seat.seatNumber;
+    _zone.text = seat.zone;
+    _readingRoom.text = seat.readingRoom;
+    _note.text = seat.note;
+    _type = seat.type;
+    _power = seat.hasPowerOutlet;
+    _lamp = seat.hasReadingLamp;
+    _accessible = seat.isAccessible;
+    _window = seat.isNearWindow;
+  }
+
   @override
   void dispose() {
+    _repository?.removeListener(_onDataChanged);
     _seatNumber.dispose();
     _zone.dispose();
     _readingRoom.dispose();
@@ -48,101 +96,178 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
     final error = LibrarianValidators.seatNumber(value);
     if (error != null) return error;
     final repository = LibrarianScope.read(context).repository;
-    if (repository.seatNumberExists(value!, _readingRoom.text)) {
+    if (repository.seatNumberExists(value!, _readingRoom.text, exceptSeatId: widget.seatId)) {
       return 'Seat ${value.trim().toUpperCase()} already exists in this room';
     }
     return null;
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_saving || !_formKey.currentState!.validate()) return;
 
     final repository = LibrarianScope.read(context).repository;
     final seatNumber = _seatNumber.text.trim().toUpperCase();
-    final result = await repository.addSeat(
-      seatNumber: seatNumber,
-      zone: _zone.text,
-      readingRoom: _readingRoom.text,
-      type: _type!,
-      hasPowerOutlet: _power,
-      hasReadingLamp: _lamp,
-      isAccessible: _accessible,
-      isNearWindow: _window,
-      note: _note.text,
-    );
-    if (!mounted) return;
+    setState(() {
+      _saving = true;
+      _uploadProgress = _image == null ? null : 0;
+    });
+    void onProgress(double value) {
+      if (mounted) setState(() => _uploadProgress = value);
+    }
 
+    final ActionResult result;
+    if (_isEdit) {
+      result = await repository.updateSeat(
+        id: widget.seatId!,
+        seatNumber: seatNumber,
+        zone: _zone.text,
+        readingRoom: _readingRoom.text,
+        type: _type!,
+        hasPowerOutlet: _power,
+        hasReadingLamp: _lamp,
+        isAccessible: _accessible,
+        isNearWindow: _window,
+        note: _note.text,
+        newImage: _image,
+        removeImage: _removeImage,
+        onUploadProgress: onProgress,
+      );
+    } else {
+      result = await repository.addSeat(
+        seatNumber: seatNumber,
+        zone: _zone.text,
+        readingRoom: _readingRoom.text,
+        type: _type!,
+        hasPowerOutlet: _power,
+        hasReadingLamp: _lamp,
+        isAccessible: _accessible,
+        isNearWindow: _window,
+        note: _note.text,
+        image: _image,
+        onUploadProgress: onProgress,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _uploadProgress = null;
+    });
+
+    // Only report success when the repository confirms the save.
     if (result.success) {
       context.go(
         LibrarianRoutes.seats,
-        extra: 'Seat $seatNumber added to ${_readingRoom.text.trim()}.',
+        extra: _isEdit
+            ? 'Seat $seatNumber was updated.'
+            : 'Seat $seatNumber added to ${_readingRoom.text.trim()}.',
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message!)),
-      );
+      _showMessage(result.message!);
+    }
+  }
+
+  Future<void> _delete() async {
+    final seat = _editing!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Delete Seat ${seat.seatNumber}?'),
+        content: const Text(
+          'The seat will be removed from the seat map and students can no '
+          'longer book it. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: LibrarianColors.unavailable),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _saving = true);
+    final result = await LibrarianScope.read(context).repository.deleteSeat(seat.id);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (result.success) {
+      context.go(LibrarianRoutes.seats, extra: 'Seat ${seat.seatNumber} was deleted.');
+    } else {
+      _showMessage(result.message!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final previewNumber = _seatNumber.text.trim().toUpperCase();
+    final repository = LibrarianScope.of(context).repository;
+    final header = LibrarianPageHeader(
+      title: _isEdit ? 'Edit Seat' : 'Add New Seat',
+      subtitle: _isEdit
+          ? 'Update this reading-room seat'
+          : 'Register a new reading-room seat',
+    );
+
+    if (_isEdit && _editing == null) {
+      return LibrarianPage(
+        maxWidth: 760,
+        children: [
+          header,
+          if (repository.isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            const LibrarianEmptyState(
+              icon: Icons.search_off,
+              title: 'Seat not found',
+              message: 'It may have been removed.',
+            ),
+        ],
+      );
+    }
 
     return Form(
       key: _formKey,
       child: LibrarianPage(
         maxWidth: 760,
         children: [
-          const LibrarianPageHeader(
-            title: 'Add New Seat',
-            subtitle: 'Register a new reading-room seat',
-          ),
+          header,
           InfoSectionCard(
             children: [
-              Center(
-                child: previewNumber.isEmpty
-                    ? Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: LibrarianColors.lightBlue,
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: const Icon(
-                          Icons.chair_outlined,
-                          size: 64,
-                          color: LibrarianColors.primary,
-                        ),
-                      )
-                    : SizedBox(
-                        width: 96,
-                        child: SeatTile(
-                          seat: SeatRecord(
-                            id: 'preview',
-                            seatNumber: previewNumber,
-                            zone: _zone.text,
-                            readingRoom: _readingRoom.text,
-                            type: _type ?? SeatType.individualDesk,
-                            status: SeatStatus.available,
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(height: LibrarianSpacing.md),
-              const Text(
-                'Seat Preview',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: LibrarianColors.text,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
+              ImageUploadField(
+                label: 'Seat Photo',
+                previewSize: const Size(200, 130),
+                placeholder: Container(
+                  color: LibrarianColors.lightBlue,
+                  child: const Icon(
+                    Icons.photo_outlined,
+                    size: 48,
+                    color: LibrarianColors.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: LibrarianSpacing.xs),
-              const Text(
-                'Seat number will appear on the map',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: LibrarianColors.secondaryText),
+                picked: _image,
+                savedUrl: _removeImage ? null : _editing?.imageUrl,
+                enabled: repository.supportsImageUpload,
+                disabledReason:
+                    'Seat photos need Firebase Storage (not available with demo data).',
+                uploadProgress: _uploadProgress,
+                onPicked: (image) => setState(() {
+                  _image = image;
+                  _removeImage = false;
+                }),
+                onRemove: () => setState(() {
+                  _image = null;
+                  _removeImage = _editing?.imageUrl != null;
+                }),
               ),
             ],
           ),
@@ -223,10 +348,24 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
             ],
           ),
           FormActionButtons(
-            saveLabel: 'Save Seat',
+            saveLabel: _isEdit ? 'Save Changes' : 'Save Seat',
             onSave: _save,
             onCancel: () => context.go(LibrarianRoutes.seats),
+            saving: _saving,
           ),
+          if (_isEdit) ...[
+            const SizedBox(height: LibrarianSpacing.md),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Delete Seat'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 52),
+                foregroundColor: LibrarianColors.unavailable,
+                side: const BorderSide(color: LibrarianColors.unavailable),
+              ),
+            ),
+          ],
         ],
       ),
     );

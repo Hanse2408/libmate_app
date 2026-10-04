@@ -1,6 +1,6 @@
-/// Librarian / library preferences shown on the Settings screen.
-/// Kept as one small object so it can later be saved as a single Firestore
-/// document (e.g. settings/{librarianId}).
+/// Library preferences shown on the Settings screen, stored as the single
+/// Firestore document `settings/library`. Students read it too (opening
+/// hours and the maximum seat booking length).
 class LibrarianSettings {
   const LibrarianSettings({
     this.openingHour = 8,
@@ -31,6 +31,37 @@ class LibrarianSettings {
   final bool availabilityNotifications;
 
   static const int maxRenewals = 2;
+
+  factory LibrarianSettings.fromMap(Map<String, dynamic> map) {
+    const defaults = LibrarianSettings();
+    int number(String key, int fallback) => (map[key] as num?)?.toInt() ?? fallback;
+    bool flag(String key, bool fallback) => map[key] as bool? ?? fallback;
+    return LibrarianSettings(
+      openingHour: number('openingHour', defaults.openingHour),
+      closingHour: number('closingHour', defaults.closingHour),
+      maxBorrowLimit: number('maxBorrowLimit', defaults.maxBorrowLimit),
+      loanPeriodDays: number('loanPeriodDays', defaults.loanPeriodDays),
+      seatBookingHours: number('seatBookingHours', defaults.seatBookingHours),
+      reservationNotifications:
+          flag('reservationNotifications', defaults.reservationNotifications),
+      overdueReminders: flag('overdueReminders', defaults.overdueReminders),
+      availabilityNotifications:
+          flag('availabilityNotifications', defaults.availabilityNotifications),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'openingHour': openingHour,
+      'closingHour': closingHour,
+      'maxBorrowLimit': maxBorrowLimit,
+      'loanPeriodDays': loanPeriodDays,
+      'seatBookingHours': seatBookingHours,
+      'reservationNotifications': reservationNotifications,
+      'overdueReminders': overdueReminders,
+      'availabilityNotifications': availabilityNotifications,
+    };
+  }
 
   LibrarianSettings copyWith({
     int? openingHour,

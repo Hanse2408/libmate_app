@@ -3,12 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../data/librarian_repository.dart';
 import '../models/action_result.dart';
 import '../models/book_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_validators.dart';
-import '../widgets/book_cover.dart';
+import '../widgets/book_cover_asset_field.dart';
 import '../widgets/form_action_buttons.dart';
 import '../widgets/info_section_card.dart';
 import '../widgets/labeled_text_field.dart';
@@ -36,21 +37,38 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final _copies = TextEditingController();
   final _shelf = TextEditingController();
   final _description = TextEditingController();
+  final _publisher = TextEditingController();
+  final _year = TextEditingController();
+  final _pages = TextEditingController();
 
+  LibrarianRepository? _repository;
   BookRecord? _editing;
-  bool _loaded = false;
+
+  /// Chosen cover image in assets/images/books/ (saved as `coverAsset`).
+  String? _coverAsset;
+  bool _saving = false;
 
   bool get _isEdit => widget.bookId != null;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Fill the form once when editing an existing book.
-    if (_loaded || !_isEdit) return;
-    _loaded = true;
-    _editing = LibrarianScope.read(context).repository.bookById(widget.bookId!);
-    final book = _editing;
+    if (_repository != null) return;
+    _repository = LibrarianScope.read(context).repository..addListener(_onDataChanged);
+    _fillForm();
+  }
+
+  /// When editing, the book may arrive from Firestore after the page opens.
+  void _onDataChanged() {
+    if (_isEdit && _editing == null) setState(_fillForm);
+  }
+
+  /// Fills the form once with the book being edited.
+  void _fillForm() {
+    if (!_isEdit || _editing != null) return;
+    final book = _repository!.bookById(widget.bookId!);
     if (book == null) return;
+    _editing = book;
     _title.text = book.title;
     _author.text = book.author;
     _isbn.text = book.isbn;
@@ -59,12 +77,27 @@ class _AddBookScreenState extends State<AddBookScreen> {
     _copies.text = '${book.totalCopies}';
     _shelf.text = book.shelfLocation;
     _description.text = book.description;
+    _coverAsset = book.coverAsset;
+    _publisher.text = book.publisher;
+    _year.text = book.publishedYear > 0 ? '${book.publishedYear}' : '';
+    _pages.text = book.pages > 0 ? '${book.pages}' : '';
   }
 
   @override
   void dispose() {
+    _repository?.removeListener(_onDataChanged);
     for (final controller in [
-      _title, _author, _isbn, _category, _language, _copies, _shelf, _description,
+      _title,
+      _author,
+      _isbn,
+      _category,
+      _language,
+      _copies,
+      _shelf,
+      _description,
+      _publisher,
+      _year,
+      _pages,
     ]) {
       controller.dispose();
     }
@@ -82,56 +115,116 @@ class _AddBookScreenState extends State<AddBookScreen> {
     return null;
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_saving || !_formKey.currentState!.validate()) return;
 
     final repository = LibrarianScope.read(context).repository;
     final title = _title.text.trim();
     final copies = int.parse(_copies.text.trim());
+    final publishedYear = int.tryParse(_year.text.trim()) ?? 0;
+    final pages = int.tryParse(_pages.text.trim()) ?? 0;
+    setState(() => _saving = true);
 
-    final ActionResult result;
-    if (_isEdit) {
-      result = await repository.updateBook(
-        id: widget.bookId!,
-        title: title,
-        author: _author.text,
-        isbn: _isbn.text,
-        category: _category.text,
-        language: _language.text,
-        shelfLocation: _shelf.text,
-        totalCopies: copies,
-        description: _description.text,
-      );
-    } else {
-      result = await repository.addBook(
-        title: title,
-        author: _author.text,
-        isbn: _isbn.text,
-        category: _category.text,
-        language: _language.text,
-        shelfLocation: _shelf.text,
-        totalCopies: copies,
-        description: _description.text,
-      );
+    ActionResult result;
+    try {
+      if (_isEdit) {
+        result = await repository.updateBook(
+          id: widget.bookId!,
+          title: title,
+          author: _author.text,
+          isbn: _isbn.text,
+          category: _category.text,
+          language: _language.text,
+          shelfLocation: _shelf.text,
+          totalCopies: copies,
+          description: _description.text,
+          coverAsset: _coverAsset,
+          publisher: _publisher.text,
+          publishedYear: publishedYear,
+          pages: pages,
+        );
+      } else {
+        result = await repository.addBook(
+          title: title,
+          author: _author.text,
+          isbn: _isbn.text,
+          category: _category.text,
+          language: _language.text,
+          shelfLocation: _shelf.text,
+          totalCopies: copies,
+          description: _description.text,
+          coverAsset: _coverAsset,
+          publisher: _publisher.text,
+          publishedYear: publishedYear,
+          pages: pages,
+        );
+      }
+    } catch (_) {
+      result = const ActionResult.failure('The book could not be saved. Please try again.');
+    } finally {
+      // Always stop the spinner, whatever happened.
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
     if (!mounted) return;
 
+    // Only report success when the repository confirms the save.
     if (result.success) {
       context.go(
         LibrarianRoutes.books,
-        extra: _isEdit
-            ? '"$title" was updated.'
-            : '"$title" added to the catalogue.',
+        extra: _isEdit ? '"$title" was updated.' : '"$title" added to the catalogue.',
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message!)),
-      );
+      _showMessage(result.message!);
+    }
+  }
+
+  Future<void> _delete() async {
+    final book = _editing!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this book?'),
+        content: Text(
+          '"${book.title}" will be removed from the catalogue and students '
+          'will no longer see it. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: LibrarianColors.unavailable),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _saving = true);
+    final result = await LibrarianScope.read(context).repository.deleteBook(book.id);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (result.success) {
+      context.go(LibrarianRoutes.books, extra: '"${book.title}" was deleted.');
+    } else {
+      _showMessage(result.message!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final repository = LibrarianScope.of(context).repository;
     final header = LibrarianPageHeader(
       title: _isEdit ? 'Edit Book' : 'Add New Book',
       subtitle: _isEdit
@@ -144,11 +237,14 @@ class _AddBookScreenState extends State<AddBookScreen> {
         maxWidth: 760,
         children: [
           header,
-          const LibrarianEmptyState(
-            icon: Icons.search_off,
-            title: 'Book not found',
-            message: 'It may have been removed from the catalogue.',
-          ),
+          if (repository.isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            const LibrarianEmptyState(
+              icon: Icons.search_off,
+              title: 'Book not found',
+              message: 'It may have been removed from the catalogue.',
+            ),
         ],
       );
     }
@@ -161,25 +257,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
           header,
           InfoSectionCard(
             children: [
-              Center(
-                child: BookCover(title: _title.text.trim(), width: 96, height: 128),
-              ),
-              const SizedBox(height: LibrarianSpacing.md),
-              const Text(
-                'Cover preview',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: LibrarianColors.text,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: LibrarianSpacing.xs),
-              const Text(
-                'A cover is generated from the title. Uploading a JPG or PNG '
-                'cover will be available once cloud storage is connected.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: LibrarianColors.secondaryText),
+              BookCoverAssetField(
+                title: _title.text.trim(),
+                coverAsset: _coverAsset,
+                enabled: !_saving,
+                onChanged: (path) => setState(() => _coverAsset = path),
               ),
             ],
           ),
@@ -232,6 +314,38 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   ),
                 ],
               ),
+              LabeledTextField(
+                label: 'Publisher',
+                controller: _publisher,
+                hint: 'Prentice Hall (optional)',
+                textCapitalization: TextCapitalization.words,
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LabeledTextField(
+                      label: 'Published Year',
+                      controller: _year,
+                      hint: '2008',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: LibrarianValidators.optionalYear,
+                    ),
+                  ),
+                  const SizedBox(width: LibrarianSpacing.md),
+                  Expanded(
+                    child: LabeledTextField(
+                      label: 'Pages',
+                      controller: _pages,
+                      hint: '464',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: LibrarianValidators.optionalPages,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           InfoSectionCard(
@@ -247,8 +361,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       hint: '5',
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: (v) =>
-                          LibrarianValidators.positiveCount(v, 'Total copies'),
+                      validator: (v) => LibrarianValidators.positiveCount(v, 'Total copies'),
                     ),
                   ),
                   const SizedBox(width: LibrarianSpacing.md),
@@ -258,8 +371,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       controller: _shelf,
                       hint: 'CS-14-B',
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) =>
-                          LibrarianValidators.required(v, 'Shelf location'),
+                      validator: (v) => LibrarianValidators.required(v, 'Shelf location'),
                     ),
                   ),
                 ],
@@ -276,7 +388,21 @@ class _AddBookScreenState extends State<AddBookScreen> {
             saveLabel: _isEdit ? 'Save Changes' : 'Save Book',
             onSave: _save,
             onCancel: () => context.go(LibrarianRoutes.books),
+            saving: _saving,
           ),
+          if (_isEdit) ...[
+            const SizedBox(height: LibrarianSpacing.md),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Delete Book'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 52),
+                foregroundColor: LibrarianColors.unavailable,
+                side: const BorderSide(color: LibrarianColors.unavailable),
+              ),
+            ),
+          ],
         ],
       ),
     );

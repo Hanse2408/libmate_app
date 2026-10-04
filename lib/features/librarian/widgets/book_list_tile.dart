@@ -22,7 +22,7 @@ class BookListTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BookCover(title: book.title),
+          BookCover(title: book.title, coverAsset: book.coverAsset),
           const SizedBox(width: LibrarianSpacing.md),
           Expanded(
             child: Column(

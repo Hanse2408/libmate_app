@@ -9,11 +9,16 @@ class FormActionButtons extends StatelessWidget {
     required this.saveLabel,
     required this.onSave,
     required this.onCancel,
+    this.saving = false,
   });
 
   final String saveLabel;
   final VoidCallback onSave;
   final VoidCallback onCancel;
+
+  /// While true both buttons are disabled and Save shows a spinner, so the
+  /// form cannot be submitted twice.
+  final bool saving;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +31,7 @@ class FormActionButtons extends StatelessWidget {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: onCancel,
+            onPressed: saving ? null : onCancel,
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(0, 56),
               foregroundColor: LibrarianColors.text,
@@ -43,13 +48,18 @@ class FormActionButtons extends StatelessWidget {
         const SizedBox(width: LibrarianSpacing.md),
         Expanded(
           child: FilledButton(
-            onPressed: onSave,
+            onPressed: saving ? null : onSave,
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 56),
               shape: shape,
               textStyle: textStyle,
             ),
-            child: Text(saveLabel, overflow: TextOverflow.ellipsis),
+            child: saving
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                : Text(saveLabel, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],

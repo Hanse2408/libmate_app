@@ -115,7 +115,15 @@ class _BookManagementScreenState extends State<BookManagementScreen> {
               ],
             ),
             const SizedBox(height: LibrarianSpacing.lg),
-            if (results.isEmpty)
+            if (repository.isLoading && books.isEmpty)
+              const _Loading(label: 'Loading books…')
+            else if (repository.loadError != null && books.isEmpty)
+              LibrarianEmptyState(
+                icon: Icons.cloud_off,
+                title: 'Books could not be loaded',
+                message: repository.loadError!,
+              )
+            else if (results.isEmpty)
               _emptyState(hasBooks: books.isNotEmpty)
             else
               _BookList(books: results),
@@ -172,6 +180,26 @@ class _BookList extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: LibrarianSpacing.lg),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: LibrarianSpacing.md),
+          Text(label, style: const TextStyle(color: LibrarianColors.secondaryText)),
+        ],
+      ),
     );
   }
 }
