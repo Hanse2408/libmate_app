@@ -336,6 +336,31 @@ void main() {
       other.dispose();
     });
 
+    test('a seat booking is confirmed at once and asks no librarian approval', () async {
+      final seat = await addSeat('A01');
+      final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      expect(result.success, isTrue, reason: result.message);
+      await settle();
+
+      final booking = (await db.collection('reservations').get()).docs.single.data();
+      expect(booking['type'], 'seat');
+      expect(booking['status'], 'approved');
+      expect(student.myReservations.single.status, ReservationStatus.approved);
+      expect(librarian.notifications, isEmpty);
+    });
+
+    test('a student cannot hold two seats at the same time', () async {
+      final seat = await addSeat('A01');
+      final second = await addSeat('A02');
+      await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      await settle();
+
+      final clash = await student.bookSeat(seat: second, date: tomorrow(), startHour: 11, endHour: 13);
+      expect(clash.success, isFalse);
+      expect(clash.message, contains('already have a seat booked'));
+      expect((await db.collection('reservations').get()).docs, hasLength(1));
+    });
+
     test('cancelling a booking frees the seat for others', () async {
       final seat = await addSeat('A01');
       final other = studentRepo(db, uid: otherStudentUid);
@@ -358,6 +383,9 @@ void main() {
       await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       await settle();
       final id = librarian.reservations.single.id;
+      // Seat bookings are confirmed at once now; this is an older pending one.
+      await db.collection('reservations').doc(id).update({'status': 'pending'});
+      await settle();
 
       expect((await librarian.rejectReservation(id, 'Room closed for exams')).success, isTrue);
       await settle();
