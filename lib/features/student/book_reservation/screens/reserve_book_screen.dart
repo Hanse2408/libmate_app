@@ -23,16 +23,21 @@ class ReserveBookScreen extends StatefulWidget {
 
 class _ReserveBookScreenState extends State<ReserveBookScreen> {
   DateTime _pickupDate = _today().add(const Duration(days: 1));
-  late int _loanPeriod = _loanPeriods.contains(widget.library.settings.loanPeriodDays)
-      ? widget.library.settings.loanPeriodDays
-      : 14;
+
+  late int _loanPeriod =
+      _loanPeriods.contains(widget.library.settings.loanPeriodDays)
+          ? widget.library.settings.loanPeriodDays
+          : 14;
+
   bool _saving = false;
+
   late BookRecord _book;
 
   static DateTime _today() {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
   }
+
   String _pickupLocation = 'Main Desk (Floor 1)';
 
   final List<int> _loanPeriods = [7, 14, 21, 30];
@@ -46,12 +51,17 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   @override
   Widget build(BuildContext context) {
     final book = widget.library.bookById(widget.bookId);
+
     if (book == null) {
       return const Scaffold(
-        body: Center(child: Text('This book is no longer in the catalogue.')),
+        body: Center(
+          child: Text('This book is no longer in the catalogue.'),
+        ),
       );
     }
+
     _book = book;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
@@ -407,7 +417,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         ),
         child: Text(
           _saving ? 'Sending request…' : 'Confirm Reservation',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -674,22 +684,48 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   /// save is confirmed; otherwise the reason is shown and nothing changes.
   Future<void> _confirmReservation() async {
     if (_saving) return;
+
     setState(() => _saving = true);
+
     final result = await widget.library.reserveBook(
       book: _book,
       pickupDate: _pickupDate,
       loanPeriodDays: _loanPeriod,
       pickupLocation: _pickupLocation,
     );
+
     if (!mounted) return;
+
     setState(() => _saving = false);
 
     if (!result.success) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(result.message!)));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(result.message!),
+          ),
+        );
       return;
     }
+
+    // The reservation was successfully created.
+    // Pass its real Firestore ID to the confirmation screen.
+    final reservationId = result.reservationId;
+
+    if (reservationId == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Reservation was created, but its ID could not be found.',
+            ),
+          ),
+        );
+      return;
+    }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => BookingConfirmationScreen(
@@ -698,6 +734,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
           pickupDate: _formatDate(_pickupDate),
           loanPeriod: '$_loanPeriod Days',
           pickupLocation: _pickupLocation,
+          reservationId: reservationId,
         ),
       ),
     );

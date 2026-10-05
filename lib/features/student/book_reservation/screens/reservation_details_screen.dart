@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../common/data/student_library_repository.dart';
+import '../../../../models/reservation.dart';
 
 class ReservationDetailsScreen extends StatefulWidget {
-  const ReservationDetailsScreen({super.key});
+  const ReservationDetailsScreen({
+  super.key,
+  required this.library,
+  required this.reservationId,
+});
+
+final StudentLibraryRepository library;
+final String reservationId;
 
   @override
   State<ReservationDetailsScreen> createState() =>
@@ -10,15 +19,29 @@ class ReservationDetailsScreen extends StatefulWidget {
 
 class _ReservationDetailsScreenState
     extends State<ReservationDetailsScreen> {
+
+       ReservationRecord? get _reservation {
+    for (final reservation in widget.library.myReservations) {
+      if (reservation.id == widget.reservationId) {
+        return reservation;
+      }
+    }
+    return null;
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
   bool _cancelled = false;
 
-  static const String bookTitle = 'Clean Code';
   static const String author = 'Robert C. Martin';
-  static const String category = 'Computer Science';
-  static const String reservationId = 'BR20250912001';
-  static const String reservationDate = '12 Sep 2025';
-  static const String pickupLocation = 'Main Library, 3rd Floor';
-  static const String pickupDesk = 'Book Collection Desk';
+static const String category = 'Computer Science';
+static const String pickupDesk = 'Book Collection Desk';
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +145,8 @@ class _ReservationDetailsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  bookTitle,
+                Text(
+  _reservation?.itemName ?? 'Book',
                   style: TextStyle(
                     color: Color(0xFF172033),
                     fontSize: 19,
@@ -299,13 +322,15 @@ class _ReservationDetailsScreenState
           _buildInformationRow(
             icon: Icons.bookmark_border_rounded,
             label: 'Reservation ID',
-            value: reservationId,
+            value: widget.reservationId,
           ),
           _buildInformationDivider(),
           _buildInformationRow(
             icon: Icons.calendar_today_outlined,
             label: 'Reservation Date',
-            value: reservationDate,
+            value: _reservation == null
+    ? '-'
+    : _formatDate(_reservation!.date),
           ),
           _buildInformationDivider(),
           _buildLocationRow(),
@@ -381,9 +406,9 @@ class _ReservationDetailsScreenState
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: const [
+            children:  [
               Text(
-                pickupLocation,
+                _reservation?.pickupLocation ?? '-',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: Color(0xFF172033),

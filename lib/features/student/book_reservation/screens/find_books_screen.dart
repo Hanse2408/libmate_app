@@ -6,6 +6,7 @@ import 'book_details_screen.dart';
 
 /// Browse and search the library catalogue. The list is the same Firestore
 /// `books` collection the Librarian manages, so new books appear live.
+
 class FindBooksScreen extends StatefulWidget {
   const FindBooksScreen({super.key, required this.library});
 
@@ -16,7 +17,9 @@ class FindBooksScreen extends StatefulWidget {
 }
 
 class _FindBooksScreenState extends State<FindBooksScreen> {
+
   final TextEditingController _searchController = TextEditingController();
+
 
   String _selectedCategory = 'All';
 
@@ -26,6 +29,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
       ..sort();
     return ['All', ...categories];
   }
+
 
   /// The books librarians have saved in Firestore (updates live).
   List<Book> get _books {
@@ -51,41 +55,43 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     Color(0xFFF2B84B),
   ];
 
-  List<Book> get _filteredBooks {
-    final searchText = _searchController.text.toLowerCase().trim();
 
-    return _books.where((book) {
-      final matchesCategory =
-          _selectedCategory == 'All' ||
-          book.category == _selectedCategory;
+    List<Book> get _filteredBooks {
+  final searchText = _searchController.text.toLowerCase().trim();
 
-      final matchesSearch =
-          searchText.isEmpty ||
-          book.title.toLowerCase().contains(searchText) ||
-          book.author.toLowerCase().contains(searchText) ||
-          book.category.toLowerCase().contains(searchText);
+  return _books.where((book) {
+    final matchesCategory =
+        _selectedCategory == 'All' ||
+        book.category == _selectedCategory;
 
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
+    final matchesSearch =
+        searchText.isEmpty ||
+        book.title.toLowerCase().contains(searchText) ||
+        book.author.toLowerCase().contains(searchText) ||
+        book.category.toLowerCase().contains(searchText);
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
+    return matchesCategory && matchesSearch;
+  }).toList();
+}
+
+@override
+void initState() {
+  super.initState();
+  _searchController.addListener(_onSearchChanged);
+}
 
   void _onSearchChanged() {
     setState(() {});
   }
 
-  @override
-  void dispose() {
-    _searchController
-      ..removeListener(_onSearchChanged)
-      ..dispose();
-    super.dispose();
-  }
+ @override
+void dispose() {
+  _searchController
+    ..removeListener(_onSearchChanged)
+    ..dispose();
+
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -232,71 +238,70 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
-  Widget _buildCategories() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Categories',
-          style: TextStyle(
-            color: Color(0xFF172033),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+ Widget _buildCategories() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Categories',
+        style: TextStyle(
+          color: Color(0xFF172033),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = category == _selectedCategory;
+      ),
+      const SizedBox(height: 14),
+      SizedBox(
+        height: 42,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _categories.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),        
+        itemBuilder: (context, index) {
+            final category = _categories[index];
+            final isSelected = category == _selectedCategory;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF2563EB)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
                     color: isSelected
                         ? const Color(0xFF2563EB)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF64748B),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-              );
-            },
-          ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-      ],
-    );
-  }
-
+      ),
+    ],
+  );
+}
   Widget _buildBookSection() {
     final books = _filteredBooks;
 
@@ -458,6 +463,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
+
   Widget _buildBookCover(Book book) {
     // The librarian's uploaded cover, or the generated one.
     final generated = _buildGeneratedCover(book);
@@ -510,10 +516,13 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
               ),
             ),
           ],
+
         ),
-      ),
-    );
-  }
+      
+    ),
+   
+  );
+}
 
   Widget _buildEmptyState() {
     return Container(
@@ -714,6 +723,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
   }
 }
 
+
 class Book {
   const Book({
     required this.id,
@@ -736,3 +746,4 @@ class Book {
   final String description;
   final Color color;
 }
+

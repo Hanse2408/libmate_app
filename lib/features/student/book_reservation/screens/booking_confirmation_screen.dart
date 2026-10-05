@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../../common/data/student_library_repository.dart';
-import 'my_reservations_screen.dart';
+import 'reservation_details_screen.dart';
+
 
 /// Shown after a book reservation request was saved in Firestore. The
 /// request is pending until a librarian approves it.
 class BookingConfirmationScreen extends StatelessWidget {
   const BookingConfirmationScreen({
-    super.key,
-    required this.library,
-    required this.bookTitle,
-    required this.pickupDate,
-    required this.loanPeriod,
-    required this.pickupLocation,
-  });
+  super.key,
+  required this.library,
+  required this.bookTitle,
+  required this.pickupDate,
+  required this.loanPeriod,
+  required this.pickupLocation,
+  required this.reservationId,
+});
 
   final StudentLibraryRepository library;
   final String bookTitle;
   final String pickupDate;
   final String loanPeriod;
   final String pickupLocation;
-
+  final String reservationId;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -402,12 +404,15 @@ class BookingConfirmationScreen extends StatelessWidget {
       height: 46,
       child: ElevatedButton(
         onPressed: () {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute<void>(
-              builder: (_) => MyReservationsScreen(library: library),
-            ),
-          );
-        },
+  Navigator.of(context).pushReplacement(
+    MaterialPageRoute<void>(
+      builder: (_) => ReservationDetailsScreen(
+  library: library,
+  reservationId: reservationId,
+),
+    ),
+  );
+},
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
           foregroundColor: Colors.white,
