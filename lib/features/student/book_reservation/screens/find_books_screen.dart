@@ -1,85 +1,114 @@
 import 'package:flutter/material.dart';
 
-import '../../../../models/book.dart';
-import '../providers/book_provider.dart';
+import '../../../../core/widgets/stored_image.dart';
+import '../../common/data/student_library_repository.dart';
+import 'book_details_screen.dart';
+
+/// Browse and search the library catalogue. The list is the same Firestore
+/// `books` collection the Librarian manages, so new books appear live.
 
 class FindBooksScreen extends StatefulWidget {
-  const FindBooksScreen({super.key});
+  const FindBooksScreen({super.key, required this.library});
+
+  final StudentLibraryRepository library;
 
   @override
   State<FindBooksScreen> createState() => _FindBooksScreenState();
 }
 
 class _FindBooksScreenState extends State<FindBooksScreen> {
-  final BookProvider _bookProvider = BookProvider();
+
   final TextEditingController _searchController = TextEditingController();
 
-  void _onProviderChanged() {
-  if (mounted) {
-    setState(() {});
-  }
-}
 
   String _selectedCategory = 'All';
 
-  final List<String> _categories = [
-    'All',
-    'Programming',
-    'Self-Help',
-    'Psychology',
-    'Business',
-    'Fiction',
+  /// "All" plus the categories of the books in the catalogue.
+  List<String> get _categories {
+    final categories = {for (final book in widget.library.books) book.category}.toList()
+      ..sort();
+    return ['All', ...categories];
+  }
+
+
+  /// The books librarians have saved in Firestore (updates live).
+  List<Book> get _books {
+    return [
+      for (final record in widget.library.books)
+        Book(
+          id: record.id,
+          title: record.title,
+          author: record.author,
+          category: record.category,
+          available: record.isAvailable,
+          description: record.description,
+          color: _coverColors[record.title.length % _coverColors.length],
+          coverImageUrl: record.coverAsset,
+        ),
+    ];
+  }
+
+  static const List<Color> _coverColors = [
+    Color(0xFF2563EB),
+    Color(0xFF1E3A8A),
+    Color(0xFF64748B),
+    Color(0xFFF2B84B),
   ];
 
 
     List<Book> get _filteredBooks {
-    final searchText = _searchController.text.toLowerCase().trim();
+  final searchText = _searchController.text.toLowerCase().trim();
 
-    return _bookProvider.books.where((book) {
-      final matchesCategory =
-          _selectedCategory == 'All' ||
-          book.category == _selectedCategory;
+  return _books.where((book) {
+    final matchesCategory =
+        _selectedCategory == 'All' ||
+        book.category == _selectedCategory;
 
-      final matchesSearch =
-          searchText.isEmpty ||
-          book.title.toLowerCase().contains(searchText) ||
-          book.author.toLowerCase().contains(searchText) ||
-          book.category.toLowerCase().contains(searchText);
+    final matchesSearch =
+        searchText.isEmpty ||
+        book.title.toLowerCase().contains(searchText) ||
+        book.author.toLowerCase().contains(searchText) ||
+        book.category.toLowerCase().contains(searchText);
 
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
+    return matchesCategory && matchesSearch;
+  }).toList();
+}
 
- @override
+@override
 void initState() {
   super.initState();
   _searchController.addListener(_onSearchChanged);
-  _bookProvider.addListener(_onProviderChanged);
-  _bookProvider.loadBooks();
 }
 
   void _onSearchChanged() {
     setState(() {});
   }
 
-  @override
-  void dispose() {
-    _searchController
-      ..removeListener(_onSearchChanged)
-      ..dispose();
+ @override
+void dispose() {
+  _searchController
+    ..removeListener(_onSearchChanged)
+    ..dispose();
 
-    _bookProvider.removeListener(_onProviderChanged);
-    _bookProvider.dispose();
-
-    super.dispose();
-  }
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: Column(
+        child: ListenableBuilder(
+          listenable: widget.library,
+          builder: (context, _) => _buildBody(),
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBody() {
+    return Column(
           children: [
             _buildHeader(),
             Expanded(
@@ -98,10 +127,7 @@ void initState() {
               ),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-    );
+        );
   }
 
   Widget _buildHeader() {
@@ -212,71 +238,70 @@ void initState() {
     );
   }
 
-  Widget _buildCategories() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Categories',
-          style: TextStyle(
-            color: Color(0xFF172033),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+ Widget _buildCategories() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Categories',
+        style: TextStyle(
+          color: Color(0xFF172033),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = category == _selectedCategory;
+      ),
+      const SizedBox(height: 14),
+      SizedBox(
+        height: 42,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _categories.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),        
+        itemBuilder: (context, index) {
+            final category = _categories[index];
+            final isSelected = category == _selectedCategory;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF2563EB)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
                     color: isSelected
                         ? const Color(0xFF2563EB)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF64748B),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-              );
-            },
-          ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-      ],
-    );
-  }
-
+      ),
+    ],
+  );
+}
   Widget _buildBookSection() {
     final books = _filteredBooks;
 
@@ -305,7 +330,9 @@ void initState() {
           ],
         ),
         const SizedBox(height: 14),
-        if (books.isEmpty)
+        if (widget.library.isLoading && books.isEmpty)
+          const Center(child: CircularProgressIndicator())
+        else if (books.isEmpty)
           _buildEmptyState()
         else
           ListView.separated(
@@ -324,7 +351,11 @@ void initState() {
   Widget _buildBookCard(Book book) {
     return InkWell(
       onTap: () {
-        _showBookDetails(book);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BookDetailsScreen(library: widget.library, bookId: book.id),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -368,25 +399,33 @@ void initState() {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          book.category,
-                          style: const TextStyle(
-                            color: Color(0xFF2563EB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                      // Long category names are shortened instead of overflowing.
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              book.category,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -424,29 +463,64 @@ void initState() {
     );
   }
 
- Widget _buildBookCover(Book book) {
-  return Container(
-    width: 82,
-    height: 112,
-    decoration: BoxDecoration(
+
+  Widget _buildBookCover(Book book) {
+    // The librarian's uploaded cover, or the generated one.
+    final generated = _buildGeneratedCover(book);
+    if (book.coverImageUrl == null) return generated;
+    return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.08),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.asset(
-        book.coverAsset,
+      child: SizedBox(
         width: 82,
         height: 112,
-        fit: BoxFit.cover,
+        child: StoredImage(url: book.coverImageUrl, fallback: generated),
       ),
+    );
+  }
+
+  Widget _buildGeneratedCover(Book book) {
+    return Container(
+      width: 82,
+      height: 112,
+      decoration: BoxDecoration(
+        color: book.color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: book.color.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.menu_book_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              book.title,
+              maxLines: 3,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+
+        ),
+      
     ),
+   
   );
 }
 
@@ -647,89 +721,29 @@ void initState() {
       },
     );
   }
+}
 
-  void _showBookDetails(Book book) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(26),
-        ),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildBookCover(book),
-              const SizedBox(height: 18),
-              Text(
-                book.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                book.author,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                book.description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: book.available
-                      ? const Color(0xFFEAF8F1)
-                      : const Color(0xFFFDECEC),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  book.available ? 'Available for reservation' : 'Currently unavailable',
-                  style: TextStyle(
-                    color: book.available
-                        ? const Color(0xFF22A06B)
-                        : const Color(0xFFDC4C4C),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+
+class Book {
+  const Book({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.category,
+    required this.available,
+    required this.description,
+    required this.color,
+    this.coverImageUrl,
+  });
+
+  final String id;
+  final String? coverImageUrl;
+
+  final String title;
+  final String author;
+  final String category;
+  final bool available;
+  final String description;
+  final Color color;
 }
 

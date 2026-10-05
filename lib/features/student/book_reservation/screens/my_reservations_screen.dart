@@ -1,47 +1,77 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/reservation.dart' as shared;
+import '../../common/data/student_library_repository.dart';
+import '../../common/widgets/student_book_cover.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
+/// The student's own book and seat reservations, read live from Firestore.
+/// A librarian's approval or rejection appears here straight away.
 class MyReservationsScreen extends StatefulWidget {
-  const MyReservationsScreen({super.key});
+  const MyReservationsScreen({
+    super.key,
+    required this.library,
+    this.showSeats = false,
+  });
+
+  final StudentLibraryRepository library;
+
+  /// Open on the Seats tab instead of Books.
+  final bool showSeats;
 
   @override
   State<MyReservationsScreen> createState() => _MyReservationsScreenState();
 }
 
 class _MyReservationsScreenState extends State<MyReservationsScreen> {
-  final List<BookReservation> _reservations = [
-    const BookReservation(
-      title: 'Clean Code',
-      author: 'Robert C. Martin',
-      status: 'Reserved',
-      statusType: ReservationStatus.reserved,
-      dateLabel: 'Collect by 20 Sep 2025',
-      coverType: CoverType.cleanCode,
-    ),
-    const BookReservation(
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      status: 'Ready for Pickup',
-      statusType: ReservationStatus.ready,
-      dateLabel: 'Pickup window: 16 Sep 2025',
-      coverType: CoverType.atomicHabits,
-    ),
-    const BookReservation(
-      title: 'Deep Work',
-      author: 'Cal Newport',
-      status: 'Reserved',
-      statusType: ReservationStatus.reserved,
-      dateLabel: 'Collect by 22 Sep 2025',
-      coverType: CoverType.deepWork,
-    ),
-    const BookReservation(
-      title: 'The Design of Everyday Things',
-      author: 'Don Norman',
-      status: 'Pending',
-      statusType: ReservationStatus.pending,
-      dateLabel: 'Requested on 15 Sep 2025',
-      coverType: CoverType.design,
-    ),
-  ];
+  late bool _showSeats = widget.showSeats;
+  String? _cancellingId;
+
+  /// The student's reservations of the selected type, as display cards.
+  List<BookReservation> get _reservations {
+    final type = _showSeats ? shared.ReservationType.seat : shared.ReservationType.book;
+    return [
+      for (final r in widget.library.myReservations)
+        if (r.type == type) _toCard(r),
+    ];
+  }
+
+  BookReservation _toCard(shared.ReservationRecord r) {
+    final book = r.type == shared.ReservationType.book
+        ? widget.library.bookById(r.itemId)
+        : null;
+    final (label, type) = switch (r.status) {
+      shared.ReservationStatus.pending => ('Pending', ReservationStatus.pending),
+      shared.ReservationStatus.approved => r.type == shared.ReservationType.book
+          ? ('Ready for Pickup', ReservationStatus.ready)
+          : ('Confirmed', ReservationStatus.ready),
+      shared.ReservationStatus.completed =>
+        r.type == shared.ReservationType.book
+            ? ('Collected', ReservationStatus.reserved)
+            : ('Completed', ReservationStatus.reserved),
+      shared.ReservationStatus.rejected => ('Rejected', ReservationStatus.closed),
+      shared.ReservationStatus.cancelled => ('Cancelled', ReservationStatus.closed),
+    };
+    final date = _formatDate(r.date);
+    final dateLabel = switch (r.status) {
+      shared.ReservationStatus.rejected => r.rejectionReason ?? 'Rejected by the library',
+      _ when r.type == shared.ReservationType.seat => '$date • ${r.timeSlot ?? ''}',
+      shared.ReservationStatus.approved => 'Collect from $date',
+      _ => 'Pickup date: $date',
+    };
+    return BookReservation(
+      id: r.id,
+      title: r.itemName,
+      author: r.type == shared.ReservationType.book
+          ? (book?.author ?? '')
+          : 'Reading Room',
+      status: label,
+      statusType: type,
+      dateLabel: dateLabel,
+      coverImageUrl: book?.coverAsset,
+      isSeat: r.type == shared.ReservationType.seat,
+      canCancel: r.isActive,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +83,10 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
             _buildHeader(),
             _buildToggle(),
             Expanded(
-              child: _buildReservationList(),
+              child: ListenableBuilder(
+                listenable: widget.library,
+                builder: (context, _) => _buildReservationList(),
+              ),
             ),
           ],
         ),
@@ -119,60 +152,64 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
         ),
         child: Row(
           children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFBFD6F7),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'Books',
-                  style: TextStyle(
-                    color: Color(0xFF1267D9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Seat reservations are handled by the seat booking feature.',
-                      ),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(13),
-                child: const Center(
-                  child: Text(
-                    'Seats',
-                    style: TextStyle(
-                      color: Color(0xFF17356D),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            Expanded(child: _buildToggleOption('Books', selected: !_showSeats)),
+            Expanded(child: _buildToggleOption('Seats', selected: _showSeats)),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildToggleOption(String label, {required bool selected}) {
+    return InkWell(
+      onTap: () => setState(() => _showSeats = label == 'Seats'),
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        decoration: selected
+            ? BoxDecoration(
+                color: const Color(0xFFBFD6F7),
+                borderRadius: BorderRadius.circular(13),
+              )
+            : null,
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? const Color(0xFF1267D9) : const Color(0xFF17356D),
+            fontSize: 16,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildReservationList() {
+    final reservations = _reservations;
+    if (widget.library.isLoading && reservations.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (reservations.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            widget.library.loadError ??
+                (_showSeats
+                    ? 'You have no seat bookings yet.'
+                    : 'You have no book reservations yet.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 15),
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      itemCount: _reservations.length,
+      itemCount: reservations.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        return _buildReservationCard(_reservations[index]);
+        return _buildReservationCard(reservations[index]);
       },
     );
   }
@@ -193,7 +230,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBookCover(reservation.coverType),
+              _buildBookCover(reservation),
               const SizedBox(width: 13),
               Expanded(
                 child: _buildBookInformation(reservation),
@@ -215,20 +252,20 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                   label: 'Modify',
                   backgroundColor: const Color(0xFFEAF3FF),
                   textColor: const Color(0xFF1267D9),
-                  onPressed: () {
-                    _showModifyMessage(reservation);
-                  },
+                  onPressed: reservation.canCancel
+                      ? () => _showModifyMessage(reservation)
+                      : null,
                 ),
               ),
               const SizedBox(width: 20),
               Expanded(
                 child: _buildActionButton(
-                  label: 'Cancel',
+                  label: _cancellingId == reservation.id ? 'Cancelling…' : 'Cancel',
                   backgroundColor: const Color(0xFFFFE6E6),
                   textColor: const Color(0xFFE53935),
-                  onPressed: () {
-                    _confirmCancellation(reservation);
-                  },
+                  onPressed: reservation.canCancel && _cancellingId == null
+                      ? () => _confirmCancellation(reservation)
+                      : null,
                 ),
               ),
             ],
@@ -274,19 +311,13 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
             Expanded(
               child: Text(
                 reservation.dateLabel,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Color(0xFF536987),
                   fontSize: 13,
                 ),
               ),
-            ),
-            const SizedBox(width: 2),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF17356D),
-              size: 30,
             ),
           ],
         ),
@@ -295,23 +326,12 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }
 
   Widget _buildStatusBadge(BookReservation reservation) {
-    Color backgroundColor;
-    Color textColor;
-
-    switch (reservation.statusType) {
-      case ReservationStatus.reserved:
-        backgroundColor = const Color(0xFFEAF3FF);
-        textColor = const Color(0xFF1267D9);
-        break;
-      case ReservationStatus.ready:
-        backgroundColor = const Color(0xFFDDF6E6);
-        textColor = const Color(0xFF159447);
-        break;
-      case ReservationStatus.pending:
-        backgroundColor = const Color(0xFFFFEEDB);
-        textColor = const Color(0xFFE78A00);
-        break;
-    }
+    final (backgroundColor, textColor) = switch (reservation.statusType) {
+      ReservationStatus.reserved => (const Color(0xFFEAF3FF), const Color(0xFF1267D9)),
+      ReservationStatus.ready => (const Color(0xFFDDF6E6), const Color(0xFF159447)),
+      ReservationStatus.pending => (const Color(0xFFFFEEDB), const Color(0xFFE78A00)),
+      ReservationStatus.closed => (const Color(0xFFF1F5F9), const Color(0xFF64748B)),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -334,155 +354,46 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     );
   }
 
-  Widget _buildBookCover(CoverType type) {
-    switch (type) {
-      case CoverType.cleanCode:
-        return Container(
-          width: 68,
-          height: 76,
-          decoration: BoxDecoration(
-            color: const Color(0xFF111B2D),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Clean Code',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 5),
-              Icon(
-                Icons.show_chart_rounded,
-                color: Color(0xFF20B6F2),
-                size: 24,
-              ),
-            ],
-          ),
-        );
-
-      case CoverType.atomicHabits:
-        return Container(
-          width: 68,
-          height: 76,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF4E6C8),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Tiny Changes\nRemarkable Results',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF75644D),
-                  fontSize: 5,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Atomic\nHabits',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFFE85C16),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        );
-
-      case CoverType.deepWork:
-        return Container(
-          width: 68,
-          height: 76,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD72F),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'DEEP',
-                style: TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                'WORK',
-                style: TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'CAL NEWPORT',
-                style: TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 4,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        );
-
-      case CoverType.design:
-        return Container(
-          width: 68,
-          height: 76,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD95A),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'THE DESIGN\nOF EVERYDAY\nTHINGS',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 6,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 3),
-              Icon(
-                Icons.local_fire_department_rounded,
-                color: Color(0xFFE5532F),
-                size: 25,
-              ),
-            ],
-          ),
-        );
+  Widget _buildBookCover(BookReservation reservation) {
+    if (reservation.isSeat) {
+      return Container(
+        width: 68,
+        height: 76,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF4D8),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: const Icon(
+          Icons.event_seat_rounded,
+          color: Color(0xFFFFA500),
+          size: 32,
+        ),
+      );
     }
+    return StudentBookCover(
+      title: reservation.title,
+      author: reservation.author,
+      imageUrl: reservation.coverImageUrl,
+      width: 68,
+      height: 76,
+      color: const Color(0xFF111B2D),
+      radius: 7,
+    );
   }
 
   Widget _buildActionButton({
     required String label,
     required Color backgroundColor,
     required Color textColor,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
+    final enabled = onPressed != null;
     return SizedBox(
       height: 28,
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          backgroundColor: backgroundColor,
+          backgroundColor: enabled ? backgroundColor : const Color(0xFFF1F5F9),
           foregroundColor: textColor,
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
@@ -492,7 +403,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: textColor,
+            color: enabled ? textColor : const Color(0xFF94A3B8),
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
@@ -502,19 +413,21 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }
 
   void _showModifyMessage(BookReservation reservation) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Modify ${reservation.title} will be connected next.',
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'To change a reservation, cancel it and make a new one.',
+          ),
         ),
-      ),
-    );
+      );
   }
 
   void _confirmCancellation(BookReservation reservation) {
     showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -538,7 +451,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text(
                 'Keep',
@@ -550,14 +463,8 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${reservation.title} reservation cancelled.',
-                    ),
-                  ),
-                );
+                Navigator.pop(dialogContext);
+                _cancel(reservation);
               },
               child: const Text(
                 'Cancel Reservation',
@@ -573,119 +480,85 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
+  /// Cancels in Firestore; the message reflects the real result.
+  Future<void> _cancel(BookReservation reservation) async {
+    setState(() => _cancellingId = reservation.id);
+    final result = await widget.library.cancelReservation(reservation.id);
+    if (!mounted) return;
+    setState(() => _cancellingId = null);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            result.success
+                ? '${reservation.title} reservation cancelled.'
+                : result.message!,
           ),
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Reservations',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+      );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF1267D9)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF1267D9)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+ Widget _buildBottomNavigationBar() {
+  return StudentBottomNavigation(
+    selectedIndex: 2,
+    onHome: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    },
+    onSearch: () {
+      // We will connect this next.
+    },
+    onReservations: () {
+      // Already on Reservations.
+    },
+    onProfile: () {
+      // We will connect this next.
+    },
+  );
+}
+
+ 
+
+  static String _formatDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
 
+/// Badge colour group used on the reservation cards.
 enum ReservationStatus {
   reserved,
   ready,
   pending,
+
+  /// Rejected or cancelled.
+  closed,
 }
 
-enum CoverType {
-  cleanCode,
-  atomicHabits,
-  deepWork,
-  design,
-}
-
+/// What one reservation card shows.
 class BookReservation {
   const BookReservation({
+    required this.id,
     required this.title,
     required this.author,
     required this.status,
     required this.statusType,
     required this.dateLabel,
-    required this.coverType,
+    this.coverImageUrl,
+    this.isSeat = false,
+    this.canCancel = false,
   });
 
+  final String id;
   final String title;
   final String author;
   final String status;
   final ReservationStatus statusType;
   final String dateLabel;
-  final CoverType coverType;
+  final String? coverImageUrl;
+  final bool isSeat;
+  final bool canCancel;
 }

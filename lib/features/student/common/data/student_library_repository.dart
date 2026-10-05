@@ -1,0 +1,694 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
+import '../../../../core/constants/firestore_collections.dart';
+import '../../../../core/services/firestore_errors.dart';
+import '../../../../models/action_result.dart';
+import '../../../../models/book.dart';
+import '../../../../models/reservation.dart';
+import '../../../../models/seat.dart';
+import '../../../librarian/models/librarian_notification.dart';
+import '../../../librarian/models/librarian_settings.dart';
+
+/// Who is using the Student screens (from the signed-in Firebase user and
+/// their `users/{uid}` profile).
+class StudentIdentity {
+  const StudentIdentity({
+    required this.uid,
+    required this.studentId,
+    required this.name,
+    required this.email,
+  });
+
+  /// Firebase Auth uid, saved on reservations for the security rules.
+  final String uid;
+
+  /// University student ID shown to librarians (falls back to the uid).
+  final String studentId;
+
+  final String name;
+
+  final String email;
+}
+
+/// Library data for the Student screens, read from the same Firestore
+/// collections the Librarian writes to, so a book or seat a librarian adds
+/// appears here straight away (snapshot listeners, no rebuild needed).
+///
+/// A student can read the catalogue, the seats and the settings, but only
+/// their own reservations (see firestore.rules). Creating a reservation runs
+/// in a transaction that re-checks the book / seat, so two students cannot
+/// take the same seat-hour (see SeatSlots).
+class StudentLibraryRepository extends ChangeNotifier {
+  StudentLibraryRepository({
+    required FirebaseFirestore firestore,
+    required this.student,
+  }) : _db = firestore {
+    _listen();
+  }
+
+  final FirebaseFirestore _db;
+  final StudentIdentity student;
+
+  List<BookRecord> _books = const [];
+  List<SeatRecord> _seats = const [];
+  List<ReservationRecord> _myReservations = const [];
+  LibrarianSettings _settings = const LibrarianSettings();
+  final Set<String> _waiting = {};
+  String? _loadError;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+
+  List<BookRecord> get books => _books;
+
+  List<SeatRecord> get seats => _seats;
+
+  /// This student's reservations, newest first.
+  List<ReservationRecord> get myReservations => _myReservations;
+
+  LibrarianSettings get settings => _settings;
+
+  bool get isLoading => _waiting.isNotEmpty;
+
+  String? get loadError => _loadError;
+
+  CollectionReference<Map<String, dynamic>> _col(String name) =>
+      _db.collection(name);
+
+  BookRecord? bookById(String id) {
+    for (final book in _books) {
+      if (book.id == id) return book;
+    }
+    return null;
+  }
+
+  SeatRecord? seatById(String id) {
+    for (final seat in _seats) {
+      if (seat.id == id) return seat;
+    }
+    return null;
+  }
+
+  /// The student's pending or approved reservation of [bookId], if any.
+  ReservationRecord? activeReservationForBook(String bookId) {
+    for (final r in _myReservations) {
+      if (r.type == ReservationType.book &&
+          r.itemId == bookId &&
+          r.isActive) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  // ---------------- Live data ----------------
+
+  void _listen() {
+    _watch(_col(FirestoreCollections.books), 'books', (docs) {
+      _books = [
+        for (final d in docs) BookRecord.fromMap(d.id, d.data()),
+      ]..sort(
+          (a, b) => a.title.toLowerCase().compareTo(
+                b.title.toLowerCase(),
+              ),
+        );
+    });
+
+    _watch(_col(FirestoreCollections.seats), 'seats', (docs) {
+      _seats = [
+        for (final d in docs) SeatRecord.fromMap(d.id, d.data()),
+      ]..sort((a, b) {
+          final room = a.readingRoom.compareTo(b.readingRoom);
+          return room != 0 ? room : a.seatNumber.compareTo(b.seatNumber);
+        });
+    });
+
+    _watch(
+      _col(FirestoreCollections.reservations)
+          .where('studentUid', isEqualTo: student.uid),
+      'reservations',
+      (docs) {
+        _myReservations = [
+          for (final d in docs) ReservationRecord.fromMap(d.id, d.data()),
+        ]..sort(
+            (a, b) => b.requestedAt.compareTo(a.requestedAt),
+          );
+      },
+    );
+
+    _waiting.add('settings');
+    _subscriptions.add(
+      _col(FirestoreCollections.settings)
+          .doc(FirestoreCollections.librarySettingsDoc)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          _settings = LibrarianSettings.fromMap(
+            snapshot.data() ?? const {},
+          );
+          _received('settings');
+        },
+        onError: (Object error) => _failed('settings', error),
+      ),
+    );
+  }
+
+  void _watch(
+    Query<Map<String, dynamic>> query,
+    String name,
+    void Function(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    ) onData,
+  ) {
+    _waiting.add(name);
+
+    _subscriptions.add(
+      query.snapshots().listen(
+        (snapshot) {
+          onData(snapshot.docs);
+          _received(name);
+        },
+        onError: (Object error) => _failed(name, error),
+      ),
+    );
+  }
+
+  void _received(String name) {
+    _waiting.remove(name);
+    notifyListeners();
+  }
+
+  void _failed(String name, Object error) {
+    _waiting.remove(name);
+
+    final reason =
+        error is FirebaseException ? describeFirestoreError(error) : '';
+
+    _loadError = 'Could not load $name. $reason'.trim();
+
+    notifyListeners();
+  }
+
+  /// Seat-hours already booked on [day] (by anyone), as slot ids. Students
+  /// see only which seat and hour is taken, not who booked it.
+  Stream<Set<String>> bookedSlotIds(DateTime day) {
+    final date = Timestamp.fromDate(
+      DateTime(day.year, day.month, day.day),
+    );
+
+    return _col(FirestoreCollections.seatSlots)
+        .where('date', isEqualTo: date)
+        .snapshots()
+        .map(
+          (snapshot) => {
+            for (final d in snapshot.docs) d.id,
+          },
+        );
+  }
+
+  @override
+  void dispose() {
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+
+    super.dispose();
+  }
+
+  // ---------------- Rules ----------------
+
+  /// Why this student cannot reserve [book] now, or null if they can.
+  String? bookReservationBlocker(BookRecord book) {
+    if (activeReservationForBook(book.id) != null) {
+      return 'You already have an active reservation for this book.';
+    }
+
+    if (!book.isAvailable) {
+      return 'No copies are available right now.';
+    }
+
+    return null;
+  }
+
+  /// Why [seat] cannot be booked from [startHour] to [endHour] on [date],
+  /// or null. [bookedSlots] are the slot ids already taken that day.
+  String? seatBookingBlocker(
+    SeatRecord seat,
+    DateTime date,
+    int startHour,
+    int endHour, {
+    Set<String> bookedSlots = const {},
+  }) {
+    final s = _settings;
+
+    if (endHour <= startHour) {
+      return 'Choose an end time after the start time.';
+    }
+
+    if (endHour - startHour > s.seatBookingHours) {
+      return 'A seat can be booked for at most ${s.seatBookingHours} hours.';
+    }
+
+    if (startHour < s.openingHour || endHour > s.closingHour) {
+      return 'The library is open ${_hh(s.openingHour)} – ${_hh(s.closingHour)}.';
+    }
+
+    final now = DateTime.now();
+
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      startHour,
+    );
+
+    if (start.isBefore(
+      DateTime(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+      ),
+    )) {
+      return 'This time has already passed.';
+    }
+
+    if (seat.status == SeatStatus.maintenance) {
+      return 'Seat ${seat.seatNumber} is under maintenance.';
+    }
+
+    if (_isToday(date) && seat.status == SeatStatus.occupied) {
+      return 'Seat ${seat.seatNumber} is occupied right now.';
+    }
+
+    final wanted = SeatSlots.ids(
+      seat.id,
+      date,
+      startHour,
+      endHour,
+    );
+
+    if (wanted.any(bookedSlots.contains)) {
+      return 'Seat ${seat.seatNumber} is already booked at this time.';
+    }
+
+    // A student can only sit in one seat at a time.
+    final clash = _myReservations.any(
+      (r) =>
+          r.type == ReservationType.seat &&
+          r.isActive &&
+          _sameDay(r.date, date) &&
+          (r.startHour ?? 0) < endHour &&
+          startHour < (r.endHour ?? 0),
+    );
+
+    if (clash) {
+      return 'You already have a seat booked at this time.';
+    }
+
+    return null;
+  }
+
+  // ---------------- Actions ----------------
+
+  /// Sends a book reservation request (status pending until a librarian
+  /// approves it, which sets a copy aside).
+  Future<ActionResult> reserveBook({
+    required BookRecord book,
+    required DateTime pickupDate,
+    required int loanPeriodDays,
+    required String pickupLocation,
+  }) async {
+    final blocker = bookReservationBlocker(book);
+
+    if (blocker != null) {
+      return ActionResult.failure(blocker);
+    }
+
+    return _run(() async {
+      await _checkNoActiveBookReservation(book.id);
+
+      String? createdReservationId;
+
+      await _db.runTransaction((tx) async {
+        await _checkAccountActive(tx);
+
+        final bookSnap = await tx.get(
+          _col(FirestoreCollections.books).doc(book.id),
+        );
+
+        if (!bookSnap.exists) {
+          throw const ActionRefused(
+            'This book is no longer in the catalogue.',
+          );
+        }
+
+        final latest = BookRecord.fromMap(
+          book.id,
+          bookSnap.data()!,
+        );
+
+        if (!latest.isAvailable) {
+          throw const ActionRefused(
+            'No copies are available right now.',
+          );
+        }
+
+        final ref = _col(
+          FirestoreCollections.reservations,
+        ).doc();
+
+        // Store the ID of the reservation just created.
+        createdReservationId = ref.id;
+
+        tx.set(
+          ref,
+          ReservationRecord(
+            id: ref.id,
+            type: ReservationType.book,
+            status: ReservationStatus.pending,
+            studentUid: student.uid,
+            studentId: student.studentId,
+            studentName: student.name,
+            studentEmail: student.email,
+            itemId: latest.id,
+            itemName: latest.title,
+            requestedAt: DateTime.now(),
+            date: pickupDate,
+            pickupLocation: pickupLocation,
+            loanPeriodDays: loanPeriodDays,
+          ).toMap(),
+        );
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _newRequest(
+            '${student.name} requested "${latest.title}".',
+            ref.id,
+          ),
+        );
+      });
+
+      // Return the ID of the reservation that was just created.
+      return createdReservationId;
+    });
+  }
+
+  /// Books [seat] for [startHour]–[endHour] on [date] (pending until a
+  /// librarian approves). The seat-hours are claimed in the same transaction,
+  /// so an overlapping booking by another student is refused.
+  Future<ActionResult> bookSeat({
+    required SeatRecord seat,
+    required DateTime date,
+    required int startHour,
+    required int endHour,
+  }) async {
+    final blocker = seatBookingBlocker(
+      seat,
+      date,
+      startHour,
+      endHour,
+    );
+
+    if (blocker != null) {
+      return ActionResult.failure(blocker);
+    }
+
+    final day = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final slotLabel = ReservationRecord.slotLabel(
+      startHour,
+      endHour,
+    );
+
+    return _run(() async {
+      await _db.runTransaction((tx) async {
+        await _checkAccountActive(tx);
+
+        final seatSnap = await tx.get(
+          _col(FirestoreCollections.seats).doc(seat.id),
+        );
+
+        if (!seatSnap.exists) {
+          throw const ActionRefused(
+            'This seat no longer exists.',
+          );
+        }
+
+        final latest = SeatRecord.fromMap(
+          seat.id,
+          seatSnap.data()!,
+        );
+
+        if (latest.status == SeatStatus.maintenance ||
+            (_isToday(day) && latest.status == SeatStatus.occupied)) {
+          throw ActionRefused(
+            'Seat ${latest.seatNumber} is '
+            '${latest.status.label.toLowerCase()}.',
+          );
+        }
+
+        final slotRefs = [
+          for (final id in SeatSlots.ids(
+            seat.id,
+            day,
+            startHour,
+            endHour,
+          ))
+            _col(FirestoreCollections.seatSlots).doc(id),
+        ];
+
+        for (final slotRef in slotRefs) {
+          if ((await tx.get(slotRef)).exists) {
+            throw ActionRefused(
+              'Sorry, seat ${latest.seatNumber} was just booked by someone else '
+              'for this time. Please choose another seat or time.',
+            );
+          }
+        }
+
+        final ref = _col(
+          FirestoreCollections.reservations,
+        ).doc();
+
+        tx.set(
+          ref,
+          ReservationRecord(
+            id: ref.id,
+            type: ReservationType.seat,
+            status: ReservationStatus.pending,
+            studentUid: student.uid,
+            studentId: student.studentId,
+            studentName: student.name,
+            studentEmail: student.email,
+            itemId: latest.id,
+            itemName: 'Seat ${latest.seatNumber}',
+            requestedAt: DateTime.now(),
+            date: day,
+            timeSlot: slotLabel,
+          ).toMap(),
+        );
+
+        for (var i = 0; i < slotRefs.length; i++) {
+          tx.set(slotRefs[i], {
+            'seatId': latest.id,
+            'date': Timestamp.fromDate(day),
+            'hour': startHour + i,
+            'reservationId': ref.id,
+            'studentUid': student.uid,
+          });
+        }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _newRequest(
+            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
+            ref.id,
+          ),
+        );
+      });
+
+      // Book-seat does not need to return a reservation ID.
+      return null;
+    });
+  }
+
+  /// Cancels the student's own pending reservation or seat booking. An
+  /// approved book (a copy already set aside) is cancelled at the desk.
+  Future<ActionResult> cancelReservation(String id) {
+    return _run(() async {
+      await _db.runTransaction((tx) async {
+        final ref = _col(
+          FirestoreCollections.reservations,
+        ).doc(id);
+
+        final snap = await tx.get(ref);
+
+        if (!snap.exists) {
+          throw const ActionRefused(
+            'Reservation not found.',
+          );
+        }
+
+        final reservation = ReservationRecord.fromMap(
+          id,
+          snap.data()!,
+        );
+
+        if (reservation.studentUid != student.uid) {
+          throw const ActionRefused(
+            'This is not your reservation.',
+          );
+        }
+
+        if (!reservation.isActive) {
+          throw ActionRefused(
+            'This reservation is already '
+            '${reservation.status.label.toLowerCase()}.',
+          );
+        }
+
+        if (reservation.type == ReservationType.book &&
+            reservation.status == ReservationStatus.approved) {
+          throw const ActionRefused(
+            'A copy is already set aside for you. Please ask the librarian '
+            'at the desk to cancel this reservation.',
+          );
+        }
+
+        tx.update(ref, {
+          'status': ReservationStatus.cancelled.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        final start = reservation.startHour;
+        final end = reservation.endHour;
+
+        if (reservation.type == ReservationType.seat &&
+            start != null &&
+            end != null) {
+          // Frees the seat-hours for other students.
+          for (final slotId in SeatSlots.ids(
+            reservation.itemId,
+            reservation.date,
+            start,
+            end,
+          )) {
+            tx.delete(
+              _col(FirestoreCollections.seatSlots).doc(slotId),
+            );
+          }
+        }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          LibrarianNotification(
+            id: '',
+            type: LibrarianNotificationType.cancelled,
+            title: 'Reservation Cancelled',
+            message: '${student.name} cancelled ${reservation.itemName}.',
+            createdAt: DateTime.now(),
+            reservationId: id,
+          ).toMap(),
+        );
+      });
+
+      // Cancellation does not need to return a reservation ID.
+      return null;
+    });
+  }
+
+  // ---------------- Helpers ----------------
+
+  Future<ActionResult> _run(
+    Future<String?> Function() action,
+  ) async {
+    try {
+      final reservationId = await action();
+
+      return ActionResult.success(
+        reservationId: reservationId,
+      );
+    } on ActionRefused catch (e) {
+      return ActionResult.failure(e.message);
+    } on FirebaseException catch (e) {
+      return ActionResult.failure(
+        describeFirestoreError(e),
+      );
+    } catch (_) {
+      return const ActionResult.failure(
+        'Something went wrong. Please try again.',
+      );
+    }
+  }
+
+  /// Suspended members cannot make new reservations.
+  Future<void> _checkAccountActive(Transaction tx) async {
+    final user = await tx.get(
+      _col(FirestoreCollections.users).doc(student.uid),
+    );
+
+    if (user.data()?['accountStatus'] == 'suspended') {
+      throw const ActionRefused(
+        'Your library account is suspended. Please contact the library.',
+      );
+    }
+  }
+
+  /// Server check (the local list may be a moment behind).
+  Future<void> _checkNoActiveBookReservation(String bookId) async {
+    final mine = await _col(FirestoreCollections.reservations)
+        .where('studentUid', isEqualTo: student.uid)
+        .get();
+
+    final duplicate = mine.docs
+        .map(
+          (d) => ReservationRecord.fromMap(
+            d.id,
+            d.data(),
+          ),
+        )
+        .any(
+          (r) =>
+              r.type == ReservationType.book &&
+              r.itemId == bookId &&
+              r.isActive,
+        );
+
+    if (duplicate) {
+      throw const ActionRefused(
+        'You already have an active reservation for this book.',
+      );
+    }
+  }
+
+  Map<String, dynamic> _newRequest(
+    String message,
+    String reservationId,
+  ) {
+    return LibrarianNotification(
+      id: '',
+      type: LibrarianNotificationType.newRequest,
+      title: 'New Reservation Request',
+      message: message,
+      createdAt: DateTime.now(),
+      reservationId: reservationId,
+    ).toMap();
+  }
+
+  static bool _isToday(DateTime date) =>
+      _sameDay(date, DateTime.now());
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year &&
+      a.month == b.month &&
+      a.day == b.day;
+
+  static String _hh(int hour) =>
+      '${hour.toString().padLeft(2, '0')}:00';
+}

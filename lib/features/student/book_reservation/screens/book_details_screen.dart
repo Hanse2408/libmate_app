@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../../../models/book.dart';
+import '../../common/data/student_library_repository.dart';
+import '../../common/widgets/student_book_cover.dart';
+import 'reserve_book_screen.dart';
+
+/// Details of one catalogue book, read live from Firestore (via the shared
+/// library repository), so a librarian's changes show up immediately.
 class BookDetailsScreen extends StatefulWidget {
-  const BookDetailsScreen({super.key});
+  const BookDetailsScreen({
+    super.key,
+    required this.library,
+    required this.bookId,
+  });
+
+  final StudentLibraryRepository library;
+  final String bookId;
 
   @override
   State<BookDetailsScreen> createState() => _BookDetailsScreenState();
@@ -10,24 +24,58 @@ class BookDetailsScreen extends StatefulWidget {
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isFavorite = false;
 
-  // Mock book details for now.
-  // Firebase will be connected later.
-  final String title = 'Clean Code';
-  final String author = 'Robert C. Martin';
-  final String category = 'Computer Science';
-  final String publisher = 'Prentice Hall';
-  final String year = '2008';
-  final String pages = '464 pages';
-  final bool available = true;
+  /// The book as currently saved (updated by the ListenableBuilder in build).
+  late BookRecord _book;
 
-  final String description =
-      "Even bad code can function. But if code isn't clean, it can "
-      "bring a development organization to its knees. Every year, "
-      "countless hours and significant resources are lost because "
-      "of poorly written code.";
+  String get title => _book.title;
+  String get author => _book.author;
+  String get category => _book.category;
+  bool get available => _book.isAvailable;
+  String get description =>
+      _book.description.isEmpty ? 'No description has been added yet.' : _book.description;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.library,
+      builder: (context, _) {
+        final book = widget.library.bookById(widget.bookId);
+        if (book == null) return _buildMissingBook();
+        _book = book;
+        return _buildDetails();
+      },
+    );
+  }
+
+  /// The book was deleted by a librarian (or has not loaded).
+  Widget _buildMissingBook() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Center(
+                child: widget.library.isLoading
+                    ? const CircularProgressIndicator()
+                    : const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'This book is no longer in the catalogue.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetails() {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
@@ -137,82 +185,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         color: Colors.white,
       ),
       child: Center(
-        child: Container(
+        child: StudentBookCover(
+          title: title,
+          author: author,
+          imageUrl: _book.coverAsset,
           width: 158,
           height: 218,
-          decoration: BoxDecoration(
-            color: const Color(0xFF102D4D),
-            borderRadius: BorderRadius.circular(11),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x26000000),
-                blurRadius: 10,
-                offset: Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: const Color(0xFF52718F),
-                        width: 1,
-                      ),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                ),
-              ),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'CLEAN',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const Text(
-                      'CODE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'A Handbook of Agile\nSoftware Craftsmanship',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFFD6E4F0),
-                        fontSize: 7,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    const Text(
-                      'ROBERT C. MARTIN',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 7,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          radius: 11,
         ),
       ),
     );
@@ -244,8 +223,11 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Widget _buildCategoryAndAvailability() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    // Wraps onto two lines when the category name is long.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(
@@ -265,18 +247,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 11,
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFDDF7EB),
+            color: available ? const Color(0xFFDDF7EB) : const Color(0xFFFDECEC),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Text(
-            available ? 'Available' : 'Unavailable',
+            available
+                ? '${_book.availableCopies} of ${_book.totalCopies} available'
+                : 'Unavailable',
             style: TextStyle(
               color: available
                   ? const Color(0xFF22A06B)
@@ -309,22 +292,22 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         children: [
           Expanded(
             child: _buildInfoItem(
-              label: 'Publisher',
-              value: publisher,
+              label: 'Language',
+              value: _book.language,
             ),
           ),
           _buildDivider(),
           Expanded(
             child: _buildInfoItem(
-              label: 'Year',
-              value: year,
+              label: 'Shelf',
+              value: _book.shelfLocation,
             ),
           ),
           _buildDivider(),
           Expanded(
             child: _buildInfoItem(
-              label: 'Pages',
-              value: pages,
+              label: 'ISBN',
+              value: _book.isbn,
             ),
           ),
         ],
@@ -396,16 +379,37 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Widget _buildReserveButton() {
+    // Deleted / unavailable books and books already reserved by this
+    // student are not offered for a new reservation.
+    final blocker = widget.library.bookReservationBlocker(_book);
+    return Column(
+      children: [
+        if (blocker != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              blocker,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFDC4C4C), fontSize: 13),
+            ),
+          ),
+        _buildReserveButtonBox(enabled: blocker == null),
+      ],
+    );
+  }
+
+  Widget _buildReserveButtonBox({required bool enabled}) {
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: available
+        onPressed: enabled
             ? () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Reserve Book will be connected next.',
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReserveBookScreen(
+                      library: widget.library,
+                      bookId: _book.id,
                     ),
                   ),
                 );

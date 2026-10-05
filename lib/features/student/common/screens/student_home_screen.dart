@@ -3,14 +3,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';*/
 import 'package:flutter/material.dart';
 
-import '../../../auth/providers/auth_provider.dart';
-class StudentHomeScreen extends StatefulWidget {
-  const StudentHomeScreen({
-    super.key,
-    required this.authProvider,
-  });
+import '../../../../models/reservation.dart' as shared;
+import '../../book_reservation/screens/find_books_screen.dart';
+import '../../book_reservation/screens/my_reservations_screen.dart';
+import '../../seat_booking/screens/seat_booking_screen.dart';
+import '../data/student_library_repository.dart';
+import 'profile_screen.dart';
 
-  final AuthProvider authProvider;
+class StudentHomeScreen extends StatefulWidget {
+  const StudentHomeScreen({super.key, required this.createLibrary});
+
+  /// Creates the student's live library data (Firestore). The home screen
+  /// owns it, so its listeners stop when the student signs out.
+  final StudentLibraryRepository Function() createLibrary;
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
@@ -28,10 +33,43 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   static const Color accentGold = Color(0xFFF2B84B);
   static const Color availableGreen = Color(0xFF22A06B);
 
-  int _selectedNavIndex = 0;
+  final int _selectedNavIndex = 0;
+  late final StudentLibraryRepository _library = widget.createLibrary();
+
+  @override
+  void dispose() {
+    _library.dispose();
+    super.dispose();
+  }
+
+  void _open(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  void _openFindBooks() => _open(FindBooksScreen(library: _library));
+  void _openSeatBooking() => _open(SeatBookingScreen(library: _library));
+  void _openReservations() => _open(MyReservationsScreen(library: _library));
+
+  String get _firstName {
+    final name = _library.student.name.trim();
+    return name.isEmpty ? 'there' : name.split(' ').first;
+  }
+
+  String get _initials {
+    final parts = _library.student.name.trim().split(RegExp(r'\s+'));
+    final letters = parts.where((p) => p.isNotEmpty).take(2).map((p) => p[0]);
+    return letters.isEmpty ? '?' : letters.join().toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _library,
+      builder: (context, _) => _buildHome(),
+    );
+  }
+
+  Widget _buildHome() {
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
@@ -50,9 +88,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               const SizedBox(height: 26),
               _buildReservationHeader(),
               const SizedBox(height: 12),
-              _buildSeatReservationCard(),
-              const SizedBox(height: 12),
-              _buildBookReservationCard(),
+              ..._buildCurrentReservations(),
               const SizedBox(height: 20),
               _buildReminderCard(),
             ],
@@ -134,10 +170,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             color: textDark,
             shape: BoxShape.circle,
           ),
-          child: const Center(
+          child: Center(
             child: Text(
-              'ND',
-              style: TextStyle(
+              _initials,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -150,28 +186,28 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildGreeting() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Good morning,',
           style: TextStyle(
             color: Color(0xFF4B5F80),
             fontSize: 15,
           ),
         ),
-        SizedBox(height: 2),
+        const SizedBox(height: 2),
         Text(
-          'Nilumi!',
-          style: TextStyle(
+          '$_firstName!',
+          style: const TextStyle(
             color: textDark,
             fontSize: 28,
             fontWeight: FontWeight.w800,
             height: 1.1,
           ),
         ),
-        SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 4),
+        const Text(
           'What would you like to do today?',
           style: TextStyle(
             color: secondaryText,
@@ -183,6 +219,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildSearchBar() {
+    return GestureDetector(
+      onTap: _openFindBooks,
+      child: _buildSearchBox(),
+    );
+  }
+
+  Widget _buildSearchBox() {
     return Container(
       height: 44,
       decoration: BoxDecoration(
@@ -230,6 +273,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       children: [
         Expanded(
           child: _buildActionCard(
+            onTap: _openFindBooks,
             title: 'Find Books',
             subtitle: 'Check availability',
             icon: Icons.menu_book_rounded,
@@ -241,6 +285,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildActionCard(
+            onTap: _openSeatBooking,
             title: 'Book a Seat',
             subtitle: 'Reserve your study space',
             icon: Icons.event_seat_rounded,
@@ -254,6 +299,29 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildActionCard({
+    required VoidCallback onTap,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconBackground,
+    required Color backgroundColor,
+    required Color borderColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: _buildActionCardBody(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        iconBackground: iconBackground,
+        backgroundColor: backgroundColor,
+        borderColor: borderColor,
+      ),
+    );
+  }
+
+  Widget _buildActionCardBody({
     required String title,
     required String subtitle,
     required IconData icon,
@@ -321,7 +389,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ),
         TextButton(
-          onPressed: () {},
+          onPressed: _openReservations,
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
             minimumSize: Size.zero,
@@ -340,33 +408,55 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildSeatReservationCard() {
-    return _buildReservationCard(
-      icon: Icons.event_seat_rounded,
-      iconColor: const Color(0xFFFFA500),
-      iconBackground: const Color(0xFFFFF4D8),
-      title: 'Reading Room Seat',
-      status: 'Confirmed',
-      details: const [
-        '12 Sep 2025 • 2:00 PM - 4:00 PM',
-        'Seat A12',
-      ],
-    );
+  /// The student's next active seat booking and book reservation (live).
+  List<Widget> _buildCurrentReservations() {
+    final active = _library.myReservations.where((r) => r.isActive).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final seat = active.where((r) => r.type == shared.ReservationType.seat).firstOrNull;
+    final book = active.where((r) => r.type == shared.ReservationType.book).firstOrNull;
+    if (seat == null && book == null) {
+      return [
+        Text(
+          _library.isLoading ? 'Loading your reservations…' : 'You have no current reservations.',
+          style: const TextStyle(color: secondaryText, fontSize: 13),
+        ),
+      ];
+    }
+    return [
+      if (seat != null)
+        _buildReservationCard(
+          icon: Icons.event_seat_rounded,
+          iconColor: const Color(0xFFFFA500),
+          iconBackground: const Color(0xFFFFF4D8),
+          title: 'Reading Room Seat',
+          status: seat.isPending ? 'Pending' : 'Confirmed',
+          details: [
+            '${_formatDate(seat.date)} • ${seat.timeSlot ?? ''}',
+            seat.itemName,
+          ],
+        ),
+      if (seat != null && book != null) const SizedBox(height: 12),
+      if (book != null)
+        _buildReservationCard(
+          icon: Icons.menu_book_rounded,
+          iconColor: primaryBlue,
+          iconBackground: lightBlue,
+          title: 'Book Reservation',
+          status: book.isPending ? 'Pending' : 'Confirmed',
+          details: [
+            book.itemName,
+            'pick up from ${_formatDate(book.date)}',
+          ],
+        ),
+    ];
   }
 
-  Widget _buildBookReservationCard() {
-    return _buildReservationCard(
-      icon: Icons.menu_book_rounded,
-      iconColor: primaryBlue,
-      iconBackground: lightBlue,
-      title: 'Book Reservation',
-      status: 'Confirmed',
-      details: const [
-        'Clean code',
-        'pick up by 15th Oct 2026',
-        'Book ID: LB001234',
-      ],
-    );
+  static String _formatDate(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   Widget _buildReservationCard({
@@ -428,10 +518,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         color: const Color(0xFFD1FAE5),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        'Confirmed',
+                      child: Text(
+                        status,
                         style: TextStyle(
-                          color: availableGreen,
+                          color: status == 'Pending'
+                              ? const Color(0xFFE78A00)
+                              : availableGreen,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -512,10 +604,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _selectedNavIndex,
+      // The other tabs open on top of Home, so Home stays selected.
       onTap: (index) {
-        setState(() {
-          _selectedNavIndex = index;
-        });
+        switch (index) {
+          case 1:
+            _openFindBooks();
+          case 2:
+            _openReservations();
+          case 3:
+            _open(const ProfileScreen());
+        }
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: cardWhite,

@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../common/data/student_library_repository.dart';
+import 'reservation_details_screen.dart';
+
+
+/// Shown after a book reservation request was saved in Firestore. The
+/// request is pending until a librarian approves it.
 class BookingConfirmationScreen extends StatelessWidget {
-  const BookingConfirmationScreen({super.key});
+  const BookingConfirmationScreen({
+  super.key,
+  required this.library,
+  required this.bookTitle,
+  required this.pickupDate,
+  required this.loanPeriod,
+  required this.pickupLocation,
+  required this.reservationId,
+});
 
-  // Mock reservation data for now.
-  // This will be replaced with real reservation data later.
-  static const String bookTitle = 'Clean Code';
-  static const String pickupDate = '15 Sep 2025';
-  static const String loanPeriod = '14 Days';
-  static const String receiptCode = 'LM-4029-X9';
-
+  final StudentLibraryRepository library;
+  final String bookTitle;
+  final String pickupDate;
+  final String loanPeriod;
+  final String pickupLocation;
+  final String reservationId;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -220,7 +233,7 @@ class BookingConfirmationScreen extends StatelessWidget {
     return Column(
       children: [
         const Text(
-          'Reservation Successful!',
+          'Reservation Requested!',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Color(0xFF172033),
@@ -230,8 +243,8 @@ class BookingConfirmationScreen extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         const Text(
-          'Your book is secured and ready for pickup on your\n'
-          'selected date.',
+          'Your request was sent to the library. You can collect\n'
+          'the book once a librarian approves it.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Color(0xFF475569),
@@ -290,9 +303,14 @@ class BookingConfirmationScreen extends StatelessWidget {
             value: loanPeriod,
           ),
           _buildReceiptRow(
-            icon: Icons.receipt_long_outlined,
-            label: 'Receipt Code',
-            value: receiptCode,
+            icon: Icons.location_on_outlined,
+            label: 'Pickup Location',
+            value: pickupLocation,
+          ),
+          _buildReceiptRow(
+            icon: Icons.hourglass_top_rounded,
+            label: 'Status',
+            value: 'Pending approval',
             valueColor: const Color(0xFF2563EB),
           ),
         ],
@@ -386,14 +404,15 @@ class BookingConfirmationScreen extends StatelessWidget {
       height: 46,
       child: ElevatedButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'My Reservations will be connected next.',
-              ),
-            ),
-          );
-        },
+  Navigator.of(context).pushReplacement(
+    MaterialPageRoute<void>(
+      builder: (_) => ReservationDetailsScreen(
+  library: library,
+  reservationId: reservationId,
+),
+    ),
+  );
+},
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
           foregroundColor: Colors.white,

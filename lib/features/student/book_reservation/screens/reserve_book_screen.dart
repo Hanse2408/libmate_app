@@ -1,22 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../../../models/book_reservation.dart';
-import '../providers/book_reservation_provider.dart';
+import '../../../../models/book.dart';
+import '../../common/data/student_library_repository.dart';
+import '../../common/widgets/student_book_cover.dart';
+import 'booking_confirmation_screen.dart';
 
+/// Reserve a catalogue book: pickup date, loan period and location. The
+/// request is saved in Firestore as "pending" for a librarian to approve.
 class ReserveBookScreen extends StatefulWidget {
-  const ReserveBookScreen({super.key});
+  const ReserveBookScreen({
+    super.key,
+    required this.library,
+    required this.bookId,
+  });
+
+  final StudentLibraryRepository library;
+  final String bookId;
 
   @override
   State<ReserveBookScreen> createState() => _ReserveBookScreenState();
 }
 
 class _ReserveBookScreenState extends State<ReserveBookScreen> {
-  final BookReservationProvider _reservationProvider =
-    BookReservationProvider();
+  DateTime _pickupDate = _today().add(const Duration(days: 1));
 
-  DateTime _pickupDate = DateTime(2025, 9, 15);
-  int _loanPeriod = 14;
+  late int _loanPeriod =
+      _loanPeriods.contains(widget.library.settings.loanPeriodDays)
+          ? widget.library.settings.loanPeriodDays
+          : 14;
+
+  bool _saving = false;
+
+  late BookRecord _book;
+
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   String _pickupLocation = 'Main Desk (Floor 1)';
 
   final List<int> _loanPeriods = [7, 14, 21, 30];
@@ -29,6 +50,18 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final book = widget.library.bookById(widget.bookId);
+
+    if (book == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('This book is no longer in the catalogue.'),
+        ),
+      );
+    }
+
+    _book = book;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
@@ -143,18 +176,18 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Clean Code',
-                  style: TextStyle(
+                Text(
+                  _book.title,
+                  style: const TextStyle(
                     color: Color(0xFF172033),
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 3),
-                const Text(
-                  'Robert C. Martin',
-                  style: TextStyle(
+                Text(
+                  _book.author,
+                  style: const TextStyle(
                     color: Color(0xFF64748B),
                     fontSize: 14,
                   ),
@@ -169,9 +202,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    'Computer Science',
-                    style: TextStyle(
+                  child: Text(
+                    _book.category,
+                    style: const TextStyle(
                       color: Color(0xFF2563EB),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -188,9 +221,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                     color: const Color(0xFFDDF7EB),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    'Available',
-                    style: TextStyle(
+                  child: Text(
+                    '${_book.availableCopies} of ${_book.totalCopies} available',
+                    style: const TextStyle(
                       color: Color(0xFF22A06B),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -206,81 +239,12 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   }
 
   Widget _buildBookCover() {
-    return Container(
+    return StudentBookCover(
+      title: _book.title,
+      author: _book.author,
+      imageUrl: _book.coverAsset,
       width: 92,
       height: 126,
-      decoration: BoxDecoration(
-        color: const Color(0xFF102D4D),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 7,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(7),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF52718F),
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Text(
-                  'CLEAN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  'CODE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                SizedBox(height: 7),
-                Text(
-                  'A Handbook of Agile\nSoftware Craftsmanship',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFD6E4F0),
-                    fontSize: 5,
-                    height: 1.3,
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'ROBERT C. MARTIN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -442,7 +406,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: _confirmReservation,
+        onPressed: _saving ? null : _confirmReservation,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
           foregroundColor: Colors.white,
@@ -451,9 +415,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
-          'Confirm Reservation',
-          style: TextStyle(
+        child: Text(
+          _saving ? 'Sending request…' : 'Confirm Reservation',
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -551,8 +515,8 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: _pickupDate,
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2030),
+      firstDate: _today(),
+      lastDate: _today().add(const Duration(days: 30)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -716,86 +680,65 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     }
   }
 
- Future<void> _confirmReservation() async {
-  final user = FirebaseAuth.instance.currentUser;
+  /// Saves the reservation in Firestore. Success is only shown after the
+  /// save is confirmed; otherwise the reason is shown and nothing changes.
+  Future<void> _confirmReservation() async {
+    if (_saving) return;
 
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please sign in to make a reservation.'),
-      ),
+    setState(() => _saving = true);
+
+    final result = await widget.library.reserveBook(
+      book: _book,
+      pickupDate: _pickupDate,
+      loanPeriodDays: _loanPeriod,
+      pickupLocation: _pickupLocation,
     );
-    return;
-  }
 
-  final reservation = BookReservation(
-    reservationId: '',
-    userId: user.uid,
-    bookId: 'CLEAN_CODE',
-    pickupDate: _pickupDate,
-    loanPeriodDays: _loanPeriod,
-    status: 'PENDING',
-    receiptCode: 'RC-${DateTime.now().millisecondsSinceEpoch}',
-  );
+    if (!mounted) return;
 
-  final reservationId =
-      await _reservationProvider.createReservation(reservation);
+    setState(() => _saving = false);
 
-  if (!mounted) return;
-
-  if (reservationId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Failed to create reservation. Please try again.'),
-      ),
-    );
-    return;
-  }
-
-  showDialog<void>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        title: const Text(
-          'Reservation Confirmed',
-          style: TextStyle(
-            color: Color(0xFF172033),
-            fontWeight: FontWeight.w700,
+    if (!result.success) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(result.message!),
           ),
-        ),
-        content: Text(
-          'Your Clean Code reservation has been created.\n\n'
-          'Pickup: ${_formatDate(_pickupDate)}\n'
-          'Loan period: $_loanPeriod days\n'
-          'Location: $_pickupLocation\n\n'
-          'Receipt Code: ${reservation.receiptCode}',
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            height: 1.5,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF2563EB),
-                fontWeight: FontWeight.w700,
-              ),
+        );
+      return;
+    }
+
+    // The reservation was successfully created.
+    // Pass its real Firestore ID to the confirmation screen.
+    final reservationId = result.reservationId;
+
+    if (reservationId == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Reservation was created, but its ID could not be found.',
             ),
           ),
-        ],
-      );
-    },
-  );
-}
+        );
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => BookingConfirmationScreen(
+          library: widget.library,
+          bookTitle: _book.title,
+          pickupDate: _formatDate(_pickupDate),
+          loanPeriod: '$_loanPeriod Days',
+          pickupLocation: _pickupLocation,
+          reservationId: reservationId,
+        ),
+      ),
+    );
+  }
 
   String _formatDate(DateTime date) {
     const months = [
