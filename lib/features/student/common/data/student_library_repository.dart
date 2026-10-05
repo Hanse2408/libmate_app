@@ -219,8 +219,16 @@ class StudentLibraryRepository extends ChangeNotifier {
     if (wanted.any(bookedSlots.contains)) {
       return 'Seat ${seat.seatNumber} is already booked at this time.';
     }
-    // A student can only sit in one seat at a time.
-    final clash = _myReservations.any(
+    if (hasSeatBookingAt(date, startHour, endHour)) {
+      return 'You already have a seat booked at this time.';
+    }
+    return null;
+  }
+
+  /// A student can only sit in one seat at a time: true if they already have
+  /// an active seat booking overlapping [startHour]–[endHour] on [date].
+  bool hasSeatBookingAt(DateTime date, int startHour, int endHour) {
+    return _myReservations.any(
       (r) =>
           r.type == ReservationType.seat &&
           r.isActive &&
@@ -228,8 +236,6 @@ class StudentLibraryRepository extends ChangeNotifier {
           (r.startHour ?? 0) < endHour &&
           startHour < (r.endHour ?? 0),
     );
-    if (clash) return 'You already have a seat booked at this time.';
-    return null;
   }
 
   // ---------------- Actions ----------------
@@ -283,9 +289,10 @@ class StudentLibraryRepository extends ChangeNotifier {
     });
   }
 
-  /// Books [seat] for [startHour]–[endHour] on [date] (pending until a
-  /// librarian approves). The seat-hours are claimed in the same transaction,
-  /// so an overlapping booking by another student is refused.
+  /// Books [seat] for [startHour]–[endHour] on [date]. Seat bookings need no
+  /// librarian approval, so the reservation is saved as approved straight away.
+  /// The seat-hours are claimed in the same transaction, so an overlapping
+  /// booking by another student is refused.
   Future<ActionResult> bookSeat({
     required SeatRecord seat,
     required DateTime date,
@@ -297,8 +304,9 @@ class StudentLibraryRepository extends ChangeNotifier {
     final day = DateTime(date.year, date.month, date.day);
     final slotLabel = ReservationRecord.slotLabel(startHour, endHour);
 
-    return _run(() {
-      return _db.runTransaction((tx) async {
+    return _run(() async {
+      await _checkNoSeatClash(day, startHour, endHour);
+      await _db.runTransaction((tx) async {
         await _checkAccountActive(tx);
         final seatSnap = await tx.get(_col(FirestoreCollections.seats).doc(seat.id));
         if (!seatSnap.exists) throw const ActionRefused('This seat no longer exists.');
@@ -329,7 +337,7 @@ class StudentLibraryRepository extends ChangeNotifier {
           ReservationRecord(
             id: ref.id,
             type: ReservationType.seat,
-            status: ReservationStatus.pending,
+            status: ReservationStatus.approved,
             studentUid: student.uid,
             studentId: student.studentId,
             studentName: student.name,
@@ -350,13 +358,6 @@ class StudentLibraryRepository extends ChangeNotifier {
             'studentUid': student.uid,
           });
         }
-        tx.set(
-          _col(FirestoreCollections.notifications).doc(),
-          _newRequest(
-            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
-            ref.id,
-          ),
-        );
       });
     });
   }
@@ -449,6 +450,25 @@ class StudentLibraryRepository extends ChangeNotifier {
     if (duplicate) {
       throw const ActionRefused('You already have an active reservation for this book.');
     }
+  }
+
+  /// Server check that the student has no other active seat booking at this
+  /// time (the local list may be a moment behind).
+  Future<void> _checkNoSeatClash(DateTime day, int startHour, int endHour) async {
+    final mine = await _col(FirestoreCollections.reservations)
+        .where('studentUid', isEqualTo: student.uid)
+        .get();
+    final clash = mine.docs
+        .map((d) => ReservationRecord.fromMap(d.id, d.data()))
+        .any(
+          (r) =>
+              r.type == ReservationType.seat &&
+              r.isActive &&
+              _sameDay(r.date, day) &&
+              (r.startHour ?? 0) < endHour &&
+              startHour < (r.endHour ?? 0),
+        );
+    if (clash) throw const ActionRefused('You already have a seat booked at this time.');
   }
 
   Map<String, dynamic> _newRequest(String message, String reservationId) {
