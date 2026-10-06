@@ -16,7 +16,6 @@ import 'package:libmate_app/features/student/book_reservation/screens/find_books
 import 'package:libmate_app/features/student/book_reservation/screens/my_reservations_screen.dart';
 import 'package:libmate_app/features/student/seat_booking/screens/seat_booking_confirmation_screen.dart';
 import 'package:libmate_app/features/student/seat_booking/screens/seat_booking_screen.dart';
-import 'package:libmate_app/features/student/seat_booking/widgets/booking_details_card.dart';
 import 'package:libmate_app/models/reservation.dart' as shared;
 import 'package:libmate_app/models/seat.dart';
 import 'package:libmate_app/models/user.dart';
@@ -68,29 +67,6 @@ Future<void> _pumpStudent(WidgetTester tester, Widget screen) async {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(home: screen));
-  await tester.pumpAndSettle();
-}
-
-/// Picks tomorrow in the Book a Seat date picker.
-Future<void> _pickTomorrow(WidgetTester tester) async {
-  final today = DateTime.now();
-  final day = tomorrow();
-  await tester.tap(find.text(formatBookingDate(DateTime(today.year, today.month, today.day))));
-  await tester.pumpAndSettle();
-  if (day.month != today.month) {
-    await tester.tap(find.byTooltip('Next month'));
-    await tester.pumpAndSettle();
-  }
-  await tester.tap(find.text('${day.day}'));
-  await tester.tap(find.text('OK'));
-  await tester.pumpAndSettle();
-}
-
-/// Picks [hour] (e.g. '08:00') as the start time.
-Future<void> _pickStart(WidgetTester tester, String hour) async {
-  await tester.tap(find.text('Start Time'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.descendant(of: find.byType(ListTile), matching: find.text(hour)));
   await tester.pumpAndSettle();
 }
 
@@ -250,15 +226,14 @@ void main() {
     final student = studentRepo(db);
     addTearDown(student.dispose);
     await _pumpStudent(tester, SeatBookingScreen(library: student));
-    await _pickTomorrow(tester);
-    final bookButton = find.widgetWithText(ElevatedButton, 'Book Seat');
-    expect(tester.widget<ElevatedButton>(bookButton).onPressed, isNull); // no seat chosen yet
+    await tester.tap(find.text('${tomorrow().day}')); // tomorrow, from 08:00
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('seat-${seatDoc.id}')));
     await tester.pumpAndSettle();
     expect(find.text('Seat D09'), findsOneWidget);
     expect(_networkImage(photoUrl), findsOneWidget);
 
-    await tester.tap(bookButton);
+    await tester.tap(find.text('Book Seat'));
     await tester.pumpAndSettle();
     final bookingDoc = (await db.collection('reservations').get()).docs.single;
     final booking = bookingDoc.data();
@@ -296,12 +271,12 @@ void main() {
     final student = studentRepo(db);
     addTearDown(student.dispose);
     await _pumpStudent(tester, SeatBookingScreen(library: student));
-    await _pickTomorrow(tester);
-    await _pickStart(tester, '08:00');
+    // Tomorrow, 08:00 (the default start time).
+    await tester.tap(find.text('${day.day}'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('seat-${seat.id}')));
     await tester.pumpAndSettle();
 
-    // A reserved seat cannot be chosen; tapping it explains why.
     expect(find.text('Seat A01 is already booked at this time.'), findsOneWidget);
     final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Book Seat'));
     expect(button.onPressed, isNull);

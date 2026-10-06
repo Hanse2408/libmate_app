@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../common/data/student_library_repository.dart';
 import '../../../../models/reservation.dart';
-import '../../common/screens/profile_screen.dart';
-import '../../common/widgets/student_bottom_navigation.dart';
-import 'find_books_screen.dart';
-import 'my_reservations_screen.dart';
 
 class ReservationDetailsScreen extends StatefulWidget {
   const ReservationDetailsScreen({
@@ -53,31 +49,28 @@ static const String pickupDesk = 'Book Collection Desk';
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: widget.library,
-          builder: (context, _) => Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: Column(
-                    children: [
-                      _buildBookCard(),
-                      const SizedBox(height: 16),
-                      _buildReservationInformation(),
-                      const SizedBox(height: 16),
-                      _buildNotes(),
-                      const SizedBox(height: 16),
-                      _buildModifyButton(),
-                      const SizedBox(height: 12),
-                      _buildCancelButton(),
-                    ],
-                  ),
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: Column(
+                  children: [
+                    _buildBookCard(),
+                    const SizedBox(height: 16),
+                    _buildReservationInformation(),
+                    const SizedBox(height: 16),
+                    _buildNotes(),
+                    const SizedBox(height: 16),
+                    _buildModifyButton(),
+                    const SizedBox(height: 12),
+                    _buildCancelButton(),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -571,178 +564,14 @@ static const String pickupDesk = 'Book Collection Desk';
     );
   }
 
-  Future<void> _modifyReservation() async {
-    final reservation = _reservation;
-    if (reservation == null) return;
-
-    final updated = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        var pickupDate = reservation.date;
-        var loanPeriodDays =
-            reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
-        var pickupLocation =
-            reservation.pickupLocation ?? 'Main Library, 3rd Floor';
-        const pickupLocations = [
-          'Main Library, 3rd Floor',
-          'Main Library, 2nd Floor',
-          'Main Desk, Floor 1',
-          'Main Desk (Floor 1)',
-          'Library Collection Desk',
-        ];
-        if (!pickupLocations.contains(pickupLocation)) {
-          pickupLocation = pickupLocations.first;
-        }
-        var saving = false;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            Future<void> selectDate() async {
-              final selected = await showDatePicker(
-                context: dialogContext,
-                initialDate: pickupDate,
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 60)),
-              );
-              if (selected != null) {
-                setDialogState(() => pickupDate = selected);
-              }
-            }
-
-            Future<void> save() async {
-              setDialogState(() => saving = true);
-              final result = await widget.library.updateBookReservation(
-                reservationId: widget.reservationId,
-                pickupDate: pickupDate,
-                pickupLocation: pickupLocation,
-                loanPeriodDays: loanPeriodDays,
-                notes: reservation.note ?? '',
-              );
-              if (!dialogContext.mounted) return;
-              if (result.success) {
-                Navigator.of(dialogContext).pop(true);
-              } else {
-                setDialogState(() => saving = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result.message ?? 'Update failed.')),
-                );
-              }
-            }
-
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              title: const Text(
-                'Modify Reservation',
-                style: TextStyle(
-                  color: Color(0xFF172033),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Pickup date',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    OutlinedButton.icon(
-                      onPressed: saving ? null : selectDate,
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(_formatDate(pickupDate)),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Loan period',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    DropdownButtonFormField<int>(
-                      initialValue: loanPeriodDays,
-                      items: const [7, 14, 21, 30]
-                          .map(
-                            (days) => DropdownMenuItem<int>(
-                              value: days,
-                              child: Text('$days days'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: saving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setDialogState(() => loanPeriodDays = value);
-                              }
-                            },
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Pickup location',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    DropdownButtonFormField<String>(
-                      initialValue: pickupLocation,
-                      items: pickupLocations
-                          .map(
-                            (location) => DropdownMenuItem<String>(
-                              value: location,
-                              child: Text(location),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: saving
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setDialogState(() => pickupLocation = value);
-                              }
-                            },
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: saving ? null : save,
-                  child: Text(saving ? 'Updating...' : 'OK'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+  void _modifyReservation() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Modify Reservation will be connected next.',
+        ),
+      ),
     );
-
-    if (updated == true && mounted) {
-      setState(() {});
-    }
   }
 
   void _showCancelDialog() {
@@ -823,36 +652,87 @@ static const String pickupDesk = 'Book Collection Desk';
   }
 
   Widget _buildBottomNavigationBar() {
-  return StudentBottomNavigation(
-    selectedIndex: 2,
-    onHome: () {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    },
-    onSearch: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => FindBooksScreen(
-            library: widget.library,
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Color(0xFFE2E8F0),
           ),
         ),
-      );
-    },
-    onReservations: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MyReservationsScreen(
-            library: widget.library,
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 68,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_outlined,
+                label: 'Home',
+                selected: false,
+              ),
+              _buildNavItem(
+                icon: Icons.search_rounded,
+                label: 'Search',
+                selected: false,
+              ),
+              _buildNavItem(
+                icon: Icons.calendar_month_rounded,
+                label: 'Reservations',
+                selected: true,
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Profile',
+                selected: false,
+              ),
+            ],
           ),
         ),
-      );
-    },
-    onProfile: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(library: widget.library),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool selected,
+  }) {
+    return InkWell(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 4,
         ),
-      );
-    },
-  );
-}
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 23,
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF94A3B8),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF94A3B8),
+                fontSize: 10,
+                fontWeight: selected
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -130,11 +130,10 @@ service cloud.firestore {
       // no approval and are created already approved (shown as "Confirmed").
       allow create: if isActiveStudent()
         && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.status == 'pending'
         && ((request.resource.data.type == 'book'
-              && request.resource.data.status == 'pending'
               && exists(/databases/$(database)/documents/books/$(request.resource.data.itemId)))
           || (request.resource.data.type == 'seat'
-              && request.resource.data.status == 'approved'
               && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))));
 
       // Staff approve / reject / complete. A student may only cancel their
@@ -181,7 +180,6 @@ service cloud.firestore {
           'timeSlot',
           'updatedAt'
         ]);
-
       allow delete: if false;
     }
 

@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 
 import 'app/routes/app_router.dart';
+import 'app/theme/app_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'firebase_options.dart';
 
@@ -23,25 +24,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'LibMate',
-      theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme:
-            ColorScheme.fromSeed(
-              seedColor: const Color(0xFF2563EB),
-              brightness: Brightness.light,
-            ).copyWith(
-              primary: const Color(0xFF2563EB),
-              secondary: const Color(0xFF1E3A8A),
-              surface: Colors.white,
-              onSurface: const Color(0xFF172033),
-            ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        inputDecorationTheme: const InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        ),
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

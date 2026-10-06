@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'modify_book_reservation_screen.dart';
+
 import '../../../../models/reservation.dart' as shared;
 import '../../common/data/student_library_repository.dart';
 import '../../common/widgets/student_book_cover.dart';
@@ -8,7 +8,6 @@ import '../../common/screens/profile_screen.dart';
 import 'find_books_screen.dart';
 import '../../seat_booking/screens/modify_seat_reservation_screen.dart';
 import '../../seat_booking/screens/seat_reservation_details_screen.dart';
-
 /// The student's own book and seat reservations, read live from Firestore.
 /// A librarian's approval or rejection appears here straight away.
 class MyReservationsScreen extends StatefulWidget {
@@ -471,7 +470,17 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     );
   }
 
-  
+  void _showModifyMessage(BookReservation reservation) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'To change a reservation, cancel it and make a new one.',
+          ),
+        ),
+      );
+  }
 
   void _confirmCancellation(BookReservation reservation) {
     showDialog<void>(
@@ -555,23 +564,13 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
     },
     onSearch: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => FindBooksScreen(
-            library: widget.library,
-          ),
-        ),
-      );
+      // We will connect this next.
     },
     onReservations: () {
       // Already on Reservations.
     },
     onProfile: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(library: widget.library),
-        ),
-      );
+      // We will connect this next.
     },
   );
 }

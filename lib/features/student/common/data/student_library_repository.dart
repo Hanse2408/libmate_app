@@ -410,6 +410,12 @@ class StudentLibraryRepository extends ChangeNotifier {
           (r.startHour ?? 0) < endHour &&
           startHour < (r.endHour ?? 0),
     );
+
+    if (clash) {
+      return 'You already have a seat booked at this time.';
+    }
+
+    return null;
   }
 
   // ---------------- Actions ----------------
@@ -584,17 +590,26 @@ Future<ActionResult> updateBookReservation({
       startHour,
       endHour,
     );
-    if (blocker != null) {
-  return ActionResult.failure(blocker);
-}
 
-final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
+    if (blocker != null) {
+      return ActionResult.failure(blocker);
+    }
+
+    final day = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final slotLabel = ReservationRecord.slotLabel(
+      startHour,
+      endHour,
+    );
 
     return _run(() async {
       await _checkNoSeatClash(date, startHour, endHour);
 
       String? createdReservationId;
-
       await _db.runTransaction((tx) async {
         await _checkAccountActive(tx);
 
@@ -614,7 +629,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
         );
 
         if (latest.status == SeatStatus.maintenance ||
-            (_isToday(date) && latest.status == SeatStatus.occupied)) {
+            (_isToday(day) && latest.status == SeatStatus.occupied)) {
           throw ActionRefused(
             'Seat ${latest.seatNumber} is '
             '${latest.status.label.toLowerCase()}.',
@@ -624,7 +639,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
         final slotRefs = [
           for (final id in SeatSlots.ids(
             seat.id,
-            date,
+            day,
             startHour,
             endHour,
           ))
@@ -651,7 +666,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
           ReservationRecord(
             id: ref.id,
             type: ReservationType.seat,
-            status: ReservationStatus.approved,
+            status: ReservationStatus.pending,
             studentUid: student.uid,
             studentId: student.studentId,
             studentName: student.name,
@@ -659,7 +674,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
             itemId: latest.id,
             itemName: 'Seat ${latest.seatNumber}',
             requestedAt: DateTime.now(),
-            date: date,
+            date: day,
             timeSlot: slotLabel,
           ).toMap(),
         );
@@ -667,12 +682,20 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
         for (var i = 0; i < slotRefs.length; i++) {
           tx.set(slotRefs[i], {
             'seatId': latest.id,
-            'date': Timestamp.fromDate(date),
+            'date': Timestamp.fromDate(day),
             'hour': startHour + i,
             'reservationId': ref.id,
             'studentUid': student.uid,
           });
         }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _newRequest(
+            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
+            ref.id,
+          ),
+        );
       });
 
       return createdReservationId;
@@ -995,8 +1018,6 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
         );
     if (clash) throw const ActionRefused('You already have a seat booked at this time.');
   }
-
-  Map<String, dynamic> _newRequest(String message, String reservationId) {
     return LibrarianNotification(
       id: '',
       type: LibrarianNotificationType.newRequest,

@@ -370,7 +370,6 @@ void main() {
       expect(clash.message, contains('already have a seat booked'));
       expect((await db.collection('reservations').get()).docs, hasLength(1));
     });
-
     test('cancelling a booking frees the seat for others', () async {
       final seat = await addSeat('A01');
       final other = studentRepo(db, uid: otherStudentUid);
@@ -393,9 +392,6 @@ void main() {
       await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       await settle();
       final id = librarian.reservations.single.id;
-      // Seat bookings are confirmed at once now; this is an older pending one.
-      await db.collection('reservations').doc(id).update({'status': 'pending'});
-      await settle();
 
       expect((await librarian.rejectReservation(id, 'Room closed for exams')).success, isTrue);
       await settle();
