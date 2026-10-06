@@ -3,15 +3,16 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/book.dart';
 import '../../models/ebook.dart';
+import '../constants/cloudinary_config.dart';
 import '../constants/firestore_collections.dart';
+import 'cloudinary_upload_service.dart';
 import 'image_storage_service.dart';
 
-/// A PDF the librarian selected, ready to upload to Firebase Storage.
+/// A PDF the librarian selected, ready to upload to Cloudinary.
 class PdfFile {
   const PdfFile({required this.bytes, required this.fileName});
 
@@ -23,13 +24,19 @@ class PdfFile {
   static const int maxBytes = 25 * 1024 * 1024; // 25 MB (as in the design)
 
   /// Builds a PdfFile, or returns why the file is refused.
-  static (PdfFile?, String?) validate({required Uint8List bytes, required String fileName}) {
+  static (PdfFile?, String?) validate({
+    required Uint8List bytes,
+    required String fileName,
+  }) {
     if (!fileName.toLowerCase().endsWith('.pdf')) {
       return (null, 'Please choose a PDF file (.pdf).');
     }
     if (bytes.isEmpty) return (null, 'The selected PDF is empty.');
     if (bytes.length > maxBytes) {
-      return (null, 'The PDF is larger than 25 MB. Please choose a smaller file.');
+      return (
+        null,
+        'The PDF is larger than 25 MB. Please choose a smaller file.',
+      );
     }
     // Real PDFs start with "%PDF"; a renamed image or document does not.
     const signature = [0x25, 0x50, 0x44, 0x46];
@@ -59,7 +66,10 @@ class PdfPickerService {
     );
     final file = await openFile(acceptedTypeGroups: [pdfs]);
     if (file == null) return (null, null);
-    return PdfFile.validate(bytes: await file.readAsBytes(), fileName: file.name);
+    return PdfFile.validate(
+      bytes: await file.readAsBytes(),
+      fileName: file.name,
+    );
   }
 }
 
@@ -96,14 +106,13 @@ class EbookDownloadException implements Exception {
   String toString() => message;
 }
 
-/// Downloads an e-book PDF from Firebase Storage and saves it on the device.
+/// Downloads an e-book PDF from its HTTPS URL and saves it on the device.
 /// Each platform has its own implementation (see createEbookDownloader).
 abstract class EbookDownloader {
-  /// Saves the PDF at [storagePath] (or [url]) as [fileName]. Completes only
-  /// when the file is fully saved; throws EbookDownloadException otherwise.
+  /// Downloads [url] as [fileName]. Completes only when the file is fully
+  /// saved; throws EbookDownloadException otherwise.
   /// [onProgress] gets 0.0–1.0 where the platform reports progress.
   Future<SavedPdf> download({
-    required String? storagePath,
     required String url,
     required String fileName,
     void Function(double progress)? onProgress,
@@ -112,91 +121,51 @@ abstract class EbookDownloader {
 
 /// Stores e-book PDFs. An interface so tests can use a fake.
 abstract class EbookFileStorage {
-  /// Uploads [pdf] to [path] and returns its download URL.
-  Future<String> upload(String path, PdfFile pdf, {void Function(double progress)? onProgress});
-
-  /// Deletes the file at [path]; a missing file is not an error.
-  Future<void> delete(String path);
+  /// Uploads [pdf] and returns the Cloudinary asset metadata.
+  Future<CloudMediaAsset> upload(
+    PdfFile pdf, {
+    void Function(double progress)? onProgress,
+  });
 }
 
-/// PDFs in Firebase Storage, under `ebooks/{ebookId}/`.
-class FirebaseEbookFileStorage implements EbookFileStorage {
-  FirebaseEbookFileStorage({this._storage});
+class CloudinaryEbookFileStorage implements EbookFileStorage {
+  CloudinaryEbookFileStorage({CloudinaryUploadClient? uploader})
+    : _uploader = uploader ?? CloudinaryUploadClient();
 
-  final FirebaseStorage? _storage;
-  FirebaseStorage get _instance => _storage ?? FirebaseStorage.instance;
+  final CloudinaryUploadClient _uploader;
 
   @override
-  Future<String> upload(
-    String path,
+  Future<CloudMediaAsset> upload(
     PdfFile pdf, {
     void Function(double progress)? onProgress,
   }) async {
     try {
-      // Fail within 30 s instead of the SDK default of 10 minutes when
-      // Storage is unreachable or not enabled.
-      _instance.setMaxUploadRetryTime(const Duration(seconds: 30));
-      final ref = _instance.ref(path);
-      final task = ref.putData(pdf.bytes, SettableMetadata(contentType: 'application/pdf'));
-      final progress = task.snapshotEvents.listen((s) {
-        if (s.totalBytes > 0) onProgress?.call(s.bytesTransferred / s.totalBytes);
-      }, onError: (_) {});
-      try {
-        await task;
-      } finally {
-        await progress.cancel();
-      }
-      onProgress?.call(1);
-      return await ref.getDownloadURL();
-    } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') {
-        throw const ImageStorageException(
-          'Firebase Storage is not enabled for this project, so the PDF could '
-          'not be uploaded and nothing was saved. Enable it in the Firebase '
-          'console (Build > Storage > Get started).',
-        );
-      }
-      throw ImageStorageException(_describe(e));
+      return await _uploader.upload(
+        bytes: pdf.bytes,
+        fileName: pdf.fileName,
+        uploadPreset: CloudinaryConfig.pdfUploadPreset,
+        onProgress: onProgress,
+      );
+    } on CloudinaryUploadException catch (e) {
+      throw ImageStorageException(e.message);
     }
-  }
-
-  @override
-  Future<void> delete(String path) async {
-    try {
-      await _instance.ref(path).delete();
-    } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') return;
-      throw ImageStorageException(_describe(e));
-    }
-  }
-
-  /// User-friendly text for Storage errors while handling a PDF.
-  static String _describe(FirebaseException e) {
-    return switch (e.code) {
-      'unauthorized' || 'unauthenticated' =>
-        'Firebase Storage refused the PDF. Only librarians can manage e-book '
-            'PDFs (check the Storage rules are deployed).',
-      'bucket-not-found' || 'project-not-found' || 'no-default-bucket' =>
-        'Firebase Storage is not enabled for this project, so the PDF could '
-            'not be uploaded.',
-      'quota-exceeded' => 'Firebase Storage quota exceeded. Please try later.',
-      'retry-limit-exceeded' || 'unknown' =>
-        'Could not reach Firebase Storage. Either you are offline, or Storage '
-            'is not enabled for this project.',
-      'canceled' => 'The PDF upload was cancelled.',
-      _ => 'The PDF upload failed (${e.code}).',
-    };
   }
 }
 
-/// All Firestore and Storage calls for e-books (`ebooks` collection and
-/// `ebooks/{id}/` PDFs). No widget talks to Firebase directly.
+/// All Firestore calls for e-books. No widget talks to Firebase directly.
 class EbookService {
-  EbookService({required FirebaseFirestore firestore, required this._files})
-    : _db = firestore;
+  EbookService({
+    required FirebaseFirestore firestore,
+    required this._files,
+    ImageStorage? images,
+  }) : _db = firestore,
+       _images = images;
 
   final FirebaseFirestore _db;
   final EbookFileStorage _files;
+
+  /// Cover images (Cloudinary image preset); null where covers cannot upload.
+  final ImageStorage? _images;
 
   CollectionReference<Map<String, dynamic>> get _ebooks =>
       _db.collection(FirestoreCollections.ebooks);
@@ -204,16 +173,23 @@ class EbookService {
   /// Live list of all e-books (drafts and published).
   Stream<List<EbookRecord>> watchEbooks() {
     return _ebooks.snapshots().map(
-      (snapshot) => [for (final d in snapshot.docs) EbookRecord.fromMap(d.id, d.data())],
+      (snapshot) => [
+        for (final d in snapshot.docs) EbookRecord.fromMap(d.id, d.data()),
+      ],
     );
   }
 
   /// Live list of published e-books only (what students may read; the
   /// security rules refuse drafts to students, so the query must match).
   Stream<List<EbookRecord>> watchPublishedEbooks() {
-    return _ebooks.where('status', isEqualTo: EbookStatus.published.name).snapshots().map(
-      (snapshot) => [for (final d in snapshot.docs) EbookRecord.fromMap(d.id, d.data())],
-    );
+    return _ebooks
+        .where('status', isEqualTo: EbookStatus.published.name)
+        .snapshots()
+        .map(
+          (snapshot) => [
+            for (final d in snapshot.docs) EbookRecord.fromMap(d.id, d.data()),
+          ],
+        );
   }
 
   /// A new document id (nothing is written yet).
@@ -227,15 +203,21 @@ class EbookService {
     return same.docs.any((d) => d.id != exceptId);
   }
 
-  /// `ebooks/{ebookId}/{timestamp}.pdf`: a new name for every upload, so a
-  /// replaced PDF is never served from a cache.
-  String pdfPathFor(String ebookId) =>
-      '${StorageFolders.ebooks}/$ebookId/${DateTime.now().millisecondsSinceEpoch}.pdf';
+  Future<CloudMediaAsset> uploadPdf(
+    PdfFile pdf, {
+    void Function(double)? onProgress,
+  }) => _files.upload(pdf, onProgress: onProgress);
 
-  Future<String> uploadPdf(String path, PdfFile pdf, {void Function(double)? onProgress}) =>
-      _files.upload(path, pdf, onProgress: onProgress);
-
-  Future<void> deletePdf(String path) => _files.delete(path);
+  Future<CloudMediaAsset> uploadCover(
+    ImageUpload image, {
+    void Function(double)? onProgress,
+  }) {
+    final images = _images;
+    if (images == null) {
+      throw const ImageStorageException('Cover uploads are not available.');
+    }
+    return images.upload(image, onProgress: onProgress);
+  }
 
   Future<void> create(EbookRecord ebook, {required String createdBy}) {
     return _ebooks.doc(ebook.id).set({
@@ -246,13 +228,16 @@ class EbookService {
   }
 
   /// Updates an existing e-book (fails if it was deleted meanwhile).
-  Future<void> update(EbookRecord ebook) => _ebooks.doc(ebook.id).update(ebook.toMap());
+  Future<void> update(EbookRecord ebook) =>
+      _ebooks.doc(ebook.id).update(ebook.toMap());
 
   Future<void> delete(String id) => _ebooks.doc(id).delete();
 
   /// Reads one e-book from the server (used to confirm a save).
   Future<EbookRecord?> fetchFromServer(String id) async {
-    final snapshot = await _ebooks.doc(id).get(const GetOptions(source: Source.server));
+    final snapshot = await _ebooks
+        .doc(id)
+        .get(const GetOptions(source: Source.server));
     final data = snapshot.data();
     return data == null ? null : EbookRecord.fromMap(id, data);
   }

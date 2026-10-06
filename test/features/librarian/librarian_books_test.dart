@@ -39,7 +39,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Availability: All'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CheckedPopupMenuItem<int>, 'Not Available'));
+    await tester.tap(
+      find.widgetWithText(CheckedPopupMenuItem<int>, 'Not Available'),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(BookListTile, skipOffstage: false), findsNWidgets(3));
   });
@@ -79,7 +81,9 @@ void main() {
     expect(repositoryOf(tester).books.first.title, 'Refactoring');
   });
 
-  testWidgets('Edit opens the form pre-filled and saves changes', (tester) async {
+  testWidgets('Edit opens the form pre-filled and saves changes', (
+    tester,
+  ) async {
     final router = await pumpLibrarian(tester, LibrarianRoutes.books);
 
     await tapVisible(tester, find.widgetWithText(TextButton, 'Edit').first);

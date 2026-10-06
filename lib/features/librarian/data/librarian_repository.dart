@@ -44,7 +44,7 @@ abstract class LibrarianRepository extends ChangeNotifier {
   /// True for the in-memory sample data, which is not saved anywhere.
   bool get isDemoData => false;
 
-  /// Whether book covers / seat photos can be uploaded (needs Firebase Storage).
+  /// Whether book covers / seat photos can be uploaded by this repository.
   bool get supportsImageUpload => false;
 
   final StreamController<LibrarianNotification> _incoming =
@@ -81,16 +81,19 @@ abstract class LibrarianRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get unreadNotificationCount => notifications.where((n) => !n.isRead).length;
+  int get unreadNotificationCount =>
+      notifications.where((n) => !n.isRead).length;
 
   // ---------------- Lookups ----------------
 
   ReservationRecord? reservationById(String id) =>
       _firstWhereOrNull(reservations, (r) => r.id == id);
 
-  BookRecord? bookById(String id) => _firstWhereOrNull(books, (b) => b.id == id);
+  BookRecord? bookById(String id) =>
+      _firstWhereOrNull(books, (b) => b.id == id);
 
-  SeatRecord? seatById(String id) => _firstWhereOrNull(seats, (s) => s.id == id);
+  SeatRecord? seatById(String id) =>
+      _firstWhereOrNull(seats, (s) => s.id == id);
 
   BorrowingRecord? borrowingById(String id) =>
       _firstWhereOrNull(borrowings, (b) => b.id == id);
@@ -101,28 +104,37 @@ abstract class LibrarianRepository extends ChangeNotifier {
   /// The approved booking holding a seat (today or later), if any.
   ReservationRecord? activeReservationForSeat(String seatId) {
     final today = _today();
-    final active = reservations
-        .where(
-          (r) =>
-              r.type == ReservationType.seat &&
-              r.itemId == seatId &&
-              r.status == ReservationStatus.approved &&
-              !r.date.isBefore(today),
-        )
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final active =
+        reservations
+            .where(
+              (r) =>
+                  r.type == ReservationType.seat &&
+                  r.itemId == seatId &&
+                  r.status == ReservationStatus.approved &&
+                  !r.date.isBefore(today),
+            )
+            .toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
     return active.isEmpty ? null : active.first;
   }
 
   bool isbnExists(String isbn, {String? exceptBookId}) {
     final key = BookRecord.isbnKeyOf(isbn);
-    return books.any((b) => b.id != exceptBookId && BookRecord.isbnKeyOf(b.isbn) == key);
+    return books.any(
+      (b) => b.id != exceptBookId && BookRecord.isbnKeyOf(b.isbn) == key,
+    );
   }
 
-  bool seatNumberExists(String seatNumber, String readingRoom, {String? exceptSeatId}) {
+  bool seatNumberExists(
+    String seatNumber,
+    String readingRoom, {
+    String? exceptSeatId,
+  }) {
     final key = SeatRecord.seatKeyOf(seatNumber, readingRoom);
     return seats.any(
-      (s) => s.id != exceptSeatId && SeatRecord.seatKeyOf(s.seatNumber, s.readingRoom) == key,
+      (s) =>
+          s.id != exceptSeatId &&
+          SeatRecord.seatKeyOf(s.seatNumber, s.readingRoom) == key,
     );
   }
 
@@ -149,7 +161,8 @@ abstract class LibrarianRepository extends ChangeNotifier {
     // Maintenance blocks every date. "Occupied" (e.g. a walk-in) is the
     // seat's state right now, so it only blocks bookings for today. Other
     // bookings are checked by time below (and by seat slots in Firestore).
-    final blockedNow = isSameDay(reservation.date, DateTime.now()) &&
+    final blockedNow =
+        isSameDay(reservation.date, DateTime.now()) &&
         seat.status == SeatStatus.occupied;
     if (seat.status == SeatStatus.maintenance || blockedNow) {
       return 'Seat ${seat.seatNumber} is ${seat.status.label.toLowerCase()} '
@@ -200,7 +213,10 @@ abstract class LibrarianRepository extends ChangeNotifier {
       return 'This loan has already been renewed ${LibrarianSettings.maxRenewals} times.';
     }
     final waiting = reservations.any(
-      (r) => r.type == ReservationType.book && r.itemId == loan.bookId && r.isPending,
+      (r) =>
+          r.type == ReservationType.book &&
+          r.itemId == loan.bookId &&
+          r.isPending,
     );
     if (waiting) {
       return 'Another student has reserved this book, so it cannot be renewed.';
@@ -212,13 +228,20 @@ abstract class LibrarianRepository extends ChangeNotifier {
   /// break a pending/approved reservation or a loan that is not returned.
   String? bookDeleteBlocker(String bookId) {
     final reserved = reservations
-        .where((r) => r.type == ReservationType.book && r.itemId == bookId && r.isActive)
+        .where(
+          (r) =>
+              r.type == ReservationType.book &&
+              r.itemId == bookId &&
+              r.isActive,
+        )
         .length;
     if (reserved > 0) {
       return 'This book has $reserved active reservation${reserved == 1 ? '' : 's'}. '
           'Approve, reject or complete ${reserved == 1 ? 'it' : 'them'} first.';
     }
-    final onLoan = borrowings.where((b) => b.bookId == bookId && !b.isReturned).length;
+    final onLoan = borrowings
+        .where((b) => b.bookId == bookId && !b.isReturned)
+        .length;
     if (onLoan > 0) {
       return '$onLoan cop${onLoan == 1 ? 'y is' : 'ies are'} still on loan. '
           'Mark ${onLoan == 1 ? 'it' : 'them'} as returned first.';
@@ -309,7 +332,9 @@ abstract class LibrarianRepository extends ChangeNotifier {
       borrowings.where((b) => b.memberId == memberId && !b.isReturned).length;
 
   int overdueLoanCount(String memberId) => borrowings
-      .where((b) => b.memberId == memberId && b.status == BorrowingStatus.overdue)
+      .where(
+        (b) => b.memberId == memberId && b.status == BorrowingStatus.overdue,
+      )
       .length;
 
   /// Pending or approved reservations.
@@ -339,6 +364,8 @@ abstract class LibrarianRepository extends ChangeNotifier {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,
@@ -358,6 +385,8 @@ abstract class LibrarianRepository extends ChangeNotifier {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,

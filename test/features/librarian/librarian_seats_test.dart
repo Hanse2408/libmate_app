@@ -31,7 +31,9 @@ void main() {
     expect(find.byType(SeatTile), findsNWidgets(18));
   });
 
-  testWidgets('Selecting a reserved seat shows who reserved it', (tester) async {
+  testWidgets('Selecting a reserved seat shows who reserved it', (
+    tester,
+  ) async {
     await pumpLibrarian(tester, LibrarianRoutes.seats);
 
     await tapVisible(tester, _seat('A05'));
@@ -48,7 +50,10 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Maintenance'));
     await tester.pumpAndSettle();
 
-    expect(repositoryOf(tester).seatById('S001')!.status, SeatStatus.maintenance);
+    expect(
+      repositoryOf(tester).seatById('S001')!.status,
+      SeatStatus.maintenance,
+    );
     expect(find.text('Seat A01 is now Maintenance.'), findsOneWidget);
   });
 
@@ -72,7 +77,10 @@ void main() {
 
     await _type(tester, 'SEAT NUMBER', 'D09');
     await _type(tester, 'ROW / ZONE', 'Row D');
-    await tapVisible(tester, find.widgetWithText(ChoiceChip, 'Individual Desk'));
+    await tapVisible(
+      tester,
+      find.widgetWithText(ChoiceChip, 'Individual Desk'),
+    );
     await tapVisible(tester, find.text('Power Outlet'));
     await tapVisible(tester, find.text('Save Seat'));
 

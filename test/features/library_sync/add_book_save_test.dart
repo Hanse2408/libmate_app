@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -6,14 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libmate_app/app/routes/librarian_routes.dart';
 import 'package:libmate_app/features/librarian/data/librarian_firestore_repository.dart';
-import 'package:libmate_app/features/librarian/widgets/book_cover_asset_field.dart';
+import 'package:libmate_app/core/services/image_storage_service.dart';
 import 'package:libmate_app/models/action_result.dart';
 
 import '../librarian/librarian_test_helpers.dart';
 import 'library_test_support.dart';
 
 /// Add New Book save flow: validation -> cover chosen from
-/// assets/images/books/ -> `books` document (Firestore) -> feedback.
+/// gallery cover -> Cloudinary -> `books` document (Firestore) -> feedback.
 
 const _cover = 'assets/images/books/book_new_01.jpg';
 
@@ -77,6 +79,15 @@ Future<void> _fillForm(WidgetTester tester) async {
   await _type(tester, 'SHELF-LOCATION', 'SE-02-A');
 }
 
+/// Returns a picked image instead of opening the device gallery.
+class _FakePicker extends ImagePickerService {
+  const _FakePicker(this.image);
+  final ImageUpload image;
+
+  @override
+  Future<(ImageUpload?, String?)> pickImage() async => (image, null);
+}
+
 void main() {
   late FakeImageStorage storage;
   setUp(() => storage = FakeImageStorage());
@@ -104,25 +115,123 @@ void main() {
       expect(result.success, isTrue, reason: result.message);
       final doc = (await db.collection('books').get()).docs.single.data();
       expect(doc['coverAsset'], _cover);
-      expect(storage.files, isEmpty); // no Firebase Storage upload
+      expect(storage.files, isEmpty); // bundled book covers are not uploaded
     });
 
-    test('Firestore refuses the write: the reason is returned, nothing saved', () async {
-      final db = _BrokenBatchFirestore();
-      await _addUsersTo(db);
+    Future<ActionResult> editRefactoring(
+      LibrarianFirestoreRepository repo,
+      String id, {
+      String? coverAsset,
+      ImageUpload? coverImage,
+    }) {
+      return repo.updateBook(
+        id: id,
+        title: 'Refactoring',
+        author: 'Martin Fowler',
+        isbn: '9780134757599',
+        category: 'Software Engineering',
+        language: 'English',
+        shelfLocation: 'SE-02-A',
+        totalCopies: 3,
+        coverAsset: coverAsset,
+        coverImage: coverImage,
+      );
+    }
+
+    test('edit without a new image keeps the Cloudinary cover', () async {
+      final db = await seededFirestore();
       final repo = librarianRepo(db, storage);
-      final result = await addRefactoring(repo);
+      await repo.addBook(
+        title: 'Refactoring',
+        author: 'Martin Fowler',
+        isbn: '9780134757599',
+        category: 'Software Engineering',
+        language: 'English',
+        shelfLocation: 'SE-02-A',
+        totalCopies: 3,
+        coverImage: pngUpload(),
+      );
+      final first = (await db.collection('books').get()).docs.single;
+      final result = await editRefactoring(
+        repo,
+        first.id,
+        coverAsset: first.data()['coverAsset'] as String,
+      );
       repo.dispose();
 
-      expect(result.success, isFalse);
-      expect(result.message, contains('do not have permission'));
-      expect((await db.collection('books').get()).docs, isEmpty);
+      expect(result.success, isTrue, reason: result.message);
+      final doc = (await db.collection('books').get()).docs.single.data();
+      expect(doc['coverAsset'], first.data()['coverAsset']);
+      expect(doc['coverPublicId'], first.data()['coverPublicId']);
+      expect(storage.files, hasLength(1));
     });
+
+    test('edit with a new image replaces the cover reference', () async {
+      final db = await seededFirestore();
+      final repo = librarianRepo(db, storage);
+      await addRefactoring(repo);
+      final id = (await db.collection('books').get()).docs.single.id;
+      final result = await editRefactoring(
+        repo,
+        id,
+        coverAsset: _cover,
+        coverImage: pngUpload('new.png'),
+      );
+      repo.dispose();
+
+      expect(result.success, isTrue, reason: result.message);
+      final doc = (await db.collection('books').get()).docs.single.data();
+      expect(doc['coverAsset'], startsWith('https://res.cloudinary.com/'));
+      expect(doc['coverPublicId'], storage.files.keys.single);
+    });
+
+    test('invalid and oversize images are rejected', () {
+      final (gif, gifError) = ImageUpload.validate(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        fileName: 'cover.gif',
+      );
+      expect(gif, isNull);
+      expect(gifError, isNotNull);
+      final (big, bigError) = ImageUpload.validate(
+        bytes: Uint8List(5 * 1024 * 1024 + 1),
+        fileName: 'cover.png',
+      );
+      expect(big, isNull);
+      expect(bigError, isNotNull);
+    });
+
+    test('no Firebase Storage or Cloudinary secret in lib', () {
+      for (final f in Directory('lib').listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        final text = f.readAsStringSync().toLowerCase();
+        expect(text.contains('firebase_storage'), isFalse, reason: f.path);
+        expect(text.contains('api_secret'), isFalse, reason: f.path);
+      }
+    });
+
+    test(
+      'Firestore refuses the write: the reason is returned, nothing saved',
+      () async {
+        final db = _BrokenBatchFirestore();
+        await _addUsersTo(db);
+        final repo = librarianRepo(db, storage);
+        final result = await addRefactoring(repo);
+        repo.dispose();
+
+        expect(result.success, isFalse);
+        expect(result.message, contains('do not have permission'));
+        expect((await db.collection('books').get()).docs, isEmpty);
+      },
+    );
 
     test('Firestore never confirms (offline): not reported as saved', () async {
       final db = _BrokenBatchFirestore(hang: true);
       await _addUsersTo(db);
-      final repo = librarianRepo(db, storage, writeTimeout: const Duration(milliseconds: 50));
+      final repo = librarianRepo(
+        db,
+        storage,
+        writeTimeout: const Duration(milliseconds: 50),
+      );
       final result = await addRefactoring(repo);
       repo.dispose();
 
@@ -132,21 +241,20 @@ void main() {
   });
 
   group('Add Book form', () {
-    final realList = BookCoverAssets.list;
-    setUp(() => BookCoverAssets.list = () async => [_cover]);
-    tearDown(() => BookCoverAssets.list = realList);
+    setUp(() => ImagePickerService.instance = _FakePicker(pngUpload()));
+    tearDown(() => ImagePickerService.instance = const ImagePickerService());
 
     Future<void> chooseCoverAndSave(WidgetTester tester) async {
       await _fillForm(tester);
       await tapVisible(tester, find.text('Choose Cover'));
-      await tester.tap(find.text('book_new_01.jpg'));
-      await tester.pumpAndSettle();
       await scrollTo(tester, find.text('Save Book'));
       await tester.tap(find.text('Save Book'));
       await tester.pump();
     }
 
-    testWidgets('loading stops and the error shows when the write is refused', (tester) async {
+    testWidgets('loading stops and the error shows when the write is refused', (
+      tester,
+    ) async {
       final db = _BrokenBatchFirestore();
       await _addUsersTo(db);
       final router = await pumpLibrarian(
@@ -161,20 +269,27 @@ void main() {
 
       expect(find.textContaining('do not have permission'), findsOneWidget);
       expect(find.textContaining('added to the catalogue'), findsNothing);
-      final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save Book'));
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save Book'),
+      );
       expect(save.onPressed, isNotNull); // spinner gone, can try again
       expect(router.currentPath, LibrarianRoutes.addBook);
     });
 
-    testWidgets('loading stops when Firestore never confirms the write', (tester) async {
+    testWidgets('loading stops when Firestore never confirms the write', (
+      tester,
+    ) async {
       final db = _BrokenBatchFirestore(hang: true);
       await _addUsersTo(db);
       await pumpLibrarian(
         tester,
         LibrarianRoutes.addBook,
         size: const Size(400, 1600),
-        createRepository: () =>
-            librarianRepo(db, storage, writeTimeout: const Duration(seconds: 5)),
+        createRepository: () => librarianRepo(
+          db,
+          storage,
+          writeTimeout: const Duration(seconds: 5),
+        ),
       );
 
       await chooseCoverAndSave(tester);
@@ -186,7 +301,9 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('success message only after the book document is saved', (tester) async {
+    testWidgets('success message only after the book document is saved', (
+      tester,
+    ) async {
       final db = await seededFirestore();
       final router = await pumpLibrarian(
         tester,
@@ -199,18 +316,34 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(router.currentPath, LibrarianRoutes.books);
-      expect(find.text('"Refactoring" added to the catalogue.'), findsOneWidget);
+      expect(
+        find.text('"Refactoring" added to the catalogue.'),
+        findsOneWidget,
+      );
       final doc = (await db.collection('books').get()).docs.single.data();
-      expect(doc['coverAsset'], _cover);
+      expect(doc['coverAsset'], startsWith('https://res.cloudinary.com/'));
+      expect(doc['coverPublicId'], isNotEmpty);
+      expect(storage.files, hasLength(1));
     });
 
-    testWidgets('the picker explains how to add a cover when the folder is empty', (
+    testWidgets('a failed cover upload saves no book and shows the reason', (
       tester,
     ) async {
-      BookCoverAssets.list = () async => [];
-      await pumpLibrarian(tester, LibrarianRoutes.addBook, size: const Size(400, 1600));
-      await tapVisible(tester, find.text('Choose Cover'));
-      expect(find.textContaining('No cover images found in assets/images/books/'), findsOneWidget);
+      storage.failWith = 'Cover upload failed.';
+      final db = await seededFirestore();
+      final router = await pumpLibrarian(
+        tester,
+        LibrarianRoutes.addBook,
+        size: const Size(400, 1600),
+        createRepository: () => librarianRepo(db, storage),
+      );
+
+      await chooseCoverAndSave(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Cover upload failed.'), findsOneWidget);
+      expect((await db.collection('books').get()).docs, isEmpty);
+      expect(router.currentPath, LibrarianRoutes.addBook);
     });
   });
 }

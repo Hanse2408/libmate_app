@@ -14,9 +14,8 @@ enum EbookStatus {
 /// from the printed catalogue in `books`.
 ///
 /// It has the normal book details (same field names as `books`, so the
-/// Student side can read both the same way later) plus the PDF, which is a
-/// file in Firebase Storage: only its download URL and Storage path are
-/// saved here, never the file itself.
+/// Student side can read both the same way later) plus a Cloudinary PDF
+/// reference. The file itself is never stored in Firestore.
 class EbookRecord {
   const EbookRecord({
     required this.id,
@@ -31,8 +30,12 @@ class EbookRecord {
     this.pages = 0,
     this.location = defaultLocation,
     this.coverAsset,
+    this.coverPublicId,
     this.pdfUrl,
     this.pdfPath,
+    this.pdfPublicId,
+    this.pdfResourceType,
+    this.pdfFormat,
     this.pdfFileName,
     this.pdfSizeBytes = 0,
     this.status = EbookStatus.draft,
@@ -54,15 +57,20 @@ class EbookRecord {
   final int pages;
   final String location;
 
-  /// Cover image bundled with the app, e.g. "assets/images/books/book1.jpg".
+  /// Cover image: a Cloudinary HTTPS URL, or an older bundled asset path.
   final String? coverAsset;
 
-  /// Download URL of the PDF in Firebase Storage.
+  /// Cloudinary public ID of an uploaded cover (null for asset covers).
+  final String? coverPublicId;
+
+  /// HTTPS delivery URL of the PDF.
   final String? pdfUrl;
 
-  /// Storage path of the PDF, e.g. "ebooks/{id}/1696500000000.pdf", kept so
-  /// the file can be deleted when it is replaced or the e-book is removed.
+  /// Legacy Firebase Storage path, read for older documents only.
   final String? pdfPath;
+  final String? pdfPublicId;
+  final String? pdfResourceType;
+  final String? pdfFormat;
   final String? pdfFileName;
   final int pdfSizeBytes;
   final EbookStatus status;
@@ -72,7 +80,8 @@ class EbookRecord {
   bool get isPublished => status == EbookStatus.published;
 
   factory EbookRecord.fromMap(String id, Map<String, dynamic> map) {
-    String? nonEmpty(Object? v) => v is String && v.trim().isNotEmpty ? v.trim() : null;
+    String? nonEmpty(Object? v) =>
+        v is String && v.trim().isNotEmpty ? v.trim() : null;
     return EbookRecord(
       id: id,
       title: map['title'] as String? ?? '',
@@ -86,8 +95,12 @@ class EbookRecord {
       pages: (map['pages'] as num?)?.toInt() ?? 0,
       location: map['location'] as String? ?? defaultLocation,
       coverAsset: nonEmpty(map['coverAsset']),
+      coverPublicId: nonEmpty(map['coverPublicId']),
       pdfUrl: nonEmpty(map['pdfUrl']),
       pdfPath: nonEmpty(map['pdfPath']),
+      pdfPublicId: nonEmpty(map['pdfPublicId']),
+      pdfResourceType: nonEmpty(map['pdfResourceType']),
+      pdfFormat: nonEmpty(map['pdfFormat']),
       pdfFileName: nonEmpty(map['pdfFileName']),
       pdfSizeBytes: (map['pdfSizeBytes'] as num?)?.toInt() ?? 0,
       status: map['status'] == EbookStatus.published.name
@@ -113,8 +126,12 @@ class EbookRecord {
       'pages': pages,
       'location': location,
       'coverAsset': coverAsset ?? '',
+      'coverPublicId': coverPublicId ?? '',
       'pdfUrl': pdfUrl,
       'pdfPath': pdfPath,
+      'pdfPublicId': pdfPublicId,
+      'pdfResourceType': pdfResourceType,
+      'pdfFormat': pdfFormat,
       'pdfFileName': pdfFileName,
       'pdfSizeBytes': pdfSizeBytes,
       'status': status.name,
@@ -123,11 +140,17 @@ class EbookRecord {
   }
 
   EbookRecord copyWith({
+    String? coverAsset,
+    String? coverPublicId,
     String? pdfUrl,
     String? pdfPath,
+    String? pdfPublicId,
+    String? pdfResourceType,
+    String? pdfFormat,
     String? pdfFileName,
     int? pdfSizeBytes,
     EbookStatus? status,
+    bool clearPdfPath = false,
   }) {
     return EbookRecord(
       id: id,
@@ -141,9 +164,13 @@ class EbookRecord {
       publishedYear: publishedYear,
       pages: pages,
       location: location,
-      coverAsset: coverAsset,
+      coverAsset: coverAsset ?? this.coverAsset,
+      coverPublicId: coverPublicId ?? this.coverPublicId,
       pdfUrl: pdfUrl ?? this.pdfUrl,
-      pdfPath: pdfPath ?? this.pdfPath,
+      pdfPath: clearPdfPath ? null : pdfPath ?? this.pdfPath,
+      pdfPublicId: pdfPublicId ?? this.pdfPublicId,
+      pdfResourceType: pdfResourceType ?? this.pdfResourceType,
+      pdfFormat: pdfFormat ?? this.pdfFormat,
       pdfFileName: pdfFileName ?? this.pdfFileName,
       pdfSizeBytes: pdfSizeBytes ?? this.pdfSizeBytes,
       status: status ?? this.status,

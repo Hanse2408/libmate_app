@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/services/ebook_service.dart';
 import '../../../core/services/firestore_errors.dart';
+import '../../../core/services/image_storage_service.dart';
 import '../../../models/action_result.dart';
 import '../../../models/ebook.dart';
 import '../../../repositories/ebook_repository.dart';
@@ -84,13 +85,15 @@ class EbookProvider extends ChangeNotifier {
     required EbookRecord ebook,
     required bool isNew,
     PdfFile? newPdf,
+    ImageUpload? newCover,
   }) {
     return _busy(
-      uploading: newPdf != null,
+      uploading: newPdf != null || newCover != null,
       () => _repository.save(
         ebook: ebook,
         isNew: isNew,
         newPdf: newPdf,
+        newCover: newCover,
         onUploadProgress: (value) {
           _uploadProgress = value;
           _notify();

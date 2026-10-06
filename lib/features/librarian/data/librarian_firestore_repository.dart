@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/constants/firestore_collections.dart';
+import '../../../core/services/cloudinary_upload_service.dart';
 import '../../../core/services/firestore_errors.dart';
 import '../../../core/services/image_storage_service.dart';
 import '../../../models/notification.dart';
@@ -25,7 +26,8 @@ import 'librarian_repository.dart';
 ///   (copies, seat slots, loans) run in a transaction that re-reads the
 ///   documents first. The lists update when Firestore confirms the change,
 ///   and a failed write returns an ActionResult.failure.
-/// - Images go to Firebase Storage; only the download URL is saved here.
+/// - Seat photos are uploaded to Cloudinary; only the URL and public ID are
+///   saved here.
 class LibrarianFirestoreRepository extends LibrarianRepository {
   LibrarianFirestoreRepository({
     required FirebaseFirestore firestore,
@@ -45,8 +47,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   /// Signed-in librarian, saved as `createdBy` on new books and seats.
   final String librarianUid;
 
-  /// Longest wait for an image upload. Without a limit a blocked upload
-  /// (e.g. Storage not enabled) keeps the Save button loading for minutes.
+  /// Longest wait for an image upload, so a blocked network does not keep the
+  /// Save button loading indefinitely.
   final Duration uploadTimeout;
 
   /// Longest wait for Firestore to confirm a new book. Offline, Firestore
@@ -88,16 +90,19 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   @override
   bool get supportsImageUpload => true;
 
-  CollectionReference<Map<String, dynamic>> _col(String name) => _db.collection(name);
+  CollectionReference<Map<String, dynamic>> _col(String name) =>
+      _db.collection(name);
   DocumentReference<Map<String, dynamic>> get _settingsDoc =>
-      _col(FirestoreCollections.settings).doc(FirestoreCollections.librarySettingsDoc);
+      _col(FirestoreCollections.settings)
+          .doc(FirestoreCollections.librarySettingsDoc);
 
   // ---------------- Live data ----------------
 
   void _listen() {
     _watchQuery(_col(FirestoreCollections.books), 'books', (docs) {
-      _books = [for (final d in docs) BookRecord.fromMap(d.id, d.data())]
-        ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      _books = [
+        for (final d in docs) BookRecord.fromMap(d.id, d.data()),
+      ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     });
     _watchQuery(_col(FirestoreCollections.seats), 'seats', (docs) {
       _seats = [for (final d in docs) SeatRecord.fromMap(d.id, d.data())]
@@ -106,24 +111,30 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           return room != 0 ? room : a.seatNumber.compareTo(b.seatNumber);
         });
     });
-    _watchQuery(_col(FirestoreCollections.reservations), 'reservations', (docs) {
-      _reservations = [for (final d in docs) ReservationRecord.fromMap(d.id, d.data())]
-        ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    _watchQuery(_col(FirestoreCollections.reservations), 'reservations', (
+      docs,
+    ) {
+      _reservations = [
+        for (final d in docs) ReservationRecord.fromMap(d.id, d.data()),
+      ]..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
     });
     _watchQuery(_col(FirestoreCollections.borrowings), 'borrowings', (docs) {
-      _borrowings = [for (final d in docs) BorrowingRecord.fromMap(d.id, d.data())]
-        ..sort((a, b) => b.issuedAt.compareTo(a.issuedAt));
+      _borrowings = [
+        for (final d in docs) BorrowingRecord.fromMap(d.id, d.data()),
+      ]..sort((a, b) => b.issuedAt.compareTo(a.issuedAt));
     });
     _watchQuery(
       _col(FirestoreCollections.users).where('role', isEqualTo: 'student'),
       'members',
       (docs) {
-        _members = [for (final d in docs) MemberRecord.fromUserMap(d.id, d.data())]
-          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        _members = [
+          for (final d in docs) MemberRecord.fromUserMap(d.id, d.data()),
+        ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       },
     );
     _watchQuery(
-      _col(FirestoreCollections.notifications).where('audience', isEqualTo: 'librarian'),
+      _col(FirestoreCollections.notifications)
+          .where('audience', isEqualTo: 'librarian'),
       'notifications',
       (docs) {
         _notifications = [
@@ -135,30 +146,25 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
     _waiting.add('settings');
     _subscriptions.add(
-      _settingsDoc.snapshots().listen(
-        (snapshot) {
-          _settings = LibrarianSettings.fromMap(snapshot.data() ?? const {});
-          _received('settings');
-        },
-        onError: (Object error) => _failed('settings', error),
-      ),
+      _settingsDoc.snapshots().listen((snapshot) {
+        _settings = LibrarianSettings.fromMap(snapshot.data() ?? const {});
+        _received('settings');
+      }, onError: (Object error) => _failed('settings', error)),
     );
   }
 
   void _watchQuery(
     Query<Map<String, dynamic>> query,
     String name,
-    void Function(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) onData,
+    void Function(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs)
+    onData,
   ) {
     _waiting.add(name);
     _subscriptions.add(
-      query.snapshots().listen(
-        (snapshot) {
-          onData(snapshot.docs);
-          _received(name);
-        },
-        onError: (Object error) => _failed(name, error),
-      ),
+      query.snapshots().listen((snapshot) {
+        onData(snapshot.docs);
+        _received(name);
+      }, onError: (Object error) => _failed(name, error)),
     );
   }
 
@@ -190,7 +196,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   @override
   Future<ActionResult> approveReservation(String id) async {
     final cached = reservationById(id);
-    if (cached == null) return const ActionResult.failure('Reservation not found.');
+    if (cached == null)
+      return const ActionResult.failure('Reservation not found.');
     // Friendly reasons from the loaded data first (includes seat overlaps)...
     final blocker = approvalBlocker(cached);
     if (blocker != null) return ActionResult.failure(blocker);
@@ -207,10 +214,13 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         }
 
         if (reservation.type == ReservationType.book) {
-          final bookRef = _col(FirestoreCollections.books).doc(reservation.itemId);
+          final bookRef = _col(FirestoreCollections.books)
+              .doc(reservation.itemId);
           final bookSnap = await tx.get(bookRef);
           if (!bookSnap.exists) {
-            throw const ActionRefused('This book is no longer in the catalogue.');
+            throw const ActionRefused(
+              'This book is no longer in the catalogue.',
+            );
           }
           final book = BookRecord.fromMap(bookSnap.id, bookSnap.data()!);
           if (!book.isAvailable) {
@@ -223,15 +233,21 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
             'availableCopies': book.availableCopies - 1,
             // Also stored for books saved in the earlier format (no counts).
             'totalCopies': book.totalCopies,
-            'available': book.availableCopies - 1 > 0, // read by Student screens
+            'available':
+                book.availableCopies - 1 > 0, // read by Student screens
             'updatedAt': FieldValue.serverTimestamp(),
           });
         } else {
-          final seatRef = _col(FirestoreCollections.seats).doc(reservation.itemId);
+          final seatRef = _col(FirestoreCollections.seats)
+              .doc(reservation.itemId);
           final seatSnap = await tx.get(seatRef);
-          if (!seatSnap.exists) throw const ActionRefused('This seat no longer exists.');
+          if (!seatSnap.exists)
+            throw const ActionRefused('This seat no longer exists.');
           final seat = SeatRecord.fromMap(seatSnap.id, seatSnap.data()!);
-          final isToday = LibrarianRepository.isSameDay(reservation.date, DateTime.now());
+          final isToday = LibrarianRepository.isSameDay(
+            reservation.date,
+            DateTime.now(),
+          );
           if (seat.status == SeatStatus.maintenance ||
               (isToday && seat.status == SeatStatus.occupied)) {
             throw ActionRefused(
@@ -292,7 +308,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         }
         tx.update(resRef, {
           'status': ReservationStatus.rejected.name,
-          'rejectionReason': reason.trim().isEmpty ? 'Rejected by librarian.' : reason.trim(),
+          'rejectionReason': reason.trim().isEmpty
+              ? 'Rejected by librarian.'
+              : reason.trim(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
         // Free the seat-hours this booking was holding.
@@ -302,7 +320,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           recipientUid: reservation.studentUid,
           type: StudentNotificationType.reservationRejected,
           title: 'Reservation Rejected',
-          message: 'Your reservation for ${reservation.itemName} was rejected: '
+          message:
+              'Your reservation for ${reservation.itemName} was rejected: '
               '${reason.trim().isEmpty ? 'Rejected by librarian.' : reason.trim()}',
           reservation: reservation,
         );
@@ -324,7 +343,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   @override
   Future<ActionResult> markReservationCollected(String id) async {
     final cached = reservationById(id);
-    if (cached == null) return const ActionResult.failure('Reservation not found.');
+    if (cached == null)
+      return const ActionResult.failure('Reservation not found.');
     final blocker = collectBlocker(cached);
     if (blocker != null) return ActionResult.failure(blocker);
 
@@ -333,7 +353,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         final resRef = _col(FirestoreCollections.reservations).doc(id);
         final reservation = await _readReservation(tx, resRef);
         if (reservation.status != ReservationStatus.approved) {
-          throw const ActionRefused('Only approved reservations can be marked as collected.');
+          throw const ActionRefused(
+            'Only approved reservations can be marked as collected.',
+          );
         }
         final bookSnap = await tx.get(
           _col(FirestoreCollections.books).doc(reservation.itemId),
@@ -352,7 +374,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           isbn: book.isbn,
           issuedAt: now,
           dueDate: now.add(
-            Duration(days: reservation.loanPeriodDays ?? _settings.loanPeriodDays),
+            Duration(
+              days: reservation.loanPeriodDays ?? _settings.loanPeriodDays,
+            ),
           ),
         );
         // The copy was set aside at approval and is now on loan, so the
@@ -367,7 +391,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           recipientUid: reservation.studentUid,
           type: StudentNotificationType.bookCollected,
           title: 'Book Collected',
-          message: '"${book.title}" is now on loan to you. '
+          message:
+              '"${book.title}" is now on loan to you. '
               'Please return it by ${_day(loan.dueDate)}.',
           reservation: reservation,
         );
@@ -390,8 +415,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
   // ---------------- Books ----------------
 
-  /// The cover is an image already bundled in assets/images/books/; only its
-  /// path is saved (`coverAsset`), nothing is uploaded to Firebase Storage.
+  /// A picked [coverImage] is uploaded to Cloudinary first; only its URL and
+  /// public ID are saved. If the upload fails nothing is written.
   @override
   Future<ActionResult> addBook({
     required String title,
@@ -403,6 +428,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,
@@ -410,9 +437,16 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     final error = bookInputError(isbn: isbn, totalCopies: totalCopies);
     if (error != null) return ActionResult.failure(error);
 
-    final ref = _col(FirestoreCollections.books).doc(); // new id, nothing written yet
+    final ref = _col(FirestoreCollections.books)
+        .doc(); // new id, nothing written yet
     return _run(() async {
       await _checkIsbnFree(isbn);
+      String? coverPublicId;
+      if (coverImage != null) {
+        final asset = await _upload(coverImage, onUploadProgress);
+        coverAsset = asset.secureUrl;
+        coverPublicId = asset.publicId;
+      }
       final book = BookRecord(
         id: ref.id,
         title: title.trim(),
@@ -425,6 +459,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         availableCopies: totalCopies,
         description: description.trim(),
         coverAsset: coverAsset,
+        coverPublicId: coverPublicId,
         publisher: publisher.trim(),
         publishedYear: publishedYear,
         pages: pages,
@@ -460,15 +495,27 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,
   }) async {
-    final error = bookInputError(isbn: isbn, totalCopies: totalCopies, exceptBookId: id);
+    final error = bookInputError(
+      isbn: isbn,
+      totalCopies: totalCopies,
+      exceptBookId: id,
+    );
     if (error != null) return ActionResult.failure(error);
 
     return _run(() async {
       await _checkIsbnFree(isbn, exceptBookId: id);
+      String? newPublicId;
+      if (coverImage != null) {
+        final asset = await _upload(coverImage, onUploadProgress);
+        coverAsset = asset.secureUrl;
+        newPublicId = asset.publicId;
+      }
       await _db.runTransaction((tx) async {
         final ref = _col(FirestoreCollections.books).doc(id);
         final snap = await tx.get(ref);
@@ -492,6 +539,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           availableCopies: totalCopies - book.copiesOut,
           description: description.trim(),
           coverAsset: coverAsset,
+          coverPublicId: newPublicId,
           clearCover: coverAsset == null,
           publisher: publisher.trim(),
           publishedYear: publishedYear,
@@ -509,7 +557,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     final blocker = bookDeleteBlocker(id);
     if (blocker != null) return ActionResult.failure(blocker);
 
-    // The cover file stays in assets/images/books/ (it is part of the project).
+    // Cloudinary covers are not deleted from the app (that needs a server
+    // secret); unreferenced ones can be removed in the Media Library.
     return _run(() async {
       // Double-check on the server in case the lists are a moment behind.
       final reserved = await _col(FirestoreCollections.reservations)
@@ -519,13 +568,17 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           .map((d) => ReservationRecord.fromMap(d.id, d.data()))
           .any((r) => r.type == ReservationType.book && r.isActive);
       if (hasActive) {
-        throw const ActionRefused('This book has active reservations, so it cannot be deleted.');
+        throw const ActionRefused(
+          'This book has active reservations, so it cannot be deleted.',
+        );
       }
       final loans = await _col(FirestoreCollections.borrowings)
           .where('bookId', isEqualTo: id)
           .get();
       if (loans.docs.any((d) => d.data()['returnedAt'] == null)) {
-        throw const ActionRefused('Copies of this book are still on loan, so it cannot be deleted.');
+        throw const ActionRefused(
+          'Copies of this book are still on loan, so it cannot be deleted.',
+        );
       }
       await _col(FirestoreCollections.books).doc(id).delete();
     });
@@ -547,17 +600,18 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     ImageUpload? image,
     void Function(double progress)? onUploadProgress,
   }) async {
-    final error = seatInputError(seatNumber: seatNumber, readingRoom: readingRoom);
+    final error = seatInputError(
+      seatNumber: seatNumber,
+      readingRoom: readingRoom,
+    );
     if (error != null) return ActionResult.failure(error);
 
     final ref = _col(FirestoreCollections.seats).doc();
-    String? uploadedPath;
+    CloudMediaAsset? uploadedAsset;
     final result = await _run(() async {
       await _checkSeatFree(seatNumber, readingRoom);
-      String? url;
       if (image != null) {
-        uploadedPath = _imagePath(StorageFolders.seatImages, ref.id, image);
-        url = await _upload(uploadedPath!, image, onUploadProgress);
+        uploadedAsset = await _upload(image, onUploadProgress);
       }
       final seat = SeatRecord(
         id: ref.id,
@@ -571,8 +625,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         isAccessible: isAccessible,
         isNearWindow: isNearWindow,
         note: note.trim(),
-        imageUrl: url,
-        imagePath: uploadedPath,
+        imageUrl: uploadedAsset?.secureUrl,
+        imagePublicId: uploadedAsset?.publicId,
       );
       final batch = _db.batch()
         ..set(ref, {
@@ -590,7 +644,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         );
       await batch.commit();
     });
-    if (!result.success) await _deleteImageQuietly(uploadedPath);
     return result;
   }
 
@@ -619,14 +672,11 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     );
     if (error != null) return ActionResult.failure(error);
 
-    String? uploadedPath;
-    final replacesImage = newImage != null || removeImage;
+    CloudMediaAsset? uploadedAsset;
     final result = await _run(() async {
       await _checkSeatFree(seatNumber, readingRoom, exceptSeatId: id);
-      String? url;
       if (newImage != null) {
-        uploadedPath = _imagePath(StorageFolders.seatImages, id, newImage);
-        url = await _upload(uploadedPath!, newImage, onUploadProgress);
+        uploadedAsset = await _upload(newImage, onUploadProgress);
       }
       final updated = seat.copyWith(
         seatNumber: seatNumber.trim().toUpperCase(),
@@ -638,18 +688,15 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         isAccessible: isAccessible,
         isNearWindow: isNearWindow,
         note: note.trim(),
-        imageUrl: url,
-        imagePath: uploadedPath,
+        imageUrl: uploadedAsset?.secureUrl,
+        imagePublicId: uploadedAsset?.publicId,
         clearImage: removeImage && newImage == null,
+        clearLegacyImagePath: newImage != null || removeImage,
       );
-      final map = updated.toMap()..remove('status'); // status has its own action
+      final map = updated.toMap()
+        ..remove('status'); // status has its own action
       await _col(FirestoreCollections.seats).doc(id).update(map);
     });
-    if (result.success) {
-      if (replacesImage) await _deleteImageQuietly(seat.imagePath);
-    } else {
-      await _deleteImageQuietly(uploadedPath);
-    }
     return result;
   }
 
@@ -668,13 +715,19 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
       final today = DateTime(now.year, now.month, now.day);
       final hasUpcoming = bookings.docs
           .map((d) => ReservationRecord.fromMap(d.id, d.data()))
-          .any((r) => r.type == ReservationType.seat && r.isActive && !r.date.isBefore(today));
+          .any(
+            (r) =>
+                r.type == ReservationType.seat &&
+                r.isActive &&
+                !r.date.isBefore(today),
+          );
       if (hasUpcoming) {
-        throw const ActionRefused('This seat has upcoming bookings, so it cannot be deleted.');
+        throw const ActionRefused(
+          'This seat has upcoming bookings, so it cannot be deleted.',
+        );
       }
       await _col(FirestoreCollections.seats).doc(id).delete();
     });
-    if (result.success) await _deleteImageQuietly(seat.imagePath);
     return result;
   }
 
@@ -752,7 +805,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         if (loan.isReturned || loan.renewals >= LibrarianSettings.maxRenewals) {
           throw const ActionRefused('This loan can no longer be renewed.');
         }
-        final newDue = loan.dueDate.add(Duration(days: _settings.loanPeriodDays));
+        final newDue = loan.dueDate.add(
+          Duration(days: _settings.loanPeriodDays),
+        );
         tx.update(ref, {
           'dueDate': Timestamp.fromDate(newDue),
           'renewals': loan.renewals + 1,
@@ -781,13 +836,18 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
   /// Only the `accountStatus` field is written; the role is never changed.
   @override
-  Future<ActionResult> updateMemberStatus(String id, MemberStatus status) async {
+  Future<ActionResult> updateMemberStatus(
+    String id,
+    MemberStatus status,
+  ) async {
     final member = memberById(id);
     if (member == null || member.uid.isEmpty) {
       return const ActionResult.failure('Member not found.');
     }
     if (member.status == status) {
-      return ActionResult.failure('This account is already ${status.label.toLowerCase()}.');
+      return ActionResult.failure(
+        'This account is already ${status.label.toLowerCase()}.',
+      );
     }
     return _run(() {
       return _col(FirestoreCollections.users).doc(member.uid).update({
@@ -803,7 +863,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   Future<ActionResult> updateSettings(LibrarianSettings settings) async {
     final error = settingsError(settings);
     if (error != null) return ActionResult.failure(error);
-    return _run(() => _settingsDoc.set(settings.toMap(), SetOptions(merge: true)));
+    return _run(
+      () => _settingsDoc.set(settings.toMap(), SetOptions(merge: true)),
+    );
   }
 
   // ---------------- Notifications ----------------
@@ -811,7 +873,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   @override
   Future<void> markNotificationRead(String id) async {
     await _run(() {
-      return _col(FirestoreCollections.notifications).doc(id).update({'isRead': true});
+      return _col(FirestoreCollections.notifications)
+          .doc(id)
+          .update({'isRead': true});
     });
   }
 
@@ -820,7 +884,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   /// The theme choice is saved per librarian in their own profile,
   /// `users/{uid}.librarianDarkMode`, so it is kept after a restart and on
   /// other devices. (Users may edit their own profile, see firestore.rules.)
-  DocumentReference<Map<String, dynamic>>? get _profileDoc => librarianUid.isEmpty
+  DocumentReference<Map<String, dynamic>>? get _profileDoc =>
+      librarianUid.isEmpty
       ? null
       : _col(FirestoreCollections.users).doc(librarianUid);
 
@@ -880,7 +945,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     await _run(() {
       final batch = _db.batch();
       for (final n in unread) {
-        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {'isRead': true});
+        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {
+          'isRead': true,
+        });
       }
       return batch.commit();
     });
@@ -901,7 +968,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     } on FirebaseException catch (e) {
       return ActionResult.failure(describeFirestoreError(e));
     } catch (_) {
-      return const ActionResult.failure('Something went wrong. Please try again.');
+      return const ActionResult.failure(
+        'Something went wrong. Please try again.',
+      );
     }
   }
 
@@ -917,8 +986,16 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   void _deleteSeatSlots(Transaction tx, ReservationRecord reservation) {
     final start = reservation.startHour;
     final end = reservation.endHour;
-    if (reservation.type != ReservationType.seat || start == null || end == null) return;
-    for (final slotId in SeatSlots.ids(reservation.itemId, reservation.date, start, end)) {
+    if (reservation.type != ReservationType.seat ||
+        start == null ||
+        end == null)
+      return;
+    for (final slotId in SeatSlots.ids(
+      reservation.itemId,
+      reservation.date,
+      start,
+      end,
+    )) {
       tx.delete(_col(FirestoreCollections.seatSlots).doc(slotId));
     }
   }
@@ -936,9 +1013,16 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     }
   }
 
-  Future<void> _checkSeatFree(String seatNumber, String readingRoom, {String? exceptSeatId}) async {
+  Future<void> _checkSeatFree(
+    String seatNumber,
+    String readingRoom, {
+    String? exceptSeatId,
+  }) async {
     final same = await _col(FirestoreCollections.seats)
-        .where('seatKey', isEqualTo: SeatRecord.seatKeyOf(seatNumber, readingRoom))
+        .where(
+          'seatKey',
+          isEqualTo: SeatRecord.seatKeyOf(seatNumber, readingRoom),
+        )
         .get();
     if (same.docs.any((d) => d.id != exceptSeatId)) {
       throw ActionRefused(
@@ -948,19 +1032,19 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   }
 
   /// Uploads with a time limit, so the form never waits forever.
-  Future<String> _upload(
-    String path,
+  Future<CloudMediaAsset> _upload(
     ImageUpload image,
     void Function(double progress)? onProgress,
   ) {
-    return _images.upload(path, image, onProgress: onProgress).timeout(
-      uploadTimeout,
-      onTimeout: () => throw ImageStorageException(
-        'The image upload did not finish within ${uploadTimeout.inSeconds} '
-        'seconds, so nothing was saved. Check your internet connection and '
-        'that Firebase Storage is enabled for this project.',
-      ),
-    );
+    return _images
+        .upload(image, onProgress: onProgress)
+        .timeout(
+          uploadTimeout,
+          onTimeout: () => throw ImageStorageException(
+            'The image upload did not finish within ${uploadTimeout.inSeconds} '
+            'seconds. Check your internet connection and try again.',
+          ),
+        );
   }
 
   /// Waits for Firestore to confirm a write, but not forever. If it times out
@@ -1000,19 +1084,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     }
   }
 
-  /// A new file name each time, so a replaced image is never served from cache.
-  String _imagePath(String folder, String id, ImageUpload image) =>
-      '$folder/$id/${DateTime.now().millisecondsSinceEpoch}.${image.extension}';
-
-  /// Removes an image that is no longer used. A failure here does not undo
-  /// the saved change; the unused file can be removed later in the console.
-  Future<void> _deleteImageQuietly(String? path) async {
-    if (path == null || path.isEmpty) return;
-    try {
-      await _images.delete(path);
-    } catch (_) {}
-  }
-
   /// Once a request is decided, its "new request" alerts are no longer unread.
   Future<void> _markReservationNotificationsRead(String reservationId) async {
     final unread = _notifications
@@ -1022,7 +1093,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     await _run(() {
       final batch = _db.batch();
       for (final n in unread) {
-        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {'isRead': true});
+        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {
+          'isRead': true,
+        });
       }
       return batch.commit();
     });
@@ -1057,8 +1130,18 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   /// e.g. "7 Oct 2026"
   static String _day(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }

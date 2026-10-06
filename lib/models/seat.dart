@@ -39,6 +39,7 @@ class SeatRecord {
     this.note = '',
     this.imageUrl,
     this.imagePath,
+    this.imagePublicId,
   });
 
   final String id;
@@ -57,11 +58,12 @@ class SeatRecord {
   final bool isNearWindow;
   final String note;
 
-  /// Download URL of the uploaded seat photo (Firebase Storage), if any.
+  /// HTTPS delivery URL of the uploaded seat photo, if any.
   final String? imageUrl;
 
-  /// Storage path of the photo, kept so it can be deleted when replaced.
+  /// Legacy Firebase Storage path, read for older seat documents only.
   final String? imagePath;
+  final String? imagePublicId;
 
   /// Seat numbers are unique within a reading room. Stored as `seatKey` so
   /// a duplicate can be found with a Firestore query.
@@ -90,6 +92,7 @@ class SeatRecord {
       note: map['note'] as String? ?? '',
       imageUrl: map['imageUrl'] as String?,
       imagePath: map['imagePath'] as String?,
+      imagePublicId: map['imagePublicId'] as String?,
     );
   }
 
@@ -108,6 +111,7 @@ class SeatRecord {
       'note': note,
       'imageUrl': imageUrl,
       'imagePath': imagePath,
+      'imagePublicId': imagePublicId,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -125,7 +129,9 @@ class SeatRecord {
     String? note,
     String? imageUrl,
     String? imagePath,
+    String? imagePublicId,
     bool clearImage = false,
+    bool clearLegacyImagePath = false,
   }) {
     return SeatRecord(
       id: id,
@@ -140,7 +146,10 @@ class SeatRecord {
       isNearWindow: isNearWindow ?? this.isNearWindow,
       note: note ?? this.note,
       imageUrl: clearImage ? null : imageUrl ?? this.imageUrl,
-      imagePath: clearImage ? null : imagePath ?? this.imagePath,
+      imagePath: clearImage || clearLegacyImagePath
+          ? null
+          : imagePath ?? this.imagePath,
+      imagePublicId: clearImage ? null : imagePublicId ?? this.imagePublicId,
     );
   }
 }
@@ -160,7 +169,12 @@ class SeatSlots {
   }
 
   /// Slot ids for a booking from [startHour] up to (not including) [endHour].
-  static List<String> ids(String seatId, DateTime date, int startHour, int endHour) {
+  static List<String> ids(
+    String seatId,
+    DateTime date,
+    int startHour,
+    int endHour,
+  ) {
     return [for (var h = startHour; h < endHour; h++) id(seatId, date, h)];
   }
 }

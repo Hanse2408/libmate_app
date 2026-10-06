@@ -16,7 +16,10 @@ void main() {
       );
 
       expect(summary.pendingCount, 6);
-      expect(summary.conflictCount, 2); // RSV-1010 (no copies), RSV-1011 (maintenance)
+      expect(
+        summary.conflictCount,
+        2,
+      ); // RSV-1010 (no copies), RSV-1011 (maintenance)
       expect(summary.todayCount, 6);
       expect(summary.yesterdayCount, 1);
       expect(summary.availableSeats, 9);
@@ -39,8 +42,14 @@ void main() {
     });
   });
 
-  testWidgets('Renders without overflow on a phone-sized screen', (tester) async {
-    await pumpLibrarian(tester, LibrarianRoutes.dashboard, size: const Size(360, 780));
+  testWidgets('Renders without overflow on a phone-sized screen', (
+    tester,
+  ) async {
+    await pumpLibrarian(
+      tester,
+      LibrarianRoutes.dashboard,
+      size: const Size(360, 780),
+    );
 
     expect(find.text('LibMate'), findsOneWidget);
     expect(find.text('06'), findsOneWidget); // pending count
@@ -49,7 +58,11 @@ void main() {
   });
 
   testWidgets('Uses two columns on a wide screen', (tester) async {
-    await pumpLibrarian(tester, LibrarianRoutes.dashboard, size: const Size(1280, 900));
+    await pumpLibrarian(
+      tester,
+      LibrarianRoutes.dashboard,
+      size: const Size(1280, 900),
+    );
 
     final attention = tester.getTopLeft(find.text('Attention Required'));
     final occupancy = tester.getTopLeft(find.text('Reading Room Occupancy'));
@@ -80,7 +93,10 @@ void main() {
     final router = await pumpLibrarian(tester, LibrarianRoutes.dashboard);
 
     await tapVisible(tester, find.byType(ReservationCard).first);
-    expect(router.currentPath, startsWith('${LibrarianRoutes.reservations}/RSV-'));
+    expect(
+      router.currentPath,
+      startsWith('${LibrarianRoutes.reservations}/RSV-'),
+    );
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();

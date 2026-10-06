@@ -624,7 +624,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           case 2:
             _openReservations();
           case 3:
-            _open(const ProfileScreen());
+            _open(ProfileScreen(library: _library));
         }
       },
       type: BottomNavigationBarType.fixed,

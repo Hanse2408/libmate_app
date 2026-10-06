@@ -18,7 +18,6 @@ void main() {
   late StudentLibraryRepository student;
   late SeatRecord seat;
 
-
   late WidgetTester tester;
 
   /// Under testWidgets the clock is fake, so Firestore listeners are
@@ -48,7 +47,12 @@ void main() {
   }
 
   Future<String> book({int start = 10, int end = 12}) async {
-    final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: start, endHour: end);
+    final result = await student.bookSeat(
+      seat: seat,
+      date: tomorrow(),
+      startHour: start,
+      endHour: end,
+    );
     expect(result.success, isTrue, reason: result.message);
     await flush();
     return result.reservationId!;
@@ -57,22 +61,24 @@ void main() {
   /// A booking whose time has passed (written directly, as the app cannot book the past).
   Future<String> pastBooking() async {
     final yesterday = tomorrow().subtract(const Duration(days: 2));
-    final doc = await db.collection('reservations').add(
-      ReservationRecord(
-        id: '',
-        type: ReservationType.seat,
-        status: ReservationStatus.approved,
-        studentUid: studentUid,
-        studentId: 'IT23004512',
-        studentName: 'Nethmi Perera',
-        studentEmail: 'nethmi@student.test',
-        itemId: seat.id,
-        itemName: 'Seat A01',
-        requestedAt: yesterday,
-        date: yesterday,
-        timeSlot: '10:00 - 12:00',
-      ).toMap(),
-    );
+    final doc = await db
+        .collection('reservations')
+        .add(
+          ReservationRecord(
+            id: '',
+            type: ReservationType.seat,
+            status: ReservationStatus.approved,
+            studentUid: studentUid,
+            studentId: 'IT23004512',
+            studentName: 'Nethmi Perera',
+            studentEmail: 'nethmi@student.test',
+            itemId: seat.id,
+            itemName: 'Seat A01',
+            requestedAt: yesterday,
+            date: yesterday,
+            timeSlot: '10:00 - 12:00',
+          ).toMap(),
+        );
     await flush();
     return doc.id;
   }
@@ -93,7 +99,9 @@ void main() {
     ),
   );
 
-  widgetTest('tapping a seat reservation card opens H04 with its data', (tester) async {
+  widgetTest('tapping a seat reservation card opens H04 with its data', (
+    tester,
+  ) async {
     final id = await book();
     await pump(tester, MyReservationsScreen(library: student, showSeats: true));
 
@@ -116,7 +124,9 @@ void main() {
     expect(find.byType(MyReservationsScreen), findsOneWidget);
   });
 
-  widgetTest('an approved booking shows Confirmed with Modify and Cancel', (tester) async {
+  widgetTest('an approved booking shows Confirmed with Modify and Cancel', (
+    tester,
+  ) async {
     final id = await book();
     await openDetails(tester, id);
 
@@ -126,7 +136,9 @@ void main() {
     expect(find.text('Cancel Reservation'), findsOneWidget);
   });
 
-  widgetTest('cancelling asks first, then cancels and frees the seat', (tester) async {
+  widgetTest('cancelling asks first, then cancels and frees the seat', (
+    tester,
+  ) async {
     final id = await book();
     await openDetails(tester, id);
 
@@ -137,12 +149,20 @@ void main() {
     // Keep: nothing changes.
     await tester.tap(find.text('Keep'));
     await tester.pumpAndSettle();
-    expect((await db.collection('reservations').doc(id).get()).data()!['status'], 'approved');
+    expect(
+      (await db.collection('reservations').doc(id).get()).data()!['status'],
+      'approved',
+    );
     expect((await db.collection('seatSlots').get()).docs, hasLength(2));
 
     await tester.tap(find.text('Cancel Reservation'));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Cancel Reservation')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Cancel Reservation'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final doc = await db.collection('reservations').doc(id).get();
@@ -156,12 +176,19 @@ void main() {
 
     // The same seat and time can be booked again.
     final other = studentRepo(db, uid: otherStudentUid);
-    final again = await other.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+    final again = await other.bookSeat(
+      seat: seat,
+      date: tomorrow(),
+      startHour: 10,
+      endHour: 12,
+    );
     expect(again.success, isTrue, reason: again.message);
     other.dispose();
   });
 
-  widgetTest('cancelling one seat booking leaves book reservations alone', (tester) async {
+  widgetTest('cancelling one seat booking leaves book reservations alone', (
+    tester,
+  ) async {
     await librarian.addBook(
       title: 'Clean Code',
       author: 'Robert C. Martin',
@@ -183,7 +210,12 @@ void main() {
 
     await tester.tap(find.text('Cancel Reservation'));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Cancel Reservation')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Cancel Reservation'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final docs = (await db.collection('reservations').get()).docs;
@@ -202,7 +234,9 @@ void main() {
     expect(find.text('Cancel Reservation'), findsNothing);
   });
 
-  widgetTest('a booking in the past has no actions and cannot be cancelled', (tester) async {
+  widgetTest('a booking in the past has no actions and cannot be cancelled', (
+    tester,
+  ) async {
     final id = await pastBooking();
     await openDetails(tester, id);
 
@@ -216,7 +250,9 @@ void main() {
     expect(result.message, contains('already ended'));
   });
 
-  widgetTest('a completed booking shows Completed without actions', (tester) async {
+  widgetTest('a completed booking shows Completed without actions', (
+    tester,
+  ) async {
     final id = await book();
     await db.collection('reservations').doc(id).update({'status': 'completed'});
     await flush();

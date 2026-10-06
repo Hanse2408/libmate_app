@@ -34,14 +34,3 @@ class FirestoreCollections {
   static const String settings = 'settings';
   static const String librarySettingsDoc = 'library';
 }
-
-/// Firebase Storage folders for uploaded images.
-class StorageFolders {
-  const StorageFolders._();
-
-  /// `seat_images/{seatId}/{timestamp}.{ext}`
-  static const String seatImages = 'seat_images';
-
-  /// `ebooks/{ebookId}/{timestamp}.pdf`
-  static const String ebooks = 'ebooks';
-}

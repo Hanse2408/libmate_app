@@ -57,7 +57,12 @@ void main() {
       int start,
       int end,
     ) async {
-      final result = await who.bookSeat(seat: seat, date: tomorrow(), startHour: start, endHour: end);
+      final result = await who.bookSeat(
+        seat: seat,
+        date: tomorrow(),
+        startHour: start,
+        endHour: end,
+      );
       expect(result.success, isTrue, reason: result.message);
       await settle();
       return result.reservationId!;
@@ -93,42 +98,57 @@ void main() {
       expect(await slotIds(), before);
     });
 
-    test('moving to another seat and time updates the same reservation', () async {
-      final id = await book(student, a1, 10, 12);
-      final oldSlots = await slotIds();
+    test(
+      'moving to another seat and time updates the same reservation',
+      () async {
+        final id = await book(student, a1, 10, 12);
+        final oldSlots = await slotIds();
 
-      final result = await modify(id, a2, 14, 15);
-      expect(result.success, isTrue, reason: result.message);
-      expect(result.reservationId, id);
+        final result = await modify(id, a2, 14, 15);
+        expect(result.success, isTrue, reason: result.message);
+        expect(result.reservationId, id);
 
-      final reservations = (await db.collection('reservations').get()).docs;
-      expect(reservations, hasLength(1)); // no second reservation
-      final data = reservations.single.data();
-      expect(reservations.single.id, id);
-      expect(data['status'], 'approved');
-      expect(data['itemId'], a2.id);
-      expect(data['itemName'], 'Seat A02');
-      expect(data['timeSlot'], '14:00 - 15:00');
+        final reservations = (await db.collection('reservations').get()).docs;
+        expect(reservations, hasLength(1)); // no second reservation
+        final data = reservations.single.data();
+        expect(reservations.single.id, id);
+        expect(data['status'], 'approved');
+        expect(data['itemId'], a2.id);
+        expect(data['itemName'], 'Seat A02');
+        expect(data['timeSlot'], '14:00 - 15:00');
 
-      final newSlots = await slotIds();
-      expect(newSlots, SeatSlots.ids(a2.id, tomorrow(), 14, 15).toSet());
-      expect(newSlots.intersection(oldSlots), isEmpty);
-      final slot = (await db.collection('seatSlots').get()).docs.single.data();
-      expect(slot['reservationId'], id);
-      expect(slot['studentUid'], studentUid);
+        final newSlots = await slotIds();
+        expect(newSlots, SeatSlots.ids(a2.id, tomorrow(), 14, 15).toSet());
+        expect(newSlots.intersection(oldSlots), isEmpty);
+        final slot = (await db.collection('seatSlots').get()).docs.single
+            .data();
+        expect(slot['reservationId'], id);
+        expect(slot['studentUid'], studentUid);
 
-      // The old seat and time can be booked by someone else again.
-      final freed = await other.bookSeat(seat: a1, date: tomorrow(), startHour: 10, endHour: 12);
-      expect(freed.success, isTrue, reason: freed.message);
-    });
+        // The old seat and time can be booked by someone else again.
+        final freed = await other.bookSeat(
+          seat: a1,
+          date: tomorrow(),
+          startHour: 10,
+          endHour: 12,
+        );
+        expect(freed.success, isTrue, reason: freed.message);
+      },
+    );
 
-    test('an overlapping change keeps shared slots and swaps the rest', () async {
-      final id = await book(student, a1, 10, 12);
+    test(
+      'an overlapping change keeps shared slots and swaps the rest',
+      () async {
+        final id = await book(student, a1, 10, 12);
 
-      final result = await modify(id, a1, 11, 13);
-      expect(result.success, isTrue, reason: result.message);
-      expect(await slotIds(), SeatSlots.ids(a1.id, tomorrow(), 11, 13).toSet());
-    });
+        final result = await modify(id, a1, 11, 13);
+        expect(result.success, isTrue, reason: result.message);
+        expect(
+          await slotIds(),
+          SeatSlots.ids(a1.id, tomorrow(), 11, 13).toSet(),
+        );
+      },
+    );
 
     test('a seat-hour held by another student cannot be taken', () async {
       final id = await book(student, a1, 10, 12);
@@ -139,25 +159,34 @@ void main() {
       expect(result.success, isFalse);
       expect(result.message, contains('booked by someone else'));
       expect(await slotIds(), before); // nothing released or claimed
-      expect((await db.collection('reservations').doc(id).get()).data()!['itemId'], a1.id);
+      expect(
+        (await db.collection('reservations').doc(id).get()).data()!['itemId'],
+        a1.id,
+      );
     });
 
-    test('a slot taken after the screen loaded is refused by the transaction', () async {
-      final id = await book(student, a1, 10, 12);
-      // Another student takes A02 at 14:00 behind the student's back.
-      await db.collection('seatSlots').doc(SeatSlots.id(a2.id, tomorrow(), 14)).set({
-        'seatId': a2.id,
-        'date': Timestamp.fromDate(tomorrow()),
-        'hour': 14,
-        'reservationId': 'x',
-        'studentUid': otherStudentUid,
-      });
+    test(
+      'a slot taken after the screen loaded is refused by the transaction',
+      () async {
+        final id = await book(student, a1, 10, 12);
+        // Another student takes A02 at 14:00 behind the student's back.
+        await db
+            .collection('seatSlots')
+            .doc(SeatSlots.id(a2.id, tomorrow(), 14))
+            .set({
+              'seatId': a2.id,
+              'date': Timestamp.fromDate(tomorrow()),
+              'hour': 14,
+              'reservationId': 'x',
+              'studentUid': otherStudentUid,
+            });
 
-      final result = await modify(id, a2, 14, 15);
-      expect(result.success, isFalse);
-      expect(result.message, contains('just booked by someone else'));
-      expect(await slotIds(), contains(SeatSlots.id(a1.id, tomorrow(), 10)));
-    });
+        final result = await modify(id, a2, 14, 15);
+        expect(result.success, isFalse);
+        expect(result.message, contains('just booked by someone else'));
+        expect(await slotIds(), contains(SeatSlots.id(a1.id, tomorrow(), 10)));
+      },
+    );
 
     test("moving onto the student's own other booking is refused", () async {
       final first = await book(student, a1, 8, 9);
@@ -190,86 +219,94 @@ void main() {
       expect(tooLong.message, contains('at most 2 hours'));
     });
 
-    test('cancelled, past, foreign and book reservations cannot be modified', () async {
-      final cancelled = await book(student, a1, 10, 12);
-      await student.cancelReservation(cancelled);
-      await settle();
-      final afterCancel = await modify(cancelled, a1, 14, 15);
-      expect(afterCancel.success, isFalse);
-      expect(afterCancel.message, contains('cancelled'));
+    test(
+      'cancelled, past, foreign and book reservations cannot be modified',
+      () async {
+        final cancelled = await book(student, a1, 10, 12);
+        await student.cancelReservation(cancelled);
+        await settle();
+        final afterCancel = await modify(cancelled, a1, 14, 15);
+        expect(afterCancel.success, isFalse);
+        expect(afterCancel.message, contains('cancelled'));
 
-      final yesterday = tomorrow().subtract(const Duration(days: 2));
-      final past = await db.collection('reservations').add(
-        ReservationRecord(
-          id: '',
-          type: ReservationType.seat,
-          status: ReservationStatus.approved,
-          studentUid: studentUid,
-          studentId: 'IT23004512',
-          studentName: 'Nethmi Perera',
-          studentEmail: 'nethmi@student.test',
-          itemId: a1.id,
-          itemName: 'Seat A01',
-          requestedAt: yesterday,
-          date: yesterday,
-          timeSlot: '10:00 - 12:00',
-        ).toMap(),
-      );
-      await settle();
-      final pastResult = await modify(past.id, a1, 14, 15);
-      expect(pastResult.success, isFalse);
-      expect(pastResult.message, contains('already ended'));
+        final yesterday = tomorrow().subtract(const Duration(days: 2));
+        final past = await db
+            .collection('reservations')
+            .add(
+              ReservationRecord(
+                id: '',
+                type: ReservationType.seat,
+                status: ReservationStatus.approved,
+                studentUid: studentUid,
+                studentId: 'IT23004512',
+                studentName: 'Nethmi Perera',
+                studentEmail: 'nethmi@student.test',
+                itemId: a1.id,
+                itemName: 'Seat A01',
+                requestedAt: yesterday,
+                date: yesterday,
+                timeSlot: '10:00 - 12:00',
+              ).toMap(),
+            );
+        await settle();
+        final pastResult = await modify(past.id, a1, 14, 15);
+        expect(pastResult.success, isFalse);
+        expect(pastResult.message, contains('already ended'));
 
-      final mine = await book(student, a2, 8, 9);
-      final foreign = await modify(mine, a2, 9, 10, who: other);
-      expect(foreign.success, isFalse);
-      expect(foreign.message, contains('not your reservation'));
+        final mine = await book(student, a2, 8, 9);
+        final foreign = await modify(mine, a2, 9, 10, who: other);
+        expect(foreign.success, isFalse);
+        expect(foreign.message, contains('not your reservation'));
 
-      await librarian.addBook(
-        title: 'Clean Code',
-        author: 'Robert C. Martin',
-        isbn: '9780132350884',
-        category: 'SE',
-        language: 'English',
-        shelfLocation: 'SE-01',
-        totalCopies: 1,
-      );
-      await settle();
-      final bookResult = await student.reserveBook(
-        book: student.books.single,
-        pickupDate: tomorrow(),
-        loanPeriodDays: 14,
-        pickupLocation: 'Main Desk',
-      );
-      final bookModify = await modify(bookResult.reservationId!, a2, 9, 10);
-      expect(bookModify.success, isFalse);
-      expect(bookModify.message, contains('Only seat reservations'));
-    });
+        await librarian.addBook(
+          title: 'Clean Code',
+          author: 'Robert C. Martin',
+          isbn: '9780132350884',
+          category: 'SE',
+          language: 'English',
+          shelfLocation: 'SE-01',
+          totalCopies: 1,
+        );
+        await settle();
+        final bookResult = await student.reserveBook(
+          book: student.books.single,
+          pickupDate: tomorrow(),
+          loanPeriodDays: 14,
+          pickupLocation: 'Main Desk',
+        );
+        final bookModify = await modify(bookResult.reservationId!, a2, 9, 10);
+        expect(bookModify.success, isFalse);
+        expect(bookModify.message, contains('Only seat reservations'));
+      },
+    );
 
-    test('the provider starts from the booking and only saves a real change', () async {
-      final id = await book(student, a1, 10, 12);
-      final provider = SeatBookingProvider(
-        student,
-        editing: student.myReservations.firstWhere((r) => r.id == id),
-      );
-      addTearDown(provider.dispose);
-      await settle();
+    test(
+      'the provider starts from the booking and only saves a real change',
+      () async {
+        final id = await book(student, a1, 10, 12);
+        final provider = SeatBookingProvider(
+          student,
+          editing: student.myReservations.firstWhere((r) => r.id == id),
+        );
+        addTearDown(provider.dispose);
+        await settle();
 
-      expect(provider.date, tomorrow());
-      expect(provider.startHour, 10);
-      expect(provider.endHour, 12);
-      expect(provider.selectedSeat?.id, a1.id);
-      // Its own seat-hours do not make the current seat "reserved".
-      expect(provider.availabilityOf(a1), SeatAvailability.available);
-      expect(provider.canSave, isFalse); // nothing changed yet
+        expect(provider.date, tomorrow());
+        expect(provider.startHour, 10);
+        expect(provider.endHour, 12);
+        expect(provider.selectedSeat?.id, a1.id);
+        // Its own seat-hours do not make the current seat "reserved".
+        expect(provider.availabilityOf(a1), SeatAvailability.available);
+        expect(provider.canSave, isFalse); // nothing changed yet
 
-      provider.selectSeat(a2);
-      expect(provider.hasChanges, isTrue);
-      expect(provider.canSave, isTrue);
-      final result = await provider.save();
-      expect(result.success, isTrue, reason: result.message);
-      expect(result.reservationId, id);
-    });
+        provider.selectSeat(a2);
+        expect(provider.hasChanges, isTrue);
+        expect(provider.canSave, isTrue);
+        final result = await provider.save();
+        expect(result.success, isTrue, reason: result.message);
+        expect(result.reservationId, id);
+      },
+    );
   });
 
   group('screens', () {
@@ -302,7 +339,12 @@ void main() {
         await flush();
         a1 = librarian.seats.firstWhere((s) => s.seatNumber == 'A01');
         a2 = librarian.seats.firstWhere((s) => s.seatNumber == 'A02');
-        final result = await student.bookSeat(seat: a1, date: tomorrow(), startHour: 10, endHour: 12);
+        final result = await student.bookSeat(
+          seat: a1,
+          date: tomorrow(),
+          startHour: 10,
+          endHour: 12,
+        );
         expect(result.success, isTrue, reason: result.message);
         reservationId = result.reservationId!;
         await flush();
@@ -318,7 +360,8 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    ReservationRecord current() => student.myReservations.firstWhere((r) => r.id == reservationId);
+    ReservationRecord current() =>
+        student.myReservations.firstWhere((r) => r.id == reservationId);
 
     Finder modifyButtonOnCard() => find.widgetWithText(TextButton, 'Modify');
 
@@ -332,7 +375,9 @@ void main() {
       expect(find.byType(ModifyBookReservationScreen), findsNothing);
     });
 
-    widgetTest('My Reservations: book Modify still opens the book screen', (tester) async {
+    widgetTest('My Reservations: book Modify still opens the book screen', (
+      tester,
+    ) async {
       await librarian.addBook(
         title: 'Clean Code',
         author: 'Robert C. Martin',
@@ -359,7 +404,9 @@ void main() {
       expect(find.byType(ModifySeatReservationScreen), findsNothing);
     });
 
-    widgetTest('My Reservations: a cancelled seat has Modify disabled', (tester) async {
+    widgetTest('My Reservations: a cancelled seat has Modify disabled', (
+      tester,
+    ) async {
       await student.cancelReservation(reservationId);
       await flush();
       await pump(MyReservationsScreen(library: student, showSeats: true));
@@ -367,8 +414,12 @@ void main() {
       expect(tester.widget<TextButton>(modifyButtonOnCard()).onPressed, isNull);
     });
 
-    widgetTest('H04 Modify Reservation opens H05 with the booking pre-filled', (tester) async {
-      await pump(SeatReservationDetailsScreen(library: student, reservation: current()));
+    widgetTest('H04 Modify Reservation opens H05 with the booking pre-filled', (
+      tester,
+    ) async {
+      await pump(
+        SeatReservationDetailsScreen(library: student, reservation: current()),
+      );
 
       await tester.tap(find.text('Modify Reservation'));
       await tester.pumpAndSettle();
@@ -381,12 +432,18 @@ void main() {
       expect(find.text('Book Seat'), findsNothing);
 
       // Nothing changed yet, so Save Changes is disabled.
-      final save = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Save Changes'));
+      final save = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Save Changes'),
+      );
       expect(save.onPressed, isNull);
     });
 
-    widgetTest('saving a new seat updates H04 with the same booking ID', (tester) async {
-      await pump(SeatReservationDetailsScreen(library: student, reservation: current()));
+    widgetTest('saving a new seat updates H04 with the same booking ID', (
+      tester,
+    ) async {
+      await pump(
+        SeatReservationDetailsScreen(library: student, reservation: current()),
+      );
       await tester.tap(find.text('Modify Reservation'));
       await tester.pumpAndSettle();
 

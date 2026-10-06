@@ -36,7 +36,7 @@ class LibrarianMockRepository extends LibrarianRepository {
 
   static const String _noImages =
       'Images cannot be uploaded with demo data. Run the app with Firebase '
-      'to upload images to Firebase Storage.';
+      'to upload images.';
 
   @override
   List<BookRecord> get books => List.unmodifiable(_books);
@@ -45,7 +45,8 @@ class LibrarianMockRepository extends LibrarianRepository {
   @override
   List<ReservationRecord> get reservations => List.unmodifiable(_reservations);
   @override
-  List<LibrarianNotification> get notifications => List.unmodifiable(_notifications);
+  List<LibrarianNotification> get notifications =>
+      List.unmodifiable(_notifications);
   @override
   List<BorrowingRecord> get borrowings => List.unmodifiable(_borrowings);
   @override
@@ -61,7 +62,8 @@ class LibrarianMockRepository extends LibrarianRepository {
   @override
   Future<ActionResult> approveReservation(String id) async {
     final index = _reservations.indexWhere((r) => r.id == id);
-    if (index == -1) return const ActionResult.failure('Reservation not found.');
+    if (index == -1)
+      return const ActionResult.failure('Reservation not found.');
     final reservation = _reservations[index];
 
     final blocker = approvalBlocker(reservation);
@@ -70,13 +72,20 @@ class LibrarianMockRepository extends LibrarianRepository {
     if (reservation.type == ReservationType.book) {
       final bookIndex = _books.indexWhere((b) => b.id == reservation.itemId);
       final book = _books[bookIndex];
-      _books[bookIndex] = book.copyWith(availableCopies: book.availableCopies - 1);
-    } else if (LibrarianRepository.isSameDay(reservation.date, DateTime.now())) {
+      _books[bookIndex] = book.copyWith(
+        availableCopies: book.availableCopies - 1,
+      );
+    } else if (LibrarianRepository.isSameDay(
+      reservation.date,
+      DateTime.now(),
+    )) {
       // The seat map shows today, so only a booking for today reserves it now.
       _setSeatStatus(reservation.itemId, SeatStatus.reserved);
     }
 
-    _reservations[index] = reservation.copyWith(status: ReservationStatus.approved);
+    _reservations[index] = reservation.copyWith(
+      status: ReservationStatus.approved,
+    );
     _markReservationNotificationsRead(id);
     _addNotification(
       type: LibrarianNotificationType.approved,
@@ -93,7 +102,8 @@ class LibrarianMockRepository extends LibrarianRepository {
   @override
   Future<ActionResult> rejectReservation(String id, String reason) async {
     final index = _reservations.indexWhere((r) => r.id == id);
-    if (index == -1) return const ActionResult.failure('Reservation not found.');
+    if (index == -1)
+      return const ActionResult.failure('Reservation not found.');
     final reservation = _reservations[index];
     if (!reservation.isPending) {
       return ActionResult.failure(
@@ -103,7 +113,9 @@ class LibrarianMockRepository extends LibrarianRepository {
 
     _reservations[index] = reservation.copyWith(
       status: ReservationStatus.rejected,
-      rejectionReason: reason.trim().isEmpty ? 'Rejected by librarian.' : reason.trim(),
+      rejectionReason: reason.trim().isEmpty
+          ? 'Rejected by librarian.'
+          : reason.trim(),
     );
     _markReservationNotificationsRead(id);
     _addNotification(
@@ -119,7 +131,8 @@ class LibrarianMockRepository extends LibrarianRepository {
   @override
   Future<ActionResult> markReservationCollected(String id) async {
     final index = _reservations.indexWhere((r) => r.id == id);
-    if (index == -1) return const ActionResult.failure('Reservation not found.');
+    if (index == -1)
+      return const ActionResult.failure('Reservation not found.');
     final reservation = _reservations[index];
     final blocker = collectBlocker(reservation);
     if (blocker != null) return ActionResult.failure(blocker);
@@ -137,13 +150,17 @@ class LibrarianMockRepository extends LibrarianRepository {
         isbn: book.isbn,
         issuedAt: now,
         dueDate: now.add(
-          Duration(days: reservation.loanPeriodDays ?? _settings.loanPeriodDays),
+          Duration(
+            days: reservation.loanPeriodDays ?? _settings.loanPeriodDays,
+          ),
         ),
       ),
     );
     // The copy was set aside at approval and is now on loan, so the
     // available count does not change.
-    _reservations[index] = reservation.copyWith(status: ReservationStatus.completed);
+    _reservations[index] = reservation.copyWith(
+      status: ReservationStatus.completed,
+    );
     _addNotification(
       type: LibrarianNotificationType.bookCollected,
       title: 'Book Collected',
@@ -167,6 +184,8 @@ class LibrarianMockRepository extends LibrarianRepository {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,
@@ -214,13 +233,19 @@ class LibrarianMockRepository extends LibrarianRepository {
     required int totalCopies,
     String description = '',
     String? coverAsset,
+    ImageUpload? coverImage,
+    void Function(double progress)? onUploadProgress,
     String publisher = '',
     int publishedYear = 0,
     int pages = 0,
   }) async {
     final index = _books.indexWhere((b) => b.id == id);
     if (index == -1) return const ActionResult.failure('Book not found.');
-    final error = bookInputError(isbn: isbn, totalCopies: totalCopies, exceptBookId: id);
+    final error = bookInputError(
+      isbn: isbn,
+      totalCopies: totalCopies,
+      exceptBookId: id,
+    );
     if (error != null) return ActionResult.failure(error);
 
     final book = _books[index];
@@ -272,7 +297,10 @@ class LibrarianMockRepository extends LibrarianRepository {
     void Function(double progress)? onUploadProgress,
   }) async {
     if (image != null) return const ActionResult.failure(_noImages);
-    final error = seatInputError(seatNumber: seatNumber, readingRoom: readingRoom);
+    final error = seatInputError(
+      seatNumber: seatNumber,
+      readingRoom: readingRoom,
+    );
     if (error != null) return ActionResult.failure(error);
 
     _seats.add(
@@ -293,7 +321,8 @@ class LibrarianMockRepository extends LibrarianRepository {
     _addNotification(
       type: LibrarianNotificationType.seatUpdate,
       title: 'New Seat Added',
-      message: 'Seat ${seatNumber.trim().toUpperCase()} was added to ${readingRoom.trim()}.',
+      message:
+          'Seat ${seatNumber.trim().toUpperCase()} was added to ${readingRoom.trim()}.',
     );
     notifyListeners();
     return const ActionResult.success();
@@ -353,8 +382,12 @@ class LibrarianMockRepository extends LibrarianRepository {
   }
 
   @override
-  Future<ActionResult> updateSeatStatus(String seatId, SeatStatus status) async {
-    if (seatById(seatId) == null) return const ActionResult.failure('Seat not found.');
+  Future<ActionResult> updateSeatStatus(
+    String seatId,
+    SeatStatus status,
+  ) async {
+    if (seatById(seatId) == null)
+      return const ActionResult.failure('Seat not found.');
     _setSeatStatus(seatId, status);
     notifyListeners();
     return const ActionResult.success();
@@ -377,7 +410,9 @@ class LibrarianMockRepository extends LibrarianRepository {
     if (bookIndex != -1) {
       final book = _books[bookIndex];
       if (book.availableCopies < book.totalCopies) {
-        _books[bookIndex] = book.copyWith(availableCopies: book.availableCopies + 1);
+        _books[bookIndex] = book.copyWith(
+          availableCopies: book.availableCopies + 1,
+        );
       }
     }
     _addNotification(
@@ -415,11 +450,16 @@ class LibrarianMockRepository extends LibrarianRepository {
   // ---------------- Members ----------------
 
   @override
-  Future<ActionResult> updateMemberStatus(String id, MemberStatus status) async {
+  Future<ActionResult> updateMemberStatus(
+    String id,
+    MemberStatus status,
+  ) async {
     final index = _members.indexWhere((m) => m.id == id);
     if (index == -1) return const ActionResult.failure('Member not found.');
     if (_members[index].status == status) {
-      return ActionResult.failure('This account is already ${status.label.toLowerCase()}.');
+      return ActionResult.failure(
+        'This account is already ${status.label.toLowerCase()}.',
+      );
     }
     _members[index] = _members[index].copyWith(status: status);
     notifyListeners();

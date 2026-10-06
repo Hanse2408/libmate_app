@@ -36,10 +36,16 @@ void main() {
   ];
 
   for (final width in [360.0, 390.0, 720.0, 1280.0]) {
-    testWidgets('All Librarian pages fit at ${width.toInt()}px', (tester) async {
+    testWidgets('All Librarian pages fit at ${width.toInt()}px', (
+      tester,
+    ) async {
       for (final route in routes) {
         await pumpLibrarian(tester, route, size: Size(width, 800));
-        await tester.fling(find.byType(ListView).first, const Offset(0, -5000), 4000);
+        await tester.fling(
+          find.byType(ListView).first,
+          const Offset(0, -5000),
+          4000,
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$route at $width px');
       }

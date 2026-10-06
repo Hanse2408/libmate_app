@@ -1,11 +1,12 @@
-import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../constants/cloudinary_config.dart';
+import 'cloudinary_upload_service.dart';
+
 /// An image the user picked, ready to upload. Only the bytes are uploaded to
-/// Firebase Storage; Firestore stores just the resulting download URL.
+/// Cloudinary; Firestore stores its URL and public ID.
 class ImageUpload {
   const ImageUpload({
     required this.bytes,
@@ -27,7 +28,7 @@ class ImageUpload {
     'webp': 'image/webp',
   };
 
-  /// "jpg", "png" or "webp", used for the Storage file name.
+  /// "jpg", "png" or "webp", used for the uploaded file name.
   String get extension => switch (contentType) {
     'image/png' => 'png',
     'image/webp' => 'webp',
@@ -51,9 +52,15 @@ class ImageUpload {
     }
     if (bytes.isEmpty) return (null, 'The selected file is empty.');
     if (bytes.length > maxBytes) {
-      return (null, 'The image is larger than 5 MB. Please choose a smaller one.');
+      return (
+        null,
+        'The image is larger than 5 MB. Please choose a smaller one.',
+      );
     }
-    return (ImageUpload(bytes: bytes, fileName: fileName, contentType: type), null);
+    return (
+      ImageUpload(bytes: bytes, fileName: fileName, contentType: type),
+      null,
+    );
   }
 }
 
@@ -90,97 +97,35 @@ class ImageStorageException implements Exception {
   String toString() => message;
 }
 
-/// Stores images in Firebase Storage. An interface so tests can use a fake.
+/// Stores images remotely. An interface so tests can use a fake.
 abstract class ImageStorage {
-  /// Uploads [image] to [path] and returns its download URL.
-  /// [onProgress] receives values from 0.0 to 1.0.
-  Future<String> upload(
-    String path,
+  /// Uploads [image] and returns the Cloudinary asset metadata.
+  Future<CloudMediaAsset> upload(
     ImageUpload image, {
     void Function(double progress)? onProgress,
   });
-
-  /// Deletes the file at [path]; a missing file is not an error.
-  Future<void> delete(String path);
 }
 
-class FirebaseImageStorage implements ImageStorage {
-  // Same constructor style as the other services (e.g. AuthService).
-  // ignore: prefer_initializing_formals
-  FirebaseImageStorage({FirebaseStorage? storage}) : _storage = storage;
+class CloudinaryImageStorage implements ImageStorage {
+  CloudinaryImageStorage({CloudinaryUploadClient? uploader})
+    : _uploader = uploader ?? CloudinaryUploadClient();
 
-  final FirebaseStorage? _storage;
-
-  // Resolved on first use so the app can start without Storage configured.
-  FirebaseStorage get _instance => _storage ?? FirebaseStorage.instance;
+  final CloudinaryUploadClient _uploader;
 
   @override
-  Future<String> upload(
-    String path,
+  Future<CloudMediaAsset> upload(
     ImageUpload image, {
     void Function(double progress)? onProgress,
   }) async {
     try {
-      // The SDK retries failed uploads for 10 minutes by default. In the
-      // browser, uploads to a project without Storage enabled are blocked and
-      // look like network errors, so Save would spin for 10 minutes.
-      _instance.setMaxUploadRetryTime(const Duration(seconds: 30));
-      final ref = _instance.ref(path);
-      final task = ref.putData(
-        image.bytes,
-        SettableMetadata(contentType: image.contentType),
+      return await _uploader.upload(
+        bytes: image.bytes,
+        fileName: image.fileName,
+        uploadPreset: CloudinaryConfig.imageUploadPreset,
+        onProgress: onProgress,
       );
-      final progress = task.snapshotEvents.listen((snapshot) {
-        if (snapshot.totalBytes > 0) {
-          onProgress?.call(snapshot.bytesTransferred / snapshot.totalBytes);
-        }
-      }, onError: (_) {}); // the error is reported by `await task` below
-      try {
-        await task;
-      } finally {
-        await progress.cancel();
-      }
-      onProgress?.call(1);
-      return await ref.getDownloadURL();
-    } on FirebaseException catch (e) {
-      // A new file cannot be "not found": the bucket itself is missing.
-      if (e.code == 'object-not-found') {
-        throw const ImageStorageException(_storageNotEnabled);
-      }
-      throw ImageStorageException(describeStorageError(e));
+    } on CloudinaryUploadException catch (e) {
+      throw ImageStorageException(e.message);
     }
-  }
-
-  static const String _storageNotEnabled =
-      'Firebase Storage is not enabled for this project, so the image could '
-      'not be uploaded and nothing was saved. Enable it in the Firebase '
-      'console (Build > Storage > Get started).';
-
-  @override
-  Future<void> delete(String path) async {
-    try {
-      await _instance.ref(path).delete();
-    } on FirebaseException catch (e) {
-      if (e.code == 'object-not-found') return;
-      throw ImageStorageException(describeStorageError(e));
-    }
-  }
-
-  /// User-friendly text for Firebase Storage error codes.
-  static String describeStorageError(FirebaseException e) {
-    return switch (e.code) {
-      'unauthorized' || 'unauthenticated' =>
-        'Image upload was refused by Firebase Storage rules. '
-            'Only librarians can upload images.',
-      'bucket-not-found' || 'project-not-found' || 'no-default-bucket' =>
-        _storageNotEnabled,
-      'quota-exceeded' => 'Firebase Storage quota exceeded. Please try later.',
-      'retry-limit-exceeded' || 'unknown' =>
-        'Could not reach Firebase Storage, so nothing was saved. Either you '
-            'are offline, or Storage is not enabled for this project (Firebase '
-            'console > Build > Storage > Get started).',
-      'canceled' => 'The image upload was cancelled.',
-      _ => 'The image upload failed (${e.code}).',
-    };
   }
 }

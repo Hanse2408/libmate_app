@@ -26,6 +26,7 @@ class BookRecord {
     required this.availableCopies,
     this.description = '',
     this.coverAsset,
+    this.coverPublicId,
     this.publisher = '',
     this.publishedYear = 0,
     this.pages = 0,
@@ -42,10 +43,13 @@ class BookRecord {
   final int availableCopies;
   final String description;
 
-  /// Cover image bundled with the app, e.g. "assets/images/books/book1.jpg"
-  /// (the file lives in the project's assets/images/books/ folder). Null when
-  /// the book has no cover; a cover is then generated from the title.
+  /// Cover image: a Cloudinary HTTPS URL, or an older bundled asset path such as
+  /// "assets/images/books/book1.jpg". Null when the book has no cover; a cover
+  /// is then generated from the title.
   final String? coverAsset;
+
+  /// Cloudinary public ID when the cover was uploaded (null for asset covers).
+  final String? coverPublicId;
 
   /// Optional details shown on the Student book screens ('' / 0 = unknown).
   final String publisher;
@@ -87,6 +91,7 @@ class BookRecord {
       availableCopies: available,
       description: map['description'] as String? ?? '',
       coverAsset: _nonEmpty(map['coverAsset']),
+      coverPublicId: _nonEmpty(map['coverPublicId']),
       publisher: map['publisher'] as String? ?? '',
       publishedYear: (map['publishedYear'] as num?)?.toInt() ?? 0,
       pages: (map['pages'] as num?)?.toInt() ?? 0,
@@ -115,6 +120,7 @@ class BookRecord {
       'availableCopies': availableCopies,
       'description': description,
       'coverAsset': coverAsset ?? '',
+      'coverPublicId': coverPublicId ?? '',
       'publisher': publisher,
       'publishedYear': publishedYear,
       'pages': pages,
@@ -135,6 +141,7 @@ class BookRecord {
     int? availableCopies,
     String? description,
     String? coverAsset,
+    String? coverPublicId,
     String? publisher,
     int? publishedYear,
     int? pages,
@@ -152,6 +159,7 @@ class BookRecord {
       availableCopies: availableCopies ?? this.availableCopies,
       description: description ?? this.description,
       coverAsset: clearCover ? null : coverAsset ?? this.coverAsset,
+      coverPublicId: clearCover ? null : coverPublicId ?? this.coverPublicId,
       publisher: publisher ?? this.publisher,
       publishedYear: publishedYear ?? this.publishedYear,
       pages: pages ?? this.pages,

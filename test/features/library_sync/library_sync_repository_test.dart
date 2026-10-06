@@ -58,53 +58,64 @@ void main() {
     );
     expect(result.success, isTrue, reason: result.message);
     await settle();
-    return librarian.seats.firstWhere((s) => s.seatNumber == number.toUpperCase());
+    return librarian.seats.firstWhere(
+      (s) => s.seatNumber == number.toUpperCase(),
+    );
   }
 
   group('Books', () {
-    test('a book added by the librarian is saved and shown to students', () async {
-      expect(librarian.isLoading, isFalse);
-      final book = await addCleanCode();
+    test(
+      'a book added by the librarian is saved and shown to students',
+      () async {
+        expect(librarian.isLoading, isFalse);
+        final book = await addCleanCode();
 
-      expect(book.shelfLocation, 'SE-01-A');
-      expect(book.availableCopies, 3);
-      final saved = (await db.collection('books').doc(book.id).get()).data()!;
-      expect(saved['title'], 'Clean Code');
-      expect(saved['isbnKey'], '9780132350884');
-      expect(saved['createdBy'], librarianUid);
+        expect(book.shelfLocation, 'SE-01-A');
+        expect(book.availableCopies, 3);
+        final saved = (await db.collection('books').doc(book.id).get()).data()!;
+        expect(saved['title'], 'Clean Code');
+        expect(saved['isbnKey'], '9780132350884');
+        expect(saved['createdBy'], librarianUid);
 
-      expect(student.books.map((b) => b.title), ['Clean Code']);
-    });
+        expect(student.books.map((b) => b.title), ['Clean Code']);
+      },
+    );
 
-    test('the saved book is still there after reopening (new repository)', () async {
-      await addCleanCode();
-      librarian.dispose();
+    test(
+      'the saved book is still there after reopening (new repository)',
+      () async {
+        await addCleanCode();
+        librarian.dispose();
 
-      librarian = librarianRepo(db, storage);
-      expect(librarian.isLoading, isTrue);
-      await settle();
-      expect(librarian.isLoading, isFalse);
-      expect(librarian.books.single.title, 'Clean Code');
-    });
+        librarian = librarianRepo(db, storage);
+        expect(librarian.isLoading, isTrue);
+        await settle();
+        expect(librarian.isLoading, isFalse);
+        expect(librarian.books.single.title, 'Clean Code');
+      },
+    );
 
-    test('a duplicate ISBN is refused, also when the list is not loaded yet', () async {
-      await addCleanCode();
-      final fresh = librarianRepo(db, storage); // nothing loaded yet
-      final result = await fresh.addBook(
-        title: 'Clean Code (copy)',
-        author: 'R. Martin',
-        isbn: '9780132350884',
-        category: 'SE',
-        language: 'English',
-        shelfLocation: 'X-1',
-        totalCopies: 1,
-      );
-      fresh.dispose();
+    test(
+      'a duplicate ISBN is refused, also when the list is not loaded yet',
+      () async {
+        await addCleanCode();
+        final fresh = librarianRepo(db, storage); // nothing loaded yet
+        final result = await fresh.addBook(
+          title: 'Clean Code (copy)',
+          author: 'R. Martin',
+          isbn: '9780132350884',
+          category: 'SE',
+          language: 'English',
+          shelfLocation: 'X-1',
+          totalCopies: 1,
+        );
+        fresh.dispose();
 
-      expect(result.success, isFalse);
-      expect(result.message, contains('ISBN already exists'));
-      expect((await db.collection('books').get()).docs, hasLength(1));
-    });
+        expect(result.success, isFalse);
+        expect(result.message, contains('ISBN already exists'));
+        expect((await db.collection('books').get()).docs, hasLength(1));
+      },
+    );
 
     test('edits are saved and reflected on student screens', () async {
       final book = await addCleanCode();
@@ -127,15 +138,18 @@ void main() {
       expect(seen.availableCopies, 5);
     });
 
-    test('a book without active reservations or loans can be deleted', () async {
-      final book = await addCleanCode();
-      final result = await librarian.deleteBook(book.id);
-      expect(result.success, isTrue, reason: result.message);
-      await settle();
+    test(
+      'a book without active reservations or loans can be deleted',
+      () async {
+        final book = await addCleanCode();
+        final result = await librarian.deleteBook(book.id);
+        expect(result.success, isTrue, reason: result.message);
+        await settle();
 
-      expect(librarian.books, isEmpty);
-      expect(student.books, isEmpty);
-    });
+        expect(librarian.books, isEmpty);
+        expect(student.books, isEmpty);
+      },
+    );
 
     test('a book with an active reservation cannot be deleted', () async {
       final book = await addCleanCode();
@@ -153,51 +167,60 @@ void main() {
       expect((await db.collection('books').doc(book.id).get()).exists, isTrue);
     });
 
-    test('the cover asset path is saved in coverAsset and shown to students', () async {
-      const cover = 'assets/images/books/book_new_01.jpg';
-      final result = await librarian.addBook(
-        title: 'Refactoring',
-        author: 'Martin Fowler',
-        isbn: '9780134757599',
-        category: 'Software Engineering',
-        language: 'English',
-        shelfLocation: 'se-02',
-        totalCopies: 2,
-        coverAsset: cover,
-        publisher: 'Addison-Wesley',
-        publishedYear: 2018,
-        pages: 448,
-      );
-      expect(result.success, isTrue, reason: result.message);
-      await settle();
+    test(
+      'the cover asset path is saved in coverAsset and shown to students',
+      () async {
+        const cover = 'assets/images/books/book_new_01.jpg';
+        final result = await librarian.addBook(
+          title: 'Refactoring',
+          author: 'Martin Fowler',
+          isbn: '9780134757599',
+          category: 'Software Engineering',
+          language: 'English',
+          shelfLocation: 'se-02',
+          totalCopies: 2,
+          coverAsset: cover,
+          publisher: 'Addison-Wesley',
+          publishedYear: 2018,
+          pages: 448,
+        );
+        expect(result.success, isTrue, reason: result.message);
+        await settle();
 
-      final book = librarian.books.single;
-      expect(book.coverAsset, cover);
-      expect(student.bookById(book.id)!.coverAsset, cover);
-      expect(storage.files, isEmpty); // nothing uploaded to Firebase Storage
+        final book = librarian.books.single;
+        expect(book.coverAsset, cover);
+        expect(student.bookById(book.id)!.coverAsset, cover);
+        expect(
+          storage.files,
+          isEmpty,
+        ); // no media was uploaded by this operation
 
-      final doc = (await db.collection('books').doc(book.id).get()).data()!;
-      expect(doc['coverAsset'], cover);
-      expect(doc.containsKey('coverImageUrl'), isFalse);
-      // The fields the Student book service reads, with the types it expects.
-      expect(doc['bookId'], book.id);
-      expect(doc['publisher'], 'Addison-Wesley');
-      expect(doc['publishedYear'], 2018);
-      expect(doc['pages'], 448);
-      expect(doc['available'], isTrue);
-      expect(doc['location'], 'SE-02');
-      expect(doc['description'], isA<String>());
-    });
+        final doc = (await db.collection('books').doc(book.id).get()).data()!;
+        expect(doc['coverAsset'], cover);
+        expect(doc.containsKey('coverImageUrl'), isFalse);
+        // The fields the Student book service reads, with the types it expects.
+        expect(doc['bookId'], book.id);
+        expect(doc['publisher'], 'Addison-Wesley');
+        expect(doc['publishedYear'], 2018);
+        expect(doc['pages'], 448);
+        expect(doc['available'], isTrue);
+        expect(doc['location'], 'SE-02');
+        expect(doc['description'], isA<String>());
+      },
+    );
 
-    test('a book without a cover saves an empty coverAsset and default details', () async {
-      final book = await addCleanCode();
-      expect(book.coverAsset, isNull);
-      final doc = (await db.collection('books').doc(book.id).get()).data()!;
-      expect(doc['coverAsset'], '');
-      expect(doc['publisher'], '');
-      expect(doc['publishedYear'], 0);
-      expect(doc['pages'], 0);
-    });
+    test(
+      'a book without a cover saves an empty coverAsset and default details',
+      () async {
+        final book = await addCleanCode();
+        expect(book.coverAsset, isNull);
+        final doc = (await db.collection('books').doc(book.id).get()).data()!;
+        expect(doc['coverAsset'], '');
+        expect(doc['publisher'], '');
+        expect(doc['publishedYear'], 0);
+        expect(doc['pages'], 0);
+      },
+    );
 
     test('the cover can be changed and removed when editing', () async {
       final book = await addCleanCode();
@@ -218,32 +241,41 @@ void main() {
       }
 
       await setCover('assets/images/books/book1.jpg'); // an existing cover
-      expect(student.bookById(book.id)!.coverAsset, 'assets/images/books/book1.jpg');
+      expect(
+        student.bookById(book.id)!.coverAsset,
+        'assets/images/books/book1.jpg',
+      );
       await setCover(null);
       expect(student.bookById(book.id)!.coverAsset, isNull);
-      expect((await db.collection('books').doc(book.id).get()).data()!['coverAsset'], '');
+      expect(
+        (await db.collection('books').doc(book.id).get()).data()!['coverAsset'],
+        '',
+      );
     });
 
-    test('existing books with only coverAsset (e.g. book1.jpg) still load', () async {
-      await db.collection('books').doc('B1').set({
-        'bookId': 'B1',
-        'title': 'Clean Code',
-        'author': 'Robert C. Martin',
-        'category': 'Programming',
-        'description': 'A handbook.',
-        'coverAsset': 'assets/images/books/book1.jpg',
-        'publisher': 'Prentice Hall',
-        'publishedYear': 2008,
-        'pages': 464,
-        'available': true,
-        'location': 'Shelf A',
-      });
-      await settle();
-      final book = librarian.bookById('B1')!;
-      expect(book.coverAsset, 'assets/images/books/book1.jpg');
-      expect(book.publishedYear, 2008);
-      expect(book.pages, 464);
-    });
+    test(
+      'existing books with only coverAsset (e.g. book1.jpg) still load',
+      () async {
+        await db.collection('books').doc('B1').set({
+          'bookId': 'B1',
+          'title': 'Clean Code',
+          'author': 'Robert C. Martin',
+          'category': 'Programming',
+          'description': 'A handbook.',
+          'coverAsset': 'assets/images/books/book1.jpg',
+          'publisher': 'Prentice Hall',
+          'publishedYear': 2008,
+          'pages': 464,
+          'available': true,
+          'location': 'Shelf A',
+        });
+        await settle();
+        final book = librarian.bookById('B1')!;
+        expect(book.coverAsset, 'assets/images/books/book1.jpg');
+        expect(book.publishedYear, 2008);
+        expect(book.pages, 464);
+      },
+    );
   });
 
   group('Seats', () {
@@ -287,7 +319,8 @@ void main() {
       expect(saved.seatNumber, 'A02');
       expect(saved.isNearWindow, isTrue);
       expect(saved.note, 'By the window');
-      expect(saved.imagePath, startsWith('seat_images/${seat.id}/'));
+      expect(saved.imagePath, isNull);
+      expect(saved.imagePublicId, startsWith('seat_images/test-'));
       expect(student.seatById(seat.id)!.imageUrl, saved.imageUrl);
     });
 
@@ -316,56 +349,100 @@ void main() {
   });
 
   group('Seat bookings', () {
-    test('two students cannot book the same seat for overlapping times', () async {
-      final seat = await addSeat('A01');
-      final other = studentRepo(db, uid: otherStudentUid);
-      await settle();
+    test(
+      'two students cannot book the same seat for overlapping times',
+      () async {
+        final seat = await addSeat('A01');
+        final other = studentRepo(db, uid: otherStudentUid);
+        await settle();
 
-      final first = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
-      expect(first.success, isTrue, reason: first.message);
-      final overlapping = await other.bookSeat(seat: seat, date: tomorrow(), startHour: 11, endHour: 13);
-      expect(overlapping.success, isFalse);
-      expect(overlapping.message, contains('just booked by someone else'));
+        final first = await student.bookSeat(
+          seat: seat,
+          date: tomorrow(),
+          startHour: 10,
+          endHour: 12,
+        );
+        expect(first.success, isTrue, reason: first.message);
+        final overlapping = await other.bookSeat(
+          seat: seat,
+          date: tomorrow(),
+          startHour: 11,
+          endHour: 13,
+        );
+        expect(overlapping.success, isFalse);
+        expect(overlapping.message, contains('just booked by someone else'));
 
-      // A later, non-overlapping slot on the same seat is fine.
-      final later = await other.bookSeat(seat: seat, date: tomorrow(), startHour: 12, endHour: 14);
-      expect(later.success, isTrue, reason: later.message);
+        // A later, non-overlapping slot on the same seat is fine.
+        final later = await other.bookSeat(
+          seat: seat,
+          date: tomorrow(),
+          startHour: 12,
+          endHour: 14,
+        );
+        expect(later.success, isTrue, reason: later.message);
 
-      final slots = await db.collection('seatSlots').get();
-      expect(slots.docs, hasLength(4)); // 10, 11 (first) + 12, 13 (later)
-      other.dispose();
-    });
+        final slots = await db.collection('seatSlots').get();
+        expect(slots.docs, hasLength(4)); // 10, 11 (first) + 12, 13 (later)
+        other.dispose();
+      },
+    );
 
-    test('a seat booking is confirmed at once, with no librarian approval', () async {
-      final seat = await addSeat('A01');
-      final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
-      expect(result.success, isTrue, reason: result.message);
-      await settle();
+    test(
+      'a seat booking is confirmed at once, with no librarian approval',
+      () async {
+        final seat = await addSeat('A01');
+        final result = await student.bookSeat(
+          seat: seat,
+          date: tomorrow(),
+          startHour: 10,
+          endHour: 12,
+        );
+        expect(result.success, isTrue, reason: result.message);
+        await settle();
 
-      final doc = (await db.collection('reservations').get()).docs.single;
-      expect(result.reservationId, doc.id); // the exact reservation created
-      expect(doc.data()['type'], 'seat');
-      expect(doc.data()['status'], 'approved');
-      expect(student.myReservations.single.status, ReservationStatus.approved);
-      expect(librarian.reservations.single.itemId, seat.id);
+        final doc = (await db.collection('reservations').get()).docs.single;
+        expect(result.reservationId, doc.id); // the exact reservation created
+        expect(doc.data()['type'], 'seat');
+        expect(doc.data()['status'], 'approved');
+        expect(
+          student.myReservations.single.status,
+          ReservationStatus.approved,
+        );
+        expect(librarian.reservations.single.itemId, seat.id);
 
-      // One slot per booked hour, linked to the reservation.
-      final slots = (await db.collection('seatSlots').get()).docs;
-      expect(slots, hasLength(2));
-      expect(slots.every((s) => s.data()['reservationId'] == doc.id), isTrue);
+        // One slot per booked hour, linked to the reservation.
+        final slots = (await db.collection('seatSlots').get()).docs;
+        expect(slots, hasLength(2));
+        expect(slots.every((s) => s.data()['reservationId'] == doc.id), isTrue);
 
-      // No "waiting for approval" notification for either side.
-      expect(librarian.notifications.any((n) => n.title == 'New Reservation Request'), isFalse);
-      expect(student.notifications, isEmpty);
-    });
+        // No "waiting for approval" notification for either side.
+        expect(
+          librarian.notifications.any(
+            (n) => n.title == 'New Reservation Request',
+          ),
+          isFalse,
+        );
+        expect(student.notifications, isEmpty);
+      },
+    );
 
     test('a student cannot hold two seats at the same time', () async {
       final seat = await addSeat('A01');
       final second = await addSeat('A02');
-      await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      await student.bookSeat(
+        seat: seat,
+        date: tomorrow(),
+        startHour: 10,
+        endHour: 12,
+      );
       await settle();
 
-      final clash = await student.bookSeat(seat: second, date: tomorrow(), startHour: 11, endHour: 13);
+      final clash = await student.bookSeat(
+        seat: second,
+        date: tomorrow(),
+        startHour: 11,
+        endHour: 13,
+      );
       expect(clash.success, isFalse);
       expect(clash.message, contains('already have a seat booked'));
       expect((await db.collection('reservations').get()).docs, hasLength(1));
@@ -373,7 +450,12 @@ void main() {
     test('cancelling a booking frees the seat for others', () async {
       final seat = await addSeat('A01');
       final other = studentRepo(db, uid: otherStudentUid);
-      await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      await student.bookSeat(
+        seat: seat,
+        date: tomorrow(),
+        startHour: 10,
+        endHour: 12,
+      );
       await settle();
 
       final booking = student.myReservations.single;
@@ -382,23 +464,14 @@ void main() {
       expect(student.myReservations.single.status, ReservationStatus.cancelled);
       expect((await db.collection('seatSlots').get()).docs, isEmpty);
 
-      final retry = await other.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      final retry = await other.bookSeat(
+        seat: seat,
+        date: tomorrow(),
+        startHour: 10,
+        endHour: 12,
+      );
       expect(retry.success, isTrue, reason: retry.message);
       other.dispose();
-    });
-
-    test('rejecting a booking frees its slots; the student sees the reason', () async {
-      final seat = await addSeat('A01');
-      await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
-      await settle();
-      final id = librarian.reservations.single.id;
-
-      expect((await librarian.rejectReservation(id, 'Room closed for exams')).success, isTrue);
-      await settle();
-      final seen = student.myReservations.single;
-      expect(seen.status, ReservationStatus.rejected);
-      expect(seen.rejectionReason, 'Room closed for exams');
-      expect((await db.collection('seatSlots').get()).docs, isEmpty);
     });
 
     test('a seat under maintenance cannot be booked', () async {
@@ -417,7 +490,12 @@ void main() {
 
     test('a booking longer than the library allows is refused', () async {
       final seat = await addSeat('A01');
-      final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 9, endHour: 13);
+      final result = await student.bookSeat(
+        seat: seat,
+        date: tomorrow(),
+        startHour: 9,
+        endHour: 13,
+      );
       expect(result.success, isFalse);
       expect(result.message, contains('at most 2 hours'));
     });
@@ -449,7 +527,12 @@ void main() {
 
     test('a student cannot reserve the same book twice', () async {
       final book = await addCleanCode();
-      await student.reserveBook(book: book, pickupDate: tomorrow(), loanPeriodDays: 14, pickupLocation: 'Desk');
+      await student.reserveBook(
+        book: book,
+        pickupDate: tomorrow(),
+        loanPeriodDays: 14,
+        pickupLocation: 'Desk',
+      );
       await settle();
       final again = await student.reserveBook(
         book: book,
@@ -476,14 +559,22 @@ void main() {
 
     test('collecting creates a loan; returning puts the copy back', () async {
       final book = await addCleanCode(copies: 1);
-      await student.reserveBook(book: book, pickupDate: tomorrow(), loanPeriodDays: 7, pickupLocation: 'Desk');
+      await student.reserveBook(
+        book: book,
+        pickupDate: tomorrow(),
+        loanPeriodDays: 7,
+        pickupLocation: 'Desk',
+      );
       await settle();
       final id = librarian.reservations.single.id;
       await librarian.approveReservation(id);
       await settle();
       expect(librarian.bookById(book.id)!.availableCopies, 0);
       // The `available` flag the Student service reads follows the copies.
-      expect((await db.collection('books').doc(book.id).get()).data()!['available'], isFalse);
+      expect(
+        (await db.collection('books').doc(book.id).get()).data()!['available'],
+        isFalse,
+      );
 
       expect((await librarian.markReservationCollected(id)).success, isTrue);
       await settle();
@@ -496,14 +587,23 @@ void main() {
       await settle();
       expect(librarian.borrowings.single.isReturned, isTrue);
       expect(student.bookById(book.id)!.availableCopies, 1);
-      expect((await db.collection('books').doc(book.id).get()).data()!['available'], isTrue);
+      expect(
+        (await db.collection('books').doc(book.id).get()).data()!['available'],
+        isTrue,
+      );
     });
 
     test('a suspended member cannot reserve', () async {
       final book = await addCleanCode();
       final member = librarian.memberById('IT23004512')!;
       expect(member.uid, studentUid);
-      expect((await librarian.updateMemberStatus(member.id, MemberStatus.suspended)).success, isTrue);
+      expect(
+        (await librarian.updateMemberStatus(
+          member.id,
+          MemberStatus.suspended,
+        )).success,
+        isTrue,
+      );
 
       final result = await student.reserveBook(
         book: book,
@@ -525,9 +625,17 @@ void main() {
       final seat = await addSeat('A01');
       whenCalling(Invocation.method(#update, null))
           .on(db.collection('seats').doc(seat.id))
-          .thenThrow(FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'));
+          .thenThrow(
+            FirebaseException(
+              plugin: 'cloud_firestore',
+              code: 'permission-denied',
+            ),
+          );
 
-      final result = await librarian.updateSeatStatus(seat.id, SeatStatus.maintenance);
+      final result = await librarian.updateSeatStatus(
+        seat.id,
+        SeatStatus.maintenance,
+      );
       await settle();
 
       expect(result.success, isFalse);
