@@ -77,6 +77,16 @@ class ReservationRecord {
   bool get isActive =>
       status == ReservationStatus.pending || status == ReservationStatus.approved;
 
+  /// Seat bookings: the booked time has already passed. A seat booking with
+  /// no readable time ends with its day.
+  bool get hasEnded {
+    final end = endHour;
+    final endsAt = end == null
+        ? DateTime(date.year, date.month, date.day + 1)
+        : DateTime(date.year, date.month, date.day, end);
+    return !endsAt.isAfter(DateTime.now());
+  }
+
   /// Seat bookings: first hour of the slot, e.g. 13 for "13:00 - 15:00".
   int? get startHour => _hourAt(0);
 
