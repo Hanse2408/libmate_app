@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'seat_booking_colors.dart';
 
-/// Fixed bar at the bottom: what is chosen, any problem, and Book Seat.
+/// Fixed bar at the bottom: what is chosen, any problem, and Book Seat (or Save Changes).
 class BookSeatBar extends StatelessWidget {
   const BookSeatBar({
     super.key,
@@ -11,6 +11,7 @@ class BookSeatBar extends StatelessWidget {
     required this.enabled,
     required this.isBooking,
     required this.onBook,
+    this.label = 'Book Seat',
   });
 
   /// e.g. "Seat A01 · Mon, 5 Oct · 10:00 – 12:00", or a hint when nothing is chosen.
@@ -21,6 +22,9 @@ class BookSeatBar extends StatelessWidget {
   final bool enabled;
   final bool isBooking;
   final VoidCallback onBook;
+
+  /// Button text, e.g. "Save Changes" when modifying a booking.
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +76,9 @@ class BookSeatBar extends StatelessWidget {
                           dimension: 20,
                           child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
                         )
-                      : const Text(
-                          'Book Seat',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      : Text(
+                          label,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),

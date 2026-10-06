@@ -320,12 +320,15 @@ class StudentLibraryRepository extends ChangeNotifier {
 
   /// Why [seat] cannot be booked from [startHour] to [endHour] on [date],
   /// or null. [bookedSlots] are the slot ids already taken that day.
+  /// When modifying a booking, [ignoreReservationId] is that booking, so it
+  /// does not clash with the student's own seat bookings.
   String? seatBookingBlocker(
     SeatRecord seat,
     DateTime date,
     int startHour,
     int endHour, {
     Set<String> bookedSlots = const {},
+    String? ignoreReservationId,
   }) {
     final s = _settings;
 
@@ -379,7 +382,12 @@ class StudentLibraryRepository extends ChangeNotifier {
     if (wanted.any(bookedSlots.contains)) {
       return 'Seat ${seat.seatNumber} is already booked at this time.';
     }
-    if (hasSeatBookingAt(date, startHour, endHour)) {
+    if (hasSeatBookingAt(
+      date,
+      startHour,
+      endHour,
+      ignoreReservationId: ignoreReservationId,
+    )) {
       return 'You already have a seat booked at this time.';
     }
     return null;
@@ -387,9 +395,15 @@ class StudentLibraryRepository extends ChangeNotifier {
 
   /// A student can only sit in one seat at a time: true if they already have
   /// an active seat booking overlapping [startHour]–[endHour] on [date].
-  bool hasSeatBookingAt(DateTime date, int startHour, int endHour) {
+  bool hasSeatBookingAt(
+    DateTime date,
+    int startHour,
+    int endHour, {
+    String? ignoreReservationId,
+  }) {
     return _myReservations.any(
       (r) =>
+          r.id != ignoreReservationId &&
           r.type == ReservationType.seat &&
           r.isActive &&
           _sameDay(r.date, date) &&
@@ -665,6 +679,132 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
     });
   }
 
+  /// Moves the student's confirmed seat booking [reservationId] to [seat] and
+  /// the new date and hours. The SAME reservation is updated (same ID, still
+  /// approved): no new reservation is created.
+  ///
+  /// One transaction re-checks the booking, claims the new seatSlots and
+  /// releases the old ones that are no longer needed, so no other student
+  /// can slip in between. Slots the booking already holds are kept as they
+  /// are and never count as a clash.
+  Future<ActionResult> modifySeatReservation({
+    required String reservationId,
+    required SeatRecord seat,
+    required DateTime date,
+    required int startHour,
+    required int endHour,
+  }) async {
+    final day = DateTime(date.year, date.month, date.day);
+    final blocker = seatBookingBlocker(
+      seat,
+      day,
+      startHour,
+      endHour,
+      ignoreReservationId: reservationId,
+    );
+    if (blocker != null) return ActionResult.failure(blocker);
+
+    return _run(() async {
+      await _checkNoSeatClash(
+        day,
+        startHour,
+        endHour,
+        ignoreReservationId: reservationId,
+      );
+
+      await _db.runTransaction((tx) async {
+        await _checkAccountActive(tx);
+
+        final ref = _col(FirestoreCollections.reservations).doc(reservationId);
+        final snap = await tx.get(ref);
+        if (!snap.exists) {
+          throw const ActionRefused('Reservation not found.');
+        }
+        final current = ReservationRecord.fromMap(reservationId, snap.data()!);
+
+        if (current.studentUid != student.uid) {
+          throw const ActionRefused('This is not your reservation.');
+        }
+        if (current.type != ReservationType.seat) {
+          throw const ActionRefused('Only seat reservations can be modified here.');
+        }
+        if (current.status != ReservationStatus.approved) {
+          throw ActionRefused(
+            'This reservation is ${current.status.label.toLowerCase()} and cannot be modified.',
+          );
+        }
+        if (current.hasEnded) {
+          throw const ActionRefused('This seat booking has already ended.');
+        }
+
+        final seatSnap = await tx.get(_col(FirestoreCollections.seats).doc(seat.id));
+        if (!seatSnap.exists) {
+          throw const ActionRefused('This seat no longer exists.');
+        }
+        final latest = SeatRecord.fromMap(seat.id, seatSnap.data()!);
+        if (latest.status == SeatStatus.maintenance ||
+            (_isToday(day) && latest.status == SeatStatus.occupied)) {
+          throw ActionRefused(
+            'Seat ${latest.seatNumber} is ${latest.status.label.toLowerCase()}.',
+          );
+        }
+
+        final oldIds = {
+          if (current.startHour != null && current.endHour != null)
+            ...SeatSlots.ids(
+              current.itemId,
+              current.date,
+              current.startHour!,
+              current.endHour!,
+            ),
+        };
+        final newIds = SeatSlots.ids(latest.id, day, startHour, endHour);
+        final toClaim = newIds.where((id) => !oldIds.contains(id)).toList();
+        final toRelease = oldIds.where((id) => !newIds.contains(id)).toList();
+
+        if (toClaim.isEmpty && toRelease.isEmpty && latest.id == current.itemId) {
+          return; // nothing changed
+        }
+
+        // All reads come before any write.
+        final claimRefs = [
+          for (final id in toClaim) _col(FirestoreCollections.seatSlots).doc(id),
+        ];
+        for (final slotRef in claimRefs) {
+          if ((await tx.get(slotRef)).exists) {
+            throw ActionRefused(
+              'Sorry, seat ${latest.seatNumber} was just booked by someone else '
+              'for this time. Please choose another seat or time.',
+            );
+          }
+        }
+
+        tx.update(ref, {
+          'itemId': latest.id,
+          'itemName': 'Seat ${latest.seatNumber}',
+          'date': Timestamp.fromDate(day),
+          'timeSlot': ReservationRecord.slotLabel(startHour, endHour),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        for (final slotRef in claimRefs) {
+          final hour = int.parse(slotRef.id.substring(slotRef.id.length - 2));
+          tx.set(slotRef, {
+            'seatId': latest.id,
+            'date': Timestamp.fromDate(day),
+            'hour': hour,
+            'reservationId': reservationId,
+            'studentUid': student.uid,
+          });
+        }
+        for (final id in toRelease) {
+          tx.delete(_col(FirestoreCollections.seatSlots).doc(id));
+        }
+      });
+
+      return reservationId;
+    });
+  }
+
   /// Cancels the student's own pending reservation or seat booking. An
   /// approved book (a copy already set aside) is cancelled at the desk.
   Future<ActionResult> cancelReservation(String id) {
@@ -833,7 +973,12 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
 
   /// Server check that the student has no other active seat booking at this
   /// time (the local list may be a moment behind).
-  Future<void> _checkNoSeatClash(DateTime day, int startHour, int endHour) async {
+  Future<void> _checkNoSeatClash(
+    DateTime day,
+    int startHour,
+    int endHour, {
+    String? ignoreReservationId,
+  }) async {
     final mine = await _col(FirestoreCollections.reservations)
         .where('studentUid', isEqualTo: student.uid)
         .get();
@@ -841,6 +986,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
         .map((d) => ReservationRecord.fromMap(d.id, d.data()))
         .any(
           (r) =>
+              r.id != ignoreReservationId &&
               r.type == ReservationType.seat &&
               r.isActive &&
               _sameDay(r.date, day) &&
