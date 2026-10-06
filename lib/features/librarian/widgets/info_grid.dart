@@ -56,7 +56,7 @@ class _InfoCell extends StatelessWidget {
       children: [
         Text(
           item.label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.secondaryText,
             fontSize: 13,
             fontWeight: FontWeight.w600,

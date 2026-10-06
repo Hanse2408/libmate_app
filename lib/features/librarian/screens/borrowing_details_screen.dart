@@ -128,7 +128,7 @@ class BorrowingDetailsScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(top: LibrarianSpacing.sm),
                       child: Text(
                         renewBlocker,
-                        style: const TextStyle(color: LibrarianColors.secondaryText),
+                        style: TextStyle(color: LibrarianColors.secondaryText),
                       ),
                     ),
                 ],

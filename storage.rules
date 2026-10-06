@@ -22,6 +22,20 @@ service firebase.storage {
     // Book covers are not uploaded: they are images bundled in the app's
     // assets/images/books/ folder (Firestore books.coverAsset).
 
+    // ebooks/{ebookId}/{timestamp}.pdf, PDF only, up to 25 MB.
+    // Staff can read every PDF; other signed-in users (students) can only
+    // download the PDF of a published e-book. Only staff can upload,
+    // replace or delete.
+    match /ebooks/{ebookId}/{fileName} {
+      allow read: if isStaff()
+        || (request.auth != null
+          && firestore.get(/databases/(default)/documents/ebooks/$(ebookId)).data.status == 'published');
+      allow create, update: if isStaff()
+        && request.resource.size <= 25 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+      allow delete: if isStaff();
+    }
+
     // seat_images/{seatId}/{timestamp}.{ext}
     match /seat_images/{seatId}/{fileName} {
       allow read: if request.auth != null;

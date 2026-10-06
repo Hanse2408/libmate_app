@@ -37,7 +37,7 @@ class LibrarianPageHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.text,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -48,7 +48,7 @@ class LibrarianPageHeader extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.secondaryText,
                       fontSize: 15,
                     ),
@@ -84,11 +84,11 @@ class _BackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: LibrarianColors.card,
-      shape: const CircleBorder(side: BorderSide(color: LibrarianColors.border)),
+      shape: CircleBorder(side: BorderSide(color: LibrarianColors.border)),
       child: IconButton(
         tooltip: 'Back',
         onPressed: onPressed,
-        icon: const Icon(Icons.chevron_left, color: LibrarianColors.text),
+        icon: Icon(Icons.chevron_left, color: LibrarianColors.text),
       ),
     );
   }

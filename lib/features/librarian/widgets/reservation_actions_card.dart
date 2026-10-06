@@ -39,7 +39,7 @@ class ReservationActionsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: LibrarianSpacing.sm),
-          const Text(
+          Text(
             'Use this when the student picks up the book. A loan is created '
             'in Borrowing Management with the due date.',
             style: TextStyle(color: LibrarianColors.secondaryText),
@@ -106,7 +106,7 @@ class ReservationActionsCard extends StatelessWidget {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          icon: const Icon(
+          icon: Icon(
             Icons.warning_amber_rounded,
             color: LibrarianColors.unavailable,
             size: 36,

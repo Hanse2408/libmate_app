@@ -79,6 +79,22 @@ class _BookManagementScreenState extends State<BookManagementScreen> {
                 textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
+            const SizedBox(height: LibrarianSpacing.sm),
+            // Digital books (PDF) are managed separately in `ebooks`.
+            OutlinedButton.icon(
+              onPressed: () => context.go(LibrarianRoutes.ebooks),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('E-book Management'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 52),
+                foregroundColor: LibrarianColors.primary,
+                side: BorderSide(color: LibrarianColors.primary.withValues(alpha: 0.45), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(LibrarianSpacing.radius + 4),
+                ),
+                textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+            ),
             const SizedBox(height: LibrarianSpacing.md + 4),
             if (_message != null)
               LibrarianMessageBanner(
@@ -197,7 +213,7 @@ class _Loading extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: LibrarianSpacing.md),
-          Text(label, style: const TextStyle(color: LibrarianColors.secondaryText)),
+          Text(label, style: TextStyle(color: LibrarianColors.secondaryText)),
         ],
       ),
     );

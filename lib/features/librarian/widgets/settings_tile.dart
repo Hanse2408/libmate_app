@@ -12,7 +12,7 @@ class SettingsTile extends StatelessWidget {
     this.subtitle,
     this.value,
     this.trailing,
-    this.iconColor = LibrarianColors.primary,
+    this._iconColor,
     this.onTap,
   });
 
@@ -26,7 +26,10 @@ class SettingsTile extends StatelessWidget {
   /// Custom trailing widget (e.g. a Switch). Defaults to a chevron when the
   /// tile is tappable.
   final Widget? trailing;
-  final Color iconColor;
+  /// Defaults to the palette's primary blue (read when building, so it
+  /// follows light / dark mode).
+  Color get iconColor => _iconColor ?? LibrarianColors.primary;
+  final Color? _iconColor;
   final VoidCallback? onTap;
 
   @override
@@ -53,7 +56,7 @@ class SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.text,
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -62,7 +65,7 @@ class SettingsTile extends StatelessWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: LibrarianColors.secondaryText,
                         fontSize: 13,
                       ),
@@ -74,7 +77,7 @@ class SettingsTile extends StatelessWidget {
               const SizedBox(width: LibrarianSpacing.sm),
               Text(
                 value!,
-                style: const TextStyle(
+                style: TextStyle(
                   color: LibrarianColors.primary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -84,7 +87,7 @@ class SettingsTile extends StatelessWidget {
             if (trailing != null)
               trailing!
             else if (onTap != null)
-              const Icon(Icons.chevron_right, color: LibrarianColors.secondaryText),
+              Icon(Icons.chevron_right, color: LibrarianColors.secondaryText),
           ],
         ),
       ),
@@ -109,7 +112,7 @@ class SettingsGroup extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: LibrarianSpacing.sm),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               color: LibrarianColors.secondaryText,
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -133,7 +136,7 @@ class SettingsGroup extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const Divider(height: 1, color: LibrarianColors.border),
+                if (i > 0) Divider(height: 1, color: LibrarianColors.border),
                 tiles[i],
               ],
             ],

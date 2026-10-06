@@ -60,7 +60,7 @@ class _RejectReasonDialogState extends State<_RejectReasonDialog> {
             Text(
               '${widget.reservation.studentName} · ${widget.reservation.itemName}\n'
               'Choose a reason. The student will see it.',
-              style: const TextStyle(color: LibrarianColors.secondaryText),
+              style: TextStyle(color: LibrarianColors.secondaryText),
             ),
             const SizedBox(height: LibrarianSpacing.md),
             Wrap(

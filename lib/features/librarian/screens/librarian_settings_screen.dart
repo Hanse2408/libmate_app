@@ -182,22 +182,36 @@ class LibrarianSettingsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SettingsGroup(
+            SettingsGroup(
               title: 'Appearance',
               tiles: [
                 SettingsTile(
-                  icon: Icons.light_mode_outlined,
+                  icon: repository.darkMode
+                      ? Icons.dark_mode_outlined
+                      : Icons.light_mode_outlined,
                   iconColor: LibrarianColors.gold,
                   title: 'Theme',
-                  subtitle: 'Default LibMate light theme',
-                  value: 'Light',
+                  subtitle: repository.darkMode
+                      ? 'LibMate dark theme'
+                      : 'Default LibMate light theme',
+                  value: repository.darkMode ? 'Dark' : 'Light',
                 ),
                 SettingsTile(
                   icon: Icons.dark_mode_outlined,
-                  iconColor: LibrarianColors.navy,
+                  iconColor: LibrarianColors.primary,
                   title: 'Dark Mode',
-                  subtitle: "Available once the team's dark theme is agreed",
-                  trailing: Switch(value: false, onChanged: null),
+                  subtitle: 'Use the dark theme on all Librarian screens',
+                  // Switches every Librarian screen at once and is saved
+                  // to your profile, so it is kept after a restart.
+                  trailing: Switch(
+                    value: repository.darkMode,
+                    onChanged: (on) async {
+                      final result = await repository.setDarkMode(on);
+                      if (!result.success && context.mounted) {
+                        _message(context, result.message!);
+                      }
+                    },
+                  ),
                 ),
               ],
             ),
@@ -212,7 +226,7 @@ class LibrarianSettingsScreen extends StatelessWidget {
                     context: context,
                     applicationName: 'LibMate',
                     applicationVersion: '1.0.0',
-                    applicationIcon: const Icon(
+                    applicationIcon: Icon(
                       Icons.menu_book,
                       color: LibrarianColors.primary,
                       size: 40,
@@ -234,7 +248,7 @@ class LibrarianSettingsScreen extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 56),
                 foregroundColor: LibrarianColors.unavailable,
-                side: const BorderSide(color: LibrarianColors.unavailable, width: 1.5),
+                side: BorderSide(color: LibrarianColors.unavailable, width: 1.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
                 ),
@@ -272,7 +286,9 @@ class _ProfileCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: LibrarianColors.navy,
+              backgroundColor: LibrarianColors.isDark
+                  ? LibrarianColors.avatar
+                  : LibrarianColors.navy,
               child: Text(
                 LibrarianFormatters.initials(name),
                 style: const TextStyle(
@@ -289,19 +305,19 @@ class _ProfileCard extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.text,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Librarian',
-                    style: TextStyle(color: LibrarianColors.navy, fontSize: 16),
+                    style: TextStyle(color: LibrarianColors.emphasis, fontSize: 16),
                   ),
                   Text(
                     email,
-                    style: const TextStyle(color: LibrarianColors.secondaryText),
+                    style: TextStyle(color: LibrarianColors.secondaryText),
                   ),
                 ],
               ),

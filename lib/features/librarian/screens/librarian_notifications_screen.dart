@@ -133,7 +133,7 @@ class _LibrarianNotificationsScreenState
         ),
         child: Text(
           title.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.secondaryText,
             fontSize: 16,
             fontWeight: FontWeight.w700,

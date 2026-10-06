@@ -4,6 +4,10 @@ import '../../../../models/reservation.dart' as shared;
 import '../../common/data/student_library_repository.dart';
 import '../../common/widgets/student_book_cover.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
+import '../../common/screens/profile_screen.dart';
+import 'find_books_screen.dart';
+import '../../seat_booking/screens/modify_seat_reservation_screen.dart';
+import '../../seat_booking/screens/seat_reservation_details_screen.dart';
 /// The student's own book and seat reservations, read live from Firestore.
 /// A librarian's approval or rejection appears here straight away.
 class MyReservationsScreen extends StatefulWidget {
@@ -70,6 +74,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       coverImageUrl: book?.coverAsset,
       isSeat: r.type == shared.ReservationType.seat,
       canCancel: r.isActive,
+      canModify: r.type == shared.ReservationType.seat ? r.canModifySeat : r.isActive,
     );
   }
 
@@ -215,6 +220,48 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }
 
   Widget _buildReservationCard(BookReservation reservation) {
+    final card = _buildCardBody(reservation);
+    if (!reservation.isSeat) return card;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openSeatDetails(reservation.id),
+      child: card,
+    );
+  }
+
+  /// Opens H04 for a seat card, with the selected reservation.
+  void _openSeatDetails(String reservationId) {
+    final selected = widget.library.myReservations
+        .where((r) => r.id == reservationId)
+        .firstOrNull;
+    if (selected == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SeatReservationDetailsScreen(
+          library: widget.library,
+          reservation: selected,
+        ),
+      ),
+    );
+  }
+
+  /// Opens H05 to modify a seat booking.
+  void _openSeatModify(String reservationId) {
+    final selected = widget.library.myReservations
+        .where((r) => r.id == reservationId)
+        .firstOrNull;
+    if (selected == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ModifySeatReservationScreen(
+          library: widget.library,
+          reservation: selected,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardBody(BookReservation reservation) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       decoration: BoxDecoration(
@@ -252,9 +299,20 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                   label: 'Modify',
                   backgroundColor: const Color(0xFFEAF3FF),
                   textColor: const Color(0xFF1267D9),
-                  onPressed: reservation.canCancel
-                      ? () => _showModifyMessage(reservation)
-                      : null,
+                  onPressed: reservation.isSeat
+    ? (reservation.canModify ? () => _openSeatModify(reservation.id) : null)
+    : reservation.canCancel
+    ? () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ModifyBookReservationScreen(
+              library: widget.library,
+              reservationId: reservation.id,
+            ),
+          ),
+        );
+      }
+    : null,
                 ),
               ),
               const SizedBox(width: 20),
@@ -550,6 +608,7 @@ class BookReservation {
     this.coverImageUrl,
     this.isSeat = false,
     this.canCancel = false,
+    this.canModify = false,
   });
 
   final String id;
@@ -561,4 +620,5 @@ class BookReservation {
   final String? coverImageUrl;
   final bool isSeat;
   final bool canCancel;
+  final bool canModify;
 }

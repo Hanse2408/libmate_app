@@ -9,13 +9,16 @@ class ReportBarList extends StatelessWidget {
   const ReportBarList({
     super.key,
     required this.entries,
-    this.color = LibrarianColors.primary,
+    this._color,
     this.colors,
     this.emptyText = 'No data for this period.',
   });
 
   final List<ReportEntry> entries;
-  final Color color;
+
+  /// Bar colour; defaults to the palette's primary blue (light / dark).
+  Color get color => _color ?? LibrarianColors.primary;
+  final Color? _color;
 
   /// Optional colour per entry (same order as [entries]).
   final List<Color>? colors;
@@ -24,7 +27,7 @@ class ReportBarList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty || entries.every((e) => e.count == 0)) {
-      return Text(emptyText, style: const TextStyle(color: LibrarianColors.secondaryText));
+      return Text(emptyText, style: TextStyle(color: LibrarianColors.secondaryText));
     }
     final maxCount = entries.map((e) => e.count).reduce((a, b) => a > b ? a : b);
 
@@ -63,13 +66,13 @@ class _BarRow extends StatelessWidget {
                 entry.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: LibrarianColors.text, fontSize: 15),
+                style: TextStyle(color: LibrarianColors.text, fontSize: 15),
               ),
             ),
             const SizedBox(width: LibrarianSpacing.sm),
             Text(
               '${entry.count}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: LibrarianColors.text,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

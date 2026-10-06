@@ -67,7 +67,7 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
             ),
         ];
         final details = selected == null
-            ? const InfoSectionCard(
+            ? InfoSectionCard(
                 children: [
                   Text(
                     'Select a seat on the map to see its details and update its status.',
@@ -182,7 +182,7 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
                 trailing: status == seat.status ? const Icon(Icons.check) : null,
                 onTap: () => Navigator.of(sheetContext).pop(status),
               ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(
                 LibrarianSpacing.lg,
                 LibrarianSpacing.xs,

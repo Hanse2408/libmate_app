@@ -63,7 +63,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         Text(
           approved ? 'Reservation Approved!' : 'Reservation Rejected',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.text,
             fontSize: 30,
             fontWeight: FontWeight.w800,
@@ -73,7 +73,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         Text(
           _subtitle(approved: approved, isBook: isBook),
           textAlign: TextAlign.center,
-          style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
+          style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
         ),
         const SizedBox(height: LibrarianSpacing.lg),
         InfoSectionCard(
@@ -240,7 +240,7 @@ class _SummaryRow extends StatelessWidget {
           const SizedBox(width: LibrarianSpacing.md),
           Text(
             label,
-            style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
+            style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
           ),
           const SizedBox(width: LibrarianSpacing.md),
           Expanded(
@@ -276,10 +276,10 @@ class _InfoNote extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: LibrarianColors.primary),
+          Icon(Icons.info_outline, color: LibrarianColors.primary),
           const SizedBox(width: LibrarianSpacing.md),
           Expanded(
-            child: Text(text, style: const TextStyle(color: LibrarianColors.text)),
+            child: Text(text, style: TextStyle(color: LibrarianColors.text)),
           ),
         ],
       ),

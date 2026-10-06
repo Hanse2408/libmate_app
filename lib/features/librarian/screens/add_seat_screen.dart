@@ -248,7 +248,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
                 previewSize: const Size(200, 130),
                 placeholder: Container(
                   color: LibrarianColors.lightBlue,
-                  child: const Icon(
+                  child: Icon(
                     Icons.photo_outlined,
                     size: 48,
                     color: LibrarianColors.primary,
@@ -362,7 +362,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 52),
                 foregroundColor: LibrarianColors.unavailable,
-                side: const BorderSide(color: LibrarianColors.unavailable),
+                side: BorderSide(color: LibrarianColors.unavailable),
               ),
             ),
           ],
@@ -389,7 +389,7 @@ class _SeatTypeField extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'SEAT TYPE',
               style: TextStyle(
                 color: LibrarianColors.text,
@@ -465,7 +465,7 @@ class _FeatureToggle extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(color: LibrarianColors.text, fontSize: 17),
+                style: TextStyle(color: LibrarianColors.text, fontSize: 17),
               ),
             ),
             Checkbox(value: value, onChanged: (v) => onChanged(v ?? false)),

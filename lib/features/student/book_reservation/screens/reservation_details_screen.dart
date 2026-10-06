@@ -38,6 +38,7 @@ class _ReservationDetailsScreenState
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
   bool _cancelled = false;
+  bool _cancelling = false;
 
   static const String author = 'Robert C. Martin';
 static const String category = 'Computer Science';
@@ -529,13 +530,17 @@ static const String pickupDesk = 'Book Collection Desk';
       width: double.infinity,
       height: 48,
       child: OutlinedButton.icon(
-        onPressed: _cancelled ? null : _showCancelDialog,
+        onPressed: _cancelled || _cancelling ? null : _showCancelDialog,
         icon: const Icon(
           Icons.delete_outline_rounded,
           size: 19,
         ),
         label: Text(
-          _cancelled ? 'Reservation Cancelled' : 'Cancel Reservation',
+          _cancelling
+              ? 'Cancelling…'
+              : _cancelled
+                  ? 'Reservation Cancelled'
+                  : 'Cancel Reservation',
           style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -606,17 +611,28 @@ static const String pickupDesk = 'Book Collection Desk';
               ),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(dialogContext);
 
+                final reservation = _reservation;
+                if (reservation == null) return;
+
+                setState(() => _cancelling = true);
+                final result =
+                    await widget.library.cancelReservation(reservation.id);
+                if (!mounted) return;
+
                 setState(() {
-                  _cancelled = true;
+                  _cancelling = false;
+                  if (result.success) _cancelled = true;
                 });
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Reservation cancelled.',
+                      result.success
+                          ? 'Reservation cancelled.'
+                          : result.message ?? 'Unable to cancel reservation.',
                     ),
                   ),
                 );

@@ -114,7 +114,7 @@ class _ReservationManagementScreenState
             Text(
               '${results.length.toString().padLeft(2, '0')} '
               '${results.length == 1 ? 'reservation' : 'reservations'} found',
-              style: const TextStyle(
+              style: TextStyle(
                 color: LibrarianColors.secondaryText,
                 fontSize: 17,
               ),

@@ -97,14 +97,14 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
           Text(
             'Uploading image… ${(widget.uploadProgress! * 100).round()}%',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: LibrarianColors.secondaryText),
+            style: TextStyle(color: LibrarianColors.secondaryText),
           ),
         ],
         const SizedBox(height: LibrarianSpacing.md),
         Text(
           widget.label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.text,
             fontSize: 19,
             fontWeight: FontWeight.w600,
@@ -116,7 +116,7 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
               ? 'JPG, PNG or WebP, up to 5 MB. Optional.'
               : widget.disabledReason ?? 'Image upload is not available.',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: LibrarianColors.secondaryText),
+          style: TextStyle(color: LibrarianColors.secondaryText),
         ),
         if (_error != null) ...[
           const SizedBox(height: LibrarianSpacing.xs),

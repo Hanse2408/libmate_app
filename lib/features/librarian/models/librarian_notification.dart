@@ -10,6 +10,8 @@ enum LibrarianNotificationType {
   rejected(NotificationCategory.reservations),
   cancelled(NotificationCategory.reservations),
   bookReturned(NotificationCategory.books),
+  bookCollected(NotificationCategory.books),
+  loanRenewed(NotificationCategory.books),
   dueReminder(NotificationCategory.books),
   bookAdded(NotificationCategory.books),
   seatUpdate(NotificationCategory.seats);

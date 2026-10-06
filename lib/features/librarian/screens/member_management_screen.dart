@@ -86,7 +86,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
             Text(
               '${results.length.toString().padLeft(2, '0')} '
               '${results.length == 1 ? 'member' : 'members'} found',
-              style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
+              style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
             ),
             const SizedBox(height: LibrarianSpacing.sm + 4),
             if (results.isEmpty)

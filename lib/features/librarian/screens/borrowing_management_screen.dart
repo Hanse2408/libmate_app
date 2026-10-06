@@ -87,7 +87,7 @@ class _BorrowingManagementScreenState extends State<BorrowingManagementScreen> {
             Text(
               '${results.length.toString().padLeft(2, '0')} '
               '${results.length == 1 ? 'loan' : 'loans'} found',
-              style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
+              style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
             ),
             const SizedBox(height: LibrarianSpacing.sm + 4),
             if (results.isEmpty)

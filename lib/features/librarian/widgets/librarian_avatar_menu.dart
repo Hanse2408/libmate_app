@@ -66,7 +66,7 @@ class LibrarianAvatarMenu extends StatelessWidget {
       ],
       child: CircleAvatar(
         radius: 24,
-        backgroundColor: LibrarianColors.text,
+        backgroundColor: LibrarianColors.avatar,
         child: Text(
           LibrarianFormatters.initials(name),
           style: const TextStyle(

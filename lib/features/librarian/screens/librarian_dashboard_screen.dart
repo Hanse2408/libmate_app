@@ -277,7 +277,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
       toolbarHeight: 72,
       automaticallyImplyLeading: false,
       backgroundColor: LibrarianColors.card,
-      shape: const Border(bottom: BorderSide(color: LibrarianColors.border)),
+      shape: Border(bottom: BorderSide(color: LibrarianColors.border)),
       titleSpacing: LibrarianSpacing.md + 4,
       title: Row(
         children: [
@@ -287,7 +287,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
               color: LibrarianColors.lightBlue,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.menu_book,
               color: LibrarianColors.primary,
               size: 28,
@@ -315,7 +315,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           tooltip: 'Settings',
           onPressed: () => context.go(LibrarianRoutes.settings),
-          icon: const Icon(
+          icon: Icon(
             Icons.settings_outlined,
             size: 28,
             color: LibrarianColors.text,
@@ -354,14 +354,14 @@ class _Greeting extends StatelessWidget {
       children: [
         Text(
           '$greeting, $firstName',
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.text,
             fontSize: 28,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: LibrarianSpacing.xs),
-        const Text(
+        Text(
           "Here's what's happening in the library today.",
           style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 16),
         ),

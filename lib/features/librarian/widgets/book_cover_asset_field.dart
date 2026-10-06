@@ -55,10 +55,7 @@ class BookCoverAssetField extends StatelessWidget {
   final bool enabled;
 
   Future<void> _choose(BuildContext context) async {
-    final chosen = await showDialog<String>(
-      context: context,
-      builder: (_) => _CoverPickerDialog(selected: coverAsset),
-    );
+    final chosen = await showBookCoverPicker(context, selected: coverAsset);
     if (chosen != null) onChanged(chosen);
   }
 
@@ -76,7 +73,7 @@ class BookCoverAssetField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: LibrarianSpacing.md),
-        const Text(
+        Text(
           'Cover preview',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -91,7 +88,7 @@ class BookCoverAssetField extends StatelessWidget {
               'Choose a cover from assets/images/books/. Without one, a cover '
                   'is generated from the title.',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: LibrarianColors.secondaryText),
+          style: TextStyle(color: LibrarianColors.secondaryText),
         ),
         const SizedBox(height: LibrarianSpacing.sm),
         Wrap(
@@ -120,6 +117,15 @@ class BookCoverAssetField extends StatelessWidget {
   }
 }
 
+/// Opens the cover grid (images in assets/images/books/) and returns the
+/// chosen path, or null if cancelled. Used by the Book and E-book forms.
+Future<String?> showBookCoverPicker(BuildContext context, {String? selected}) {
+  return showDialog<String>(
+    context: context,
+    builder: (_) => _CoverPickerDialog(selected: selected),
+  );
+}
+
 /// Grid of the bundled cover images; pops with the chosen path.
 class _CoverPickerDialog extends StatelessWidget {
   const _CoverPickerDialog({required this.selected});
@@ -143,7 +149,7 @@ class _CoverPickerDialog extends StatelessWidget {
             }
             final covers = snapshot.data ?? const <String>[];
             if (snapshot.hasError || covers.isEmpty) {
-              return const Text(
+              return Text(
                 'No cover images found in assets/images/books/.\n\n'
                 'To add one, copy a JPG, PNG or WebP image into the project '
                 'folder assets/images/books/ (use a unique name, e.g. '
@@ -215,7 +221,7 @@ class _CoverOption extends StatelessWidget {
                   fit: BoxFit.cover,
                   width: double.infinity,
                   errorBuilder: (context, error, stackTrace) =>
-                      const ColoredBox(color: LibrarianColors.lightBlue),
+                      ColoredBox(color: LibrarianColors.lightBlue),
                 ),
               ),
             ),
@@ -224,7 +230,7 @@ class _CoverOption extends StatelessWidget {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: LibrarianColors.text),
+              style: TextStyle(fontSize: 11, color: LibrarianColors.text),
             ),
           ],
         ),

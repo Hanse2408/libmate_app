@@ -27,6 +27,9 @@ class FirestoreCollections {
   /// In-app notifications, `notifications/{autoId}` (audience "librarian").
   static const String notifications = 'notifications';
 
+  /// Digital books with a PDF, `ebooks/{autoId}` (separate from `books`).
+  static const String ebooks = 'ebooks';
+
   /// Library-wide settings, the single document `settings/library`.
   static const String settings = 'settings';
   static const String librarySettingsDoc = 'library';
@@ -38,4 +41,7 @@ class StorageFolders {
 
   /// `seat_images/{seatId}/{timestamp}.{ext}`
   static const String seatImages = 'seat_images';
+
+  /// `ebooks/{ebookId}/{timestamp}.pdf`
+  static const String ebooks = 'ebooks';
 }

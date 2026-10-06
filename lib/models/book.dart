@@ -70,6 +70,11 @@ class BookRecord {
       isbn.replaceAll(RegExp(r'[^0-9Xx]'), '').toUpperCase();
 
   factory BookRecord.fromMap(String id, Map<String, dynamic> map) {
+    // Books saved in the earlier format have only `available` (true/false)
+    // and no copy counts: treat them as one copy, available or not.
+    final legacyAvailable = map['available'] == true ? 1 : 0;
+    final total = (map['totalCopies'] as num?)?.toInt() ?? (map['availableCopies'] == null ? 1 : 0);
+    final available = (map['availableCopies'] as num?)?.toInt() ?? legacyAvailable;
     return BookRecord(
       id: id,
       title: map['title'] as String? ?? '',
@@ -78,8 +83,8 @@ class BookRecord {
       category: map['category'] as String? ?? '',
       language: map['language'] as String? ?? '',
       shelfLocation: map['shelfLocation'] as String? ?? '',
-      totalCopies: (map['totalCopies'] as num?)?.toInt() ?? 0,
-      availableCopies: (map['availableCopies'] as num?)?.toInt() ?? 0,
+      totalCopies: total,
+      availableCopies: available,
       description: map['description'] as String? ?? '',
       coverAsset: _nonEmpty(map['coverAsset']),
       publisher: map['publisher'] as String? ?? '',

@@ -1,15 +1,22 @@
+import 'dart:typed_data';
+
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:libmate_app/app/routes/librarian_routes.dart';
 import 'package:libmate_app/core/services/auth_service.dart';
+import 'package:libmate_app/core/services/ebook_service.dart';
+import 'package:libmate_app/core/services/image_storage_service.dart';
 import 'package:libmate_app/core/services/user_service.dart';
 import 'package:libmate_app/features/auth/providers/auth_provider.dart';
 import 'package:libmate_app/features/librarian/data/librarian_mock_repository.dart';
 import 'package:libmate_app/features/librarian/data/librarian_repository.dart';
+import 'package:libmate_app/features/librarian/providers/ebook_provider.dart';
 import 'package:libmate_app/features/librarian/providers/librarian_scope.dart';
 import 'package:libmate_app/repositories/auth_repository.dart';
+import 'package:libmate_app/repositories/ebook_repository.dart';
 import 'package:libmate_app/repositories/user_repository.dart';
 
 /// Stand-ins so AuthProvider can be built without initialising Firebase.
@@ -33,11 +40,51 @@ AuthProvider buildFakeAuthProvider() {
   );
 }
 
+/// Keeps e-book PDFs in memory instead of Firebase Storage.
+class FakePdfStorage implements EbookFileStorage {
+  final Map<String, Uint8List> files = {};
+  final List<String> deleted = [];
+
+  /// When set, uploads (or deletes, see [failDeletes]) throw this message.
+  String? failWith;
+  bool failDeletes = false;
+
+  @override
+  Future<String> upload(String path, PdfFile pdf, {void Function(double progress)? onProgress}) async {
+    if (failWith != null) throw ImageStorageException(failWith!);
+    onProgress?.call(0.5);
+    files[path] = pdf.bytes;
+    onProgress?.call(1);
+    return 'https://storage.test/$path';
+  }
+
+  @override
+  Future<void> delete(String path) async {
+    if (failDeletes) throw Exception('storage offline');
+    files.remove(path);
+    deleted.add(path);
+  }
+}
+
+/// E-book state on an in-memory Firestore (no Firebase needed).
+EbookProvider buildFakeEbookProvider({FakeFirebaseFirestore? firestore, FakePdfStorage? files}) {
+  return EbookProvider(
+    EbookRepository(
+      service: EbookService(
+        firestore: firestore ?? FakeFirebaseFirestore(),
+        files: files ?? FakePdfStorage(),
+      ),
+      librarianUid: 'librarian-1',
+    ),
+  );
+}
+
 /// A router containing only the Librarian area, starting at [initialLocation].
 /// Uses the in-memory sample data unless [createRepository] is given.
 GoRouter buildLibrarianRouter(
   String initialLocation, {
   LibrarianRepository Function()? createRepository,
+  EbookProvider Function()? createEbooks,
 }) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -45,6 +92,7 @@ GoRouter buildLibrarianRouter(
       LibrarianRoutes.shellRoute(
         buildFakeAuthProvider(),
         createRepository: createRepository ?? LibrarianMockRepository.new,
+        createEbooks: createEbooks ?? buildFakeEbookProvider,
       ),
     ],
   );
@@ -56,12 +104,17 @@ Future<GoRouter> pumpLibrarian(
   String location, {
   Size size = const Size(400, 900),
   LibrarianRepository Function()? createRepository,
+  EbookProvider Function()? createEbooks,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  final router = buildLibrarianRouter(location, createRepository: createRepository);
+  final router = buildLibrarianRouter(
+    location,
+    createRepository: createRepository,
+    createEbooks: createEbooks,
+  );
   await tester.pumpWidget(MaterialApp.router(routerConfig: router));
   await tester.pumpAndSettle();
   return router;

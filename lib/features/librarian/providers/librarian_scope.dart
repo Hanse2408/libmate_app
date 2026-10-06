@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../data/librarian_repository.dart';
+import 'ebook_provider.dart';
 
 /// Makes the Librarian's shared state available to every Librarian screen.
 ///
@@ -14,6 +15,7 @@ class LibrarianScope extends InheritedWidget {
     super.key,
     required this.repository,
     required this.authProvider,
+    required this.ebooks,
     required super.child,
   });
 
@@ -21,6 +23,9 @@ class LibrarianScope extends InheritedWidget {
 
   /// Existing app-wide auth state, used for the librarian's name and sign out.
   final AuthProvider authProvider;
+
+  /// E-book Management state, created on first use (see LibrarianShell).
+  final EbookProvider Function() ebooks;
 
   static LibrarianScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<LibrarianScope>();

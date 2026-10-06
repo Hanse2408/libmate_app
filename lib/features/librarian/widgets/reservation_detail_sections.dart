@@ -19,7 +19,7 @@ class ReservationReference extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: LibrarianSpacing.sm + 4),
       child: Text(
         '#$reservationId',
-        style: const TextStyle(
+        style: TextStyle(
           color: LibrarianColors.secondaryText,
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -96,7 +96,7 @@ class AdditionalInfoCard extends StatelessWidget {
       children: [
         Text(
           hasNote ? note! : 'No additional notes from the student.',
-          style: const TextStyle(
+          style: TextStyle(
             color: LibrarianColors.secondaryText,
             fontSize: 16,
           ),

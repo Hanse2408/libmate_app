@@ -38,7 +38,7 @@ class SeatTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: selected
-              ? const BorderSide(color: LibrarianColors.text, width: 2.5)
+              ? BorderSide(color: LibrarianColors.text, width: 2.5)
               : BorderSide(color: color.withValues(alpha: 0.3)),
         ),
         clipBehavior: Clip.antiAlias,

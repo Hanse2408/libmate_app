@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/librarian/data/librarian_data_source.dart';
 import '../../features/librarian/data/librarian_repository.dart';
+import '../../features/librarian/providers/ebook_provider.dart';
 import '../../features/librarian/models/borrowing_record.dart';
 import '../../features/librarian/models/reservation_record.dart';
 import '../../features/librarian/providers/reservation_filter.dart';
@@ -13,6 +14,8 @@ import '../../features/librarian/screens/book_management_screen.dart';
 import '../../features/librarian/screens/booking_confirmation_screen.dart';
 import '../../features/librarian/screens/borrowing_details_screen.dart';
 import '../../features/librarian/screens/borrowing_management_screen.dart';
+import '../../features/librarian/screens/ebook_form_screen.dart';
+import '../../features/librarian/screens/ebook_management_screen.dart';
 import '../../features/librarian/screens/librarian_dashboard_screen.dart';
 import '../../features/librarian/screens/librarian_notifications_screen.dart';
 import '../../features/librarian/screens/librarian_settings_screen.dart';
@@ -57,6 +60,11 @@ class LibrarianRoutes {
       '$reservations/$id/confirmation';
   static String editBook(String id) => '$books/$id/edit';
   static String editSeat(String id) => '$seats/$id/edit';
+
+  /// E-books live under Books, so the Books tab stays selected.
+  static const String ebooks = '$books/ebooks';
+  static const String addEbook = '$ebooks/add';
+  static String editEbook(String id) => '$ebooks/$id/edit';
   static String borrowingDetails(String id) => '$borrowings/$id';
   static String memberDetails(String id) => '$members/$id';
 
@@ -84,12 +92,14 @@ class LibrarianRoutes {
   static ShellRoute shellRoute(
     AuthProvider authProvider, {
     LibrarianRepository Function()? createRepository,
+    EbookProvider Function()? createEbooks,
   }) {
     return ShellRoute(
       builder: (context, state, child) => LibrarianShell(
         authProvider: authProvider,
         createRepository:
             createRepository ?? () => LibrarianDataSource.create(authProvider),
+        createEbooks: createEbooks ?? () => LibrarianDataSource.createEbooks(authProvider),
         currentPath: state.uri.path,
         child: child,
       ),
@@ -150,6 +160,23 @@ class LibrarianRoutes {
               builder: (context, state) =>
                   BookManagementScreen(message: state.extra as String?),
               routes: [
+                // Before ':id/edit', so "ebooks" is never read as a book id.
+                GoRoute(
+                  path: 'ebooks',
+                  builder: (context, state) =>
+                      EbookManagementScreen(message: state.extra as String?),
+                  routes: [
+                    GoRoute(
+                      path: 'add',
+                      builder: (context, state) => const EbookFormScreen(),
+                    ),
+                    GoRoute(
+                      path: ':id/edit',
+                      builder: (context, state) =>
+                          EbookFormScreen(ebookId: state.pathParameters['id']),
+                    ),
+                  ],
+                ),
                 GoRoute(
                   path: 'add',
                   builder: (context, state) => const AddBookScreen(),

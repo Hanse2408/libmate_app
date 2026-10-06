@@ -4,12 +4,21 @@ import '../../../../core/widgets/stored_image.dart';
 import '../../../../models/seat.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
 import '../../common/data/student_library_repository.dart';
+import '../providers/seat_booking_provider.dart';
+import 'seat_booking_confirmation_screen.dart';
+import '../widgets/book_seat_bar.dart';
+import '../widgets/booking_details_card.dart';
+import '../widgets/booking_pickers.dart';
+import '../widgets/seat_booking_colors.dart';
+import '../widgets/seat_map.dart';
+import '../widgets/seat_tile.dart';
+import '../widgets/selected_seat_card.dart';
 
 /// Book a reading-room seat: choose a day and time, then a free seat.
 ///
-/// Seats are the ones librarians manage (Firestore `seats`, live). The taken
-/// hours come from `seatSlots`, so a seat booked by another student for an
-/// overlapping time is shown as unavailable and cannot be booked.
+/// Seats are the ones librarians manage (Firestore `seats`, live). A booking
+/// is confirmed at once (no librarian approval) and opens the H02
+/// confirmation screen.
 class SeatBookingScreen extends StatefulWidget {
   const SeatBookingScreen({super.key, required this.library});
 
@@ -20,11 +29,8 @@ class SeatBookingScreen extends StatefulWidget {
 }
 
 class _SeatBookingScreenState extends State<SeatBookingScreen> {
-  static const Color _primary = Color(0xFF2563EB);
-  static const Color _text = Color(0xFF172033);
-  static const Color _secondary = Color(0xFF64748B);
-  static const Color _green = Color(0xFF22A06B);
-  static const Color _red = Color(0xFFDC4C4C);
+  late final SeatBookingProvider _provider = SeatBookingProvider(widget.library);
+  bool _handlingBooking = false;
 
   late DateTime _date = _today();
   late int _startHour = _firstStartHour(_date);
@@ -62,13 +68,55 @@ class _SeatBookingScreenState extends State<SeatBookingScreen> {
     ];
   }
 
-  void _selectDate(DateTime day) {
-    setState(() {
-      _date = day;
-      _bookedSlots = widget.library.bookedSlotIds(day);
-      _startHour = _firstStartHour(day);
-      _hours = 1;
-    });
+  Future<void> _pickEnd() async {
+    final hour = await pickBookingHour(
+      context,
+      title: 'End Time',
+      hours: _provider.endHours,
+      selected: _provider.endHour,
+    );
+    if (hour != null) _provider.setEndHour(hour);
+  }
+
+  Future<void> _book() async {
+    if (_handlingBooking) return;
+    _handlingBooking = true;
+
+    // book() clears the selection, so keep the booking details first.
+    final seat = _provider.selectedSeat;
+    final date = _provider.date;
+    final startHour = _provider.startHour;
+    final endHour = _provider.endHour;
+
+    final result = await _provider.book();
+    final reservationId = result.reservationId;
+
+    if (!mounted || !result.success || seat == null || reservationId == null) {
+      _handlingBooking = false;
+      return;
+    }
+
+    // Replace H01 so Back cannot lead to a second booking by accident.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => SeatBookingConfirmationScreen(
+          library: widget.library,
+          seat: seat,
+          date: date,
+          startHour: startHour,
+          endHour: endHour,
+          reservationId: reservationId,
+        ),
+      ),
+    );
+  }
+
+  void _openMyBookings() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MyReservationsScreen(library: widget.library, showSeats: true),
+      ),
+    );
   }
 
   @override

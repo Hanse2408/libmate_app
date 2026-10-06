@@ -144,6 +144,12 @@ class LibrarianMockRepository extends LibrarianRepository {
     // The copy was set aside at approval and is now on loan, so the
     // available count does not change.
     _reservations[index] = reservation.copyWith(status: ReservationStatus.completed);
+    _addNotification(
+      type: LibrarianNotificationType.bookCollected,
+      title: 'Book Collected',
+      message: '"${book.title}" is now on loan to ${reservation.studentName}.',
+      reservationId: id,
+    );
     notifyListeners();
     return const ActionResult.success();
   }
@@ -284,6 +290,11 @@ class LibrarianMockRepository extends LibrarianRepository {
         note: note.trim(),
       ),
     );
+    _addNotification(
+      type: LibrarianNotificationType.seatUpdate,
+      title: 'New Seat Added',
+      message: 'Seat ${seatNumber.trim().toUpperCase()} was added to ${readingRoom.trim()}.',
+    );
     notifyListeners();
     return const ActionResult.success();
   }
@@ -392,6 +403,11 @@ class LibrarianMockRepository extends LibrarianRepository {
       dueDate: loan.dueDate.add(Duration(days: _settings.loanPeriodDays)),
       renewals: loan.renewals + 1,
     );
+    _addNotification(
+      type: LibrarianNotificationType.loanRenewed,
+      title: 'Loan Renewed',
+      message: '"${loan.bookTitle}" for ${loan.memberName} was renewed.',
+    );
     notifyListeners();
     return const ActionResult.success();
   }
@@ -431,6 +447,13 @@ class LibrarianMockRepository extends LibrarianRepository {
     notifyListeners();
   }
 
+  /// Demo data: remembered until the app restarts.
+  @override
+  Future<ActionResult> setDarkMode(bool on) async {
+    applyDarkMode(on);
+    return const ActionResult.success();
+  }
+
   @override
   Future<void> markAllNotificationsRead() async {
     for (var i = 0; i < _notifications.length; i++) {
@@ -456,25 +479,25 @@ class LibrarianMockRepository extends LibrarianRepository {
   }
 
   /// Records an action the librarian just took. It is already read, so the
-  /// librarian's own actions do not increase the unread badge.
+  /// librarian's own actions do not increase the unread badge; it still
+  /// shows the top banner, like every new Librarian notification.
   void _addNotification({
     required LibrarianNotificationType type,
     required String title,
     required String message,
     String? reservationId,
   }) {
-    _notifications.insert(
-      0,
-      LibrarianNotification(
-        id: _nextId('N', _notifications.length),
-        type: type,
-        title: title,
-        message: message,
-        createdAt: DateTime.now(),
-        reservationId: reservationId,
-        isRead: true,
-      ),
+    final notification = LibrarianNotification(
+      id: _nextId('N', _notifications.length),
+      type: type,
+      title: title,
+      message: message,
+      createdAt: DateTime.now(),
+      reservationId: reservationId,
+      isRead: true,
     );
+    _notifications.insert(0, notification);
+    announceNotification(notification);
   }
 
   /// Builds ids such as B010 or S019.
