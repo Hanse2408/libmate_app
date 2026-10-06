@@ -338,7 +338,8 @@ void main() {
         );
         await student.bookSeat(seat: student.seats.single, date: tomorrow(), startHour: 10, endHour: 12);
       });
-      expect(titles, ['New Seat Added', 'New Book Added', 'New Reservation Request', 'New Reservation Request']);
+      // Only the book request alerts the librarian; seat bookings need no approval.
+      expect(titles, ['New Seat Added', 'New Book Added', 'New Reservation Request']);
     });
 
     testWidgets('approve, collect, renew and return', (tester) async {
@@ -392,6 +393,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 10));
       final titles = await bannersFor(tester, () async {
         final pending = repository.reservations;
+        // Seat bookings are confirmed at once; make one an older pending request.
+        await db.collection('reservations').doc(pending.first.id).update({'status': 'pending'});
+        await settle();
         await repository.rejectReservation(pending.first.id, 'Room closed');
         await settle();
         final cancelled = await student.cancelReservation(pending.last.id);

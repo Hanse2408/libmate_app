@@ -127,7 +127,7 @@ void main() {
     expect(provider.rooms.single.zones.single.seats.map((s) => s.seatNumber), ['A01']);
   });
 
-  test('booking creates one pending reservation and the seat is then taken', () async {
+  test('booking creates one confirmed reservation and the seat is then taken', () async {
     final seat = await addSeat('A01');
     provider.selectSeat(latest(seat));
 
@@ -137,7 +137,8 @@ void main() {
 
     final bookings = (await db.collection('reservations').get()).docs;
     expect(bookings, hasLength(1));
-    expect(bookings.single.data()['status'], ReservationStatus.pending.name);
+    expect(bookings.single.data()['status'], ReservationStatus.approved.name);
+    expect(result.reservationId, bookings.single.id);
     expect(provider.isBooking, isFalse);
     expect(provider.availabilityOf(latest(seat)), SeatAvailability.reserved);
     expect(provider.selectedSeat, isNull);
