@@ -115,6 +115,22 @@ service cloud.firestore {
           && request.resource.data.status == 'cancelled'
           && changedOnly(['status', 'updatedAt']));
 
+      // Students may modify the details of their own pending book request.
+      allow update: if isActiveStudent()
+        && resource.data.studentUid == request.auth.uid
+        && resource.data.type == 'book'
+        && resource.data.status == 'pending'
+        && request.resource.data.studentUid == resource.data.studentUid
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.status == resource.data.status
+        && changedOnly([
+          'date',
+          'pickupLocation',
+          'loanPeriodDays',
+          'notes',
+          'updatedAt'
+        ]);
+
       allow delete: if false;
     }
 

@@ -396,6 +396,64 @@ class StudentLibraryRepository extends ChangeNotifier {
     });
   }
 
+  /// Updates the student's own active book reservation.
+Future<ActionResult> updateBookReservation({
+  required String reservationId,
+  required DateTime pickupDate,
+  required String pickupLocation,
+  required int loanPeriodDays,
+  required String notes,
+}) {
+  return _run(() async {
+    await _db.runTransaction((tx) async {
+      final ref = _col(
+        FirestoreCollections.reservations,
+      ).doc(reservationId);
+
+      final snap = await tx.get(ref);
+
+      if (!snap.exists) {
+        throw const ActionRefused(
+          'Reservation not found.',
+        );
+      }
+
+      final reservation = ReservationRecord.fromMap(
+        reservationId,
+        snap.data()!,
+      );
+
+      if (reservation.studentUid != student.uid) {
+        throw const ActionRefused(
+          'This is not your reservation.',
+        );
+      }
+
+      if (reservation.type != ReservationType.book) {
+        throw const ActionRefused(
+          'Only book reservations can be modified here.',
+        );
+      }
+
+      if (!reservation.isActive) {
+        throw const ActionRefused(
+          'This reservation is no longer active.',
+        );
+      }
+
+      tx.update(ref, {
+        'date': Timestamp.fromDate(pickupDate),
+        'pickupLocation': pickupLocation,
+        'loanPeriodDays': loanPeriodDays,
+        'notes': notes.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    return null;
+  });
+}
+
   /// Books [seat] for [startHour]–[endHour] on [date]. Seat bookings need no
   /// librarian approval, so the reservation is saved as approved straight away.
   /// The seat-hours are claimed in the same transaction, so an overlapping
@@ -412,9 +470,14 @@ class StudentLibraryRepository extends ChangeNotifier {
       startHour,
       endHour,
     );
+    if (blocker != null) {
+  return ActionResult.failure(blocker);
+}
+
+final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
 
     return _run(() async {
-      await _checkNoSeatClash(day, startHour, endHour);
+      await _checkNoSeatClash(date, startHour, endHour);
       await _db.runTransaction((tx) async {
         await _checkAccountActive(tx);
 
@@ -434,7 +497,7 @@ class StudentLibraryRepository extends ChangeNotifier {
         );
 
         if (latest.status == SeatStatus.maintenance ||
-            (_isToday(day) && latest.status == SeatStatus.occupied)) {
+            (_isToday(date) && latest.status == SeatStatus.occupied)) {
           throw ActionRefused(
             'Seat ${latest.seatNumber} is '
             '${latest.status.label.toLowerCase()}.',
@@ -444,7 +507,7 @@ class StudentLibraryRepository extends ChangeNotifier {
         final slotRefs = [
           for (final id in SeatSlots.ids(
             seat.id,
-            day,
+            date,
             startHour,
             endHour,
           ))
@@ -477,7 +540,7 @@ class StudentLibraryRepository extends ChangeNotifier {
             itemId: latest.id,
             itemName: 'Seat ${latest.seatNumber}',
             requestedAt: DateTime.now(),
-            date: day,
+            date: date,
             timeSlot: slotLabel,
           ).toMap(),
         );
@@ -485,7 +548,7 @@ class StudentLibraryRepository extends ChangeNotifier {
         for (var i = 0; i < slotRefs.length; i++) {
           tx.set(slotRefs[i], {
             'seatId': latest.id,
-            'date': Timestamp.fromDate(day),
+            'date': Timestamp.fromDate(date),
             'hour': startHour + i,
             'reservationId': ref.id,
             'studentUid': student.uid,
