@@ -22,6 +22,9 @@ class ImageUploadField extends StatefulWidget {
     this.enabled = true,
     this.disabledReason,
     this.uploadProgress,
+    this.chooseLabel = 'Choose Image',
+    this.replaceLabel = 'Replace Image',
+    this.hint = 'JPG, PNG or WebP, up to 5 MB. Optional.',
   });
 
   final String label;
@@ -40,6 +43,10 @@ class ImageUploadField extends StatefulWidget {
 
   /// 0.0–1.0 while uploading, otherwise null.
   final double? uploadProgress;
+
+  final String chooseLabel;
+  final String replaceLabel;
+  final String hint;
 
   @override
   State<ImageUploadField> createState() => _ImageUploadFieldState();
@@ -87,15 +94,23 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
         Center(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
-            child: SizedBox(width: size.width, height: size.height, child: preview),
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: preview,
+            ),
           ),
         ),
         if (widget.uploadProgress != null) ...[
           const SizedBox(height: LibrarianSpacing.sm),
-          LinearProgressIndicator(value: widget.uploadProgress),
+          LinearProgressIndicator(
+            value: widget.uploadProgress == 0 ? null : widget.uploadProgress,
+          ),
           const SizedBox(height: 4),
           Text(
-            'Uploading image… ${(widget.uploadProgress! * 100).round()}%',
+            widget.uploadProgress == 0
+                ? 'Uploading image…'
+                : 'Uploading image… ${(widget.uploadProgress! * 100).round()}%',
             textAlign: TextAlign.center,
             style: TextStyle(color: LibrarianColors.secondaryText),
           ),
@@ -113,7 +128,7 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
         const SizedBox(height: LibrarianSpacing.xs),
         Text(
           widget.enabled
-              ? 'JPG, PNG or WebP, up to 5 MB. Optional.'
+              ? widget.hint
               : widget.disabledReason ?? 'Image upload is not available.',
           textAlign: TextAlign.center,
           style: TextStyle(color: LibrarianColors.secondaryText),
@@ -136,7 +151,7 @@ class _ImageUploadFieldState extends State<ImageUploadField> {
               OutlinedButton.icon(
                 onPressed: _busy ? null : _pick,
                 icon: const Icon(Icons.upload_outlined),
-                label: Text(_hasImage ? 'Replace Image' : 'Choose Image'),
+                label: Text(_hasImage ? widget.replaceLabel : widget.chooseLabel),
               ),
               if (_hasImage)
                 TextButton.icon(

@@ -25,19 +25,30 @@ void main() {
       await pumpLibrarian(tester, LibrarianRoutes.borrowings);
 
       // The chip bar scrolls sideways, so "Overdue" may start off screen.
-      final overdueTab = find.widgetWithText(LibrarianTabChip, 'Overdue', skipOffstage: false);
+      final overdueTab = find.widgetWithText(
+        LibrarianTabChip,
+        'Overdue',
+        skipOffstage: false,
+      );
       await tester.ensureVisible(overdueTab);
       await tester.pumpAndSettle();
       await tester.tap(overdueTab);
       await tester.pumpAndSettle();
       expect(find.text('04 loans found'), findsOneWidget);
 
-      await tester.ensureVisible(find.widgetWithText(LibrarianTabChip, 'All', skipOffstage: false));
+      await tester.ensureVisible(
+        find.widgetWithText(LibrarianTabChip, 'All', skipOffstage: false),
+      );
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(LibrarianTabChip, 'All', skipOffstage: false));
+      await tester.tap(
+        find.widgetWithText(LibrarianTabChip, 'All', skipOffstage: false),
+      );
       await tester.pumpAndSettle();
       // Scrolling the chip bar into view may have moved the search box up.
-      await tester.enterText(find.byType(TextField, skipOffstage: false), 'LN-2011');
+      await tester.enterText(
+        find.byType(TextField, skipOffstage: false),
+        'LN-2011',
+      );
       await tester.pumpAndSettle();
       expect(find.text('01 loan found', skipOffstage: false), findsOneWidget);
     });
@@ -55,7 +66,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'LN-2002');
       await tester.pumpAndSettle();
 
-      await tapVisible(tester, find.widgetWithText(TextButton, 'Mark Returned'));
+      await tapVisible(
+        tester,
+        find.widgetWithText(TextButton, 'Mark Returned'),
+      );
       expect(find.text('Mark as returned?'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Mark Returned'));
       await tester.pumpAndSettle();
@@ -76,16 +90,25 @@ void main() {
       expect(repositoryOf(tester).borrowingById('LN-2011')!.renewals, 1);
     });
 
-    testWidgets('Renew is disabled with a reason when another student waits', (tester) async {
+    testWidgets('Renew is disabled with a reason when another student waits', (
+      tester,
+    ) async {
       await pumpLibrarian(tester, LibrarianRoutes.borrowingDetails('LN-2001'));
 
       await scrollTo(tester, find.text('Renew Loan'));
-      final renew = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Renew Loan'));
+      final renew = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Renew Loan'),
+      );
       expect(renew.onPressed, isNull);
-      expect(find.textContaining('Another student has reserved this book'), findsOneWidget);
+      expect(
+        find.textContaining('Another student has reserved this book'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('returned loan shows its return date and no actions', (tester) async {
+    testWidgets('returned loan shows its return date and no actions', (
+      tester,
+    ) async {
       await pumpLibrarian(tester, LibrarianRoutes.borrowingDetails('LN-1990'));
       expect(find.text('Returned'), findsWidgets);
       expect(find.text('Mark as Returned'), findsNothing);
@@ -128,15 +151,23 @@ void main() {
       await scrollTo(tester, find.text('Human-Computer Interaction · Book'));
     });
 
-    testWidgets('a loan opened from a member returns to that member', (tester) async {
+    testWidgets('a loan opened from a member returns to that member', (
+      tester,
+    ) async {
       final router = await pumpLibrarian(
         tester,
         LibrarianRoutes.memberDetails('IT23003341'),
       );
 
-      await scrollTo(tester, find.text('Overdue Items')); // build the loan cards
+      await scrollTo(
+        tester,
+        find.text('Overdue Items'),
+      ); // build the loan cards
       await tapVisible(tester, find.byType(BorrowingCard).first);
-      expect(router.currentPath, startsWith('${LibrarianRoutes.borrowings}/LN-'));
+      expect(
+        router.currentPath,
+        startsWith('${LibrarianRoutes.borrowings}/LN-'),
+      );
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       expect(router.currentPath, LibrarianRoutes.memberDetails('IT23003341'));
@@ -149,7 +180,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Suspend'));
       await tester.pumpAndSettle();
 
-      expect(repositoryOf(tester).memberById('IT23514658')!.status, MemberStatus.suspended);
+      expect(
+        repositoryOf(tester).memberById('IT23514658')!.status,
+        MemberStatus.suspended,
+      );
       await scrollTo(tester, find.text('Reactivate Account'));
     });
   });
@@ -171,7 +205,9 @@ void main() {
   });
 
   group('Settings', () {
-    testWidgets('dashboard gear icon opens Settings; back returns', (tester) async {
+    testWidgets('dashboard gear icon opens Settings; back returns', (
+      tester,
+    ) async {
       final router = await pumpLibrarian(tester, LibrarianRoutes.dashboard);
 
       await tester.tap(find.byTooltip('Settings'));
@@ -207,10 +243,19 @@ void main() {
     });
 
     testWidgets('notification switch and password placeholder', (tester) async {
-      await pumpLibrarian(tester, LibrarianRoutes.settings, size: const Size(400, 2600));
+      await pumpLibrarian(
+        tester,
+        LibrarianRoutes.settings,
+        size: const Size(400, 2600),
+      );
 
       final availability = find.descendant(
-        of: find.ancestor(of: find.text('Book Availability'), matching: find.byType(Row)).first,
+        of: find
+            .ancestor(
+              of: find.text('Book Availability'),
+              matching: find.byType(Row),
+            )
+            .first,
         matching: find.byType(Switch),
       );
       await tester.tap(availability);
@@ -219,7 +264,10 @@ void main() {
 
       await tester.tap(find.text('Change Password'));
       await tester.pumpAndSettle();
-      expect(find.text('Available when accounts are connected.'), findsOneWidget);
+      expect(
+        find.text('Available when accounts are connected.'),
+        findsOneWidget,
+      );
     });
   });
 

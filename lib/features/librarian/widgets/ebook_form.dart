@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/services/ebook_service.dart';
+import '../../../core/services/image_storage_service.dart';
 import '../../../models/action_result.dart';
 import '../../../models/ebook.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_validators.dart';
 import 'book_cover.dart';
-import 'book_cover_asset_field.dart';
+import 'image_upload_field.dart';
 import 'labeled_text_field.dart';
 
 /// "Add new e-book" card from the E-book Management design: 1. cover,
@@ -38,16 +39,27 @@ class _EbookFormState extends State<EbookForm> {
     'Fiction',
     'Other',
   ];
-  static const List<String> _languages = ['English', 'Sinhala', 'Tamil', 'Other'];
+  static const List<String> _languages = [
+    'English',
+    'Sinhala',
+    'Tamil',
+    'Other',
+  ];
 
   final _formKey = GlobalKey<FormState>();
   late final _title = TextEditingController(text: widget.initial?.title);
   late final _author = TextEditingController(text: widget.initial?.author);
   late final _isbn = TextEditingController(text: widget.initial?.isbn);
-  late final _description = TextEditingController(text: widget.initial?.description);
-  late final _publisher = TextEditingController(text: widget.initial?.publisher);
+  late final _description = TextEditingController(
+    text: widget.initial?.description,
+  );
+  late final _publisher = TextEditingController(
+    text: widget.initial?.publisher,
+  );
   late final _year = TextEditingController(
-    text: (widget.initial?.publishedYear ?? 0) > 0 ? '${widget.initial!.publishedYear}' : '',
+    text: (widget.initial?.publishedYear ?? 0) > 0
+        ? '${widget.initial!.publishedYear}'
+        : '',
   );
   late final _pages = TextEditingController(
     text: (widget.initial?.pages ?? 0) > 0 ? '${widget.initial!.pages}' : '',
@@ -60,6 +72,9 @@ class _EbookFormState extends State<EbookForm> {
   late String? _language = widget.initial?.language ?? 'English';
   late String? _coverAsset = widget.initial?.coverAsset;
 
+  /// Cover picked in this form (uploaded when saving, independent of the PDF).
+  ImageUpload? _coverImage;
+
   /// PDF picked in this form (uploaded when saving).
   PdfFile? _pdf;
   String? _coverError;
@@ -71,20 +86,19 @@ class _EbookFormState extends State<EbookForm> {
 
   @override
   void dispose() {
-    for (final c in [_title, _author, _isbn, _description, _publisher, _year, _pages, _location]) {
+    for (final c in [
+      _title,
+      _author,
+      _isbn,
+      _description,
+      _publisher,
+      _year,
+      _pages,
+      _location,
+    ]) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  Future<void> _chooseCover() async {
-    final chosen = await showBookCoverPicker(context, selected: _coverAsset);
-    if (chosen != null) {
-      setState(() {
-        _coverAsset = chosen;
-        _coverError = null;
-      });
-    }
   }
 
   Future<void> _choosePdf() async {
@@ -97,7 +111,8 @@ class _EbookFormState extends State<EbookForm> {
         _pdfError = error;
       });
     } catch (_) {
-      if (mounted) setState(() => _pdfError = 'Could not open the file picker.');
+      if (mounted)
+        setState(() => _pdfError = 'Could not open the file picker.');
     }
   }
 
@@ -106,10 +121,12 @@ class _EbookFormState extends State<EbookForm> {
     final formOk = _formKey.currentState!.validate();
     final publishing = status == EbookStatus.published;
     setState(() {
-      _coverError = publishing && _coverAsset == null
+      _coverError = publishing && _coverAsset == null && _coverImage == null
           ? 'Choose a cover image before publishing.'
           : null;
-      _pdfError = publishing && !_hasPdf ? 'Upload the PDF before publishing.' : _pdfError;
+      _pdfError = publishing && !_hasPdf
+          ? 'Upload the PDF before publishing.'
+          : _pdfError;
     });
     if (!formOk || _coverError != null || (publishing && !_hasPdf)) return;
 
@@ -127,15 +144,24 @@ class _EbookFormState extends State<EbookForm> {
       pages: int.tryParse(_pages.text.trim()) ?? 0,
       location: _location.text,
       coverAsset: _coverAsset,
+      coverPublicId: _coverAsset == null ? null : initial?.coverPublicId,
       pdfUrl: initial?.pdfUrl,
       pdfPath: initial?.pdfPath,
+      pdfPublicId: initial?.pdfPublicId,
+      pdfResourceType: initial?.pdfResourceType,
+      pdfFormat: initial?.pdfFormat,
       pdfFileName: initial?.pdfFileName,
       pdfSizeBytes: initial?.pdfSizeBytes ?? 0,
       status: status,
     );
 
     setState(() => _savingAs = status);
-    final ActionResult result = await provider.save(ebook: ebook, isNew: !_isEdit, newPdf: _pdf);
+    final ActionResult result = await provider.save(
+      ebook: ebook,
+      isNew: !_isEdit,
+      newPdf: _pdf,
+      newCover: _coverImage,
+    );
     if (!mounted) return;
     setState(() => _savingAs = null);
 
@@ -163,8 +189,7 @@ class _EbookFormState extends State<EbookForm> {
       for (final b in books)
         if (b.category.trim().isNotEmpty) b.category.trim(),
       ?_category,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
 
     return ListenableBuilder(
       listenable: provider,
@@ -178,7 +203,10 @@ class _EbookFormState extends State<EbookForm> {
             decoration: BoxDecoration(
               color: LibrarianColors.card,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: LibrarianColors.primary.withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(
+                color: LibrarianColors.primary.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -195,30 +223,66 @@ class _EbookFormState extends State<EbookForm> {
                         ),
                       ),
                     ),
-                    Text('* Required', style: TextStyle(color: LibrarianColors.secondaryText)),
+                    Text(
+                      '* Required',
+                      style: TextStyle(color: LibrarianColors.secondaryText),
+                    ),
                   ],
                 ),
                 const SizedBox(height: LibrarianSpacing.md),
-                _StepTile(
+                Text(
+                  '1. Choose cover image *',
                   key: const ValueKey('ebook-cover-step'),
-                  leading: _coverAsset == null
-                      ? Icon(Icons.add_photo_alternate_outlined, color: LibrarianColors.primary, size: 30)
-                      : BookCover(title: _title.text, coverAsset: _coverAsset, width: 40, height: 54),
-                  title: '1. Choose cover image *',
-                  subtitle: _coverAsset == null
-                      ? 'JPG, PNG or WebP from assets/images/books/'
-                      : _coverAsset!.substring(_coverAsset!.lastIndexOf('/') + 1),
-                  trailing: Icon(
-                    _coverAsset == null ? Icons.file_upload_outlined : Icons.swap_horiz,
-                    color: LibrarianColors.primary,
+                  style: TextStyle(
+                    color: LibrarianColors.text,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
                   ),
-                  error: _coverError,
-                  onTap: saving ? null : _chooseCover,
                 ),
+                const SizedBox(height: LibrarianSpacing.sm),
+                ImageUploadField(
+                  label: 'E-book Cover',
+                  previewSize: const Size(90, 120),
+                  placeholder: BookCover(
+                    title: _title.text,
+                    width: 90,
+                    height: 120,
+                  ),
+                  picked: _coverImage,
+                  savedUrl: _coverAsset,
+                  enabled: !saving,
+                  disabledReason: 'Cover uploads are unavailable here.',
+                  uploadProgress: _pdf == null ? provider.uploadProgress : null,
+                  chooseLabel: 'Choose Cover',
+                  replaceLabel: 'Change Cover',
+                  onPicked: (image) => setState(() {
+                    _coverImage = image;
+                    _coverError = null;
+                  }),
+                  onRemove: () => setState(() {
+                    _coverImage = null;
+                    _coverAsset = null;
+                  }),
+                ),
+                if (_coverError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: LibrarianSpacing.xs),
+                    child: Text(
+                      _coverError!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: LibrarianSpacing.lg),
                 Text(
                   '2. Enter book details',
-                  style: TextStyle(color: LibrarianColors.text, fontSize: 19, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: LibrarianColors.text,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: LibrarianSpacing.md),
                 _Pair(
@@ -227,7 +291,8 @@ class _EbookFormState extends State<EbookForm> {
                     controller: _title,
                     hint: 'Clean Code',
                     textCapitalization: TextCapitalization.words,
-                    validator: (v) => LibrarianValidators.required(v, 'Book title'),
+                    validator: (v) =>
+                        LibrarianValidators.required(v, 'Book title'),
                     onChanged: (_) => setState(() {}), // cover preview title
                   ),
                   LabeledTextField(
@@ -243,7 +308,9 @@ class _EbookFormState extends State<EbookForm> {
                   controller: _isbn,
                   hint: '978-0132350884',
                   keyboardType: TextInputType.number,
-                  validator: (v) => (v ?? '').trim().isEmpty ? null : LibrarianValidators.isbn(v),
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? null
+                      : LibrarianValidators.isbn(v),
                 ),
                 _Pair(
                   _LabeledDropdown(
@@ -311,31 +378,55 @@ class _EbookFormState extends State<EbookForm> {
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: saving ? null : () => _save(EbookStatus.draft),
+                        onPressed: saving
+                            ? null
+                            : () => _save(EbookStatus.draft),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(0, 56),
                           backgroundColor: LibrarianColors.lightBlue,
                           foregroundColor: LibrarianColors.primary,
-                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LibrarianSpacing.radius)),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              LibrarianSpacing.radius,
+                            ),
+                          ),
                         ),
                         child: _savingAs == EbookStatus.draft
                             ? const _Spinner()
-                            : const Text('Save draft', overflow: TextOverflow.ellipsis),
+                            : const Text(
+                                'Save draft',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                       ),
                     ),
                     const SizedBox(width: LibrarianSpacing.md),
                     Expanded(
                       child: FilledButton(
-                        onPressed: saving ? null : () => _save(EbookStatus.published),
+                        onPressed: saving
+                            ? null
+                            : () => _save(EbookStatus.published),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(0, 56),
-                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LibrarianSpacing.radius)),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              LibrarianSpacing.radius,
+                            ),
+                          ),
                         ),
                         child: _savingAs == EbookStatus.published
                             ? const _Spinner(onPrimary: true)
-                            : const Text('Publish e-book', overflow: TextOverflow.ellipsis),
+                            : const Text(
+                                'Publish e-book',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                       ),
                     ),
                   ],
@@ -360,7 +451,8 @@ class _Pair extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 300) return Column(children: [first, second]);
+        if (constraints.maxWidth < 300)
+          return Column(children: [first, second]);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -405,7 +497,11 @@ class _LabeledDropdown extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: TextStyle(color: LibrarianColors.text, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: LibrarianColors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: LibrarianSpacing.sm),
           DropdownButtonFormField<String>(
@@ -414,20 +510,36 @@ class _LabeledDropdown extends StatelessWidget {
             validator: validator,
             autovalidateMode: AutovalidateMode.onUserInteraction,
             dropdownColor: LibrarianColors.card,
-            icon: Icon(Icons.keyboard_arrow_down, color: LibrarianColors.secondaryText),
+            icon: Icon(
+              Icons.keyboard_arrow_down,
+              color: LibrarianColors.secondaryText,
+            ),
             style: TextStyle(color: LibrarianColors.text, fontSize: 16),
-            hint: hint == null ? null : Text(hint!, style: TextStyle(color: LibrarianColors.secondaryText)),
+            hint: hint == null
+                ? null
+                : Text(
+                    hint!,
+                    style: TextStyle(color: LibrarianColors.secondaryText),
+                  ),
             items: [
               for (final option in options)
-                DropdownMenuItem(value: option, child: Text(option, overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                  value: option,
+                  child: Text(option, overflow: TextOverflow.ellipsis),
+                ),
             ],
             onChanged: onChanged,
             decoration: InputDecoration(
               filled: true,
               fillColor: LibrarianColors.lightBlue,
-              contentPadding: const EdgeInsets.symmetric(horizontal: LibrarianSpacing.md + 4, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: LibrarianSpacing.md + 4,
+                vertical: 14,
+              ),
               border: border(LibrarianColors.border),
-              enabledBorder: border(LibrarianColors.primary.withValues(alpha: 0.2)),
+              enabledBorder: border(
+                LibrarianColors.primary.withValues(alpha: 0.2),
+              ),
               focusedBorder: border(LibrarianColors.primary),
               errorMaxLines: 2,
             ),
@@ -491,10 +603,20 @@ class _StepTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(color: LibrarianColors.primary, fontSize: 18, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: LibrarianColors.primary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 14)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: LibrarianColors.secondaryText,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -502,10 +624,19 @@ class _StepTile extends StatelessWidget {
               trailing,
             ],
           ),
-          if (footer != null) ...[const SizedBox(height: LibrarianSpacing.sm), footer!],
+          if (footer != null) ...[
+            const SizedBox(height: LibrarianSpacing.sm),
+            footer!,
+          ],
           if (error != null) ...[
             const SizedBox(height: LibrarianSpacing.sm),
-            Text(error!, style: TextStyle(color: LibrarianColors.unavailable, fontSize: 13)),
+            Text(
+              error!,
+              style: TextStyle(
+                color: LibrarianColors.unavailable,
+                fontSize: 13,
+              ),
+            ),
           ],
         ],
       ),
@@ -517,7 +648,11 @@ class _StepTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: radius,
         child: CustomPaint(
-          foregroundPainter: _BorderPainter(color: borderColor, radius: LibrarianSpacing.radius, dashed: dashed),
+          foregroundPainter: _BorderPainter(
+            color: borderColor,
+            radius: LibrarianSpacing.radius,
+            dashed: dashed,
+          ),
           child: body,
         ),
       ),
@@ -546,11 +681,13 @@ class _PdfStep extends StatelessWidget {
     final saved = existing != null && existing!.hasPdf;
     final String subtitle;
     if (pdf != null) {
-      subtitle = '${pdf!.fileName} · ${EbookRecord.formatSize(pdf!.sizeBytes)}'
+      subtitle =
+          '${pdf!.fileName} · ${EbookRecord.formatSize(pdf!.sizeBytes)}'
           '${saved ? ' (replaces the current PDF)' : ''}';
     } else if (saved) {
       final size = EbookRecord.formatSize(existing!.pdfSizeBytes);
-      subtitle = '${existing!.pdfFileName ?? 'Current PDF'}${size.isEmpty ? '' : ' · $size'}';
+      subtitle =
+          '${existing!.pdfFileName ?? 'Current PDF'}${size.isEmpty ? '' : ' · $size'}';
     } else {
       subtitle = 'PDF only, up to 25 MB';
     }
@@ -563,9 +700,15 @@ class _PdfStep extends StatelessWidget {
         color: hasFile ? LibrarianColors.unavailable : LibrarianColors.primary,
         size: 30,
       ),
-      title: hasFile ? '3. PDF ${pdf != null ? 'selected' : 'uploaded'} *' : '3. Upload PDF *',
+      title: hasFile
+          ? '3. PDF ${pdf != null ? 'selected' : 'uploaded'} *'
+          : '3. Upload PDF *',
       subtitle: subtitle,
-      trailing: Icon(hasFile ? Icons.swap_horiz : Icons.add, color: LibrarianColors.primary, size: 28),
+      trailing: Icon(
+        hasFile ? Icons.swap_horiz : Icons.add,
+        color: LibrarianColors.primary,
+        size: 28,
+      ),
       error: error,
       onTap: onTap,
       footer: progress == null
@@ -573,11 +716,16 @@ class _PdfStep extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                LinearProgressIndicator(value: progress),
+                LinearProgressIndicator(value: progress == 0 ? null : progress),
                 const SizedBox(height: 4),
                 Text(
-                  'Uploading PDF… ${(progress! * 100).round()}%',
-                  style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 13),
+                  progress == 0
+                      ? 'Uploading PDF…'
+                      : 'Uploading PDF… ${(progress! * 100).round()}%',
+                  style: TextStyle(
+                    color: LibrarianColors.secondaryText,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -587,7 +735,11 @@ class _PdfStep extends StatelessWidget {
 
 /// Rounded border, solid or dashed (the PDF step in the design is dashed).
 class _BorderPainter extends CustomPainter {
-  const _BorderPainter({required this.color, required this.radius, required this.dashed});
+  const _BorderPainter({
+    required this.color,
+    required this.radius,
+    required this.dashed,
+  });
 
   final Color color;
   final double radius;
@@ -601,7 +753,9 @@ class _BorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)));
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+      );
     if (!dashed) {
       canvas.drawPath(path, paint);
       return;
@@ -629,7 +783,9 @@ class _Spinner extends StatelessWidget {
       dimension: 22,
       child: CircularProgressIndicator(
         strokeWidth: 2.5,
-        color: onPrimary ? Theme.of(context).colorScheme.onPrimary : LibrarianColors.primary,
+        color: onPrimary
+            ? Theme.of(context).colorScheme.onPrimary
+            : LibrarianColors.primary,
       ),
     );
   }

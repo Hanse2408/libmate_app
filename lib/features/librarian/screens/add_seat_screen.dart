@@ -56,7 +56,8 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_repository != null) return;
-    _repository = LibrarianScope.read(context).repository..addListener(_onDataChanged);
+    _repository = LibrarianScope.read(context).repository
+      ..addListener(_onDataChanged);
     _fillForm();
   }
 
@@ -96,7 +97,11 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
     final error = LibrarianValidators.seatNumber(value);
     if (error != null) return error;
     final repository = LibrarianScope.read(context).repository;
-    if (repository.seatNumberExists(value!, _readingRoom.text, exceptSeatId: widget.seatId)) {
+    if (repository.seatNumberExists(
+      value!,
+      _readingRoom.text,
+      exceptSeatId: widget.seatId,
+    )) {
       return 'Seat ${value.trim().toUpperCase()} already exists in this room';
     }
     return null;
@@ -189,7 +194,9 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: LibrarianColors.unavailable),
+            style: FilledButton.styleFrom(
+              backgroundColor: LibrarianColors.unavailable,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -198,11 +205,15 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _saving = true);
-    final result = await LibrarianScope.read(context).repository.deleteSeat(seat.id);
+    final result = await LibrarianScope.read(context).repository
+        .deleteSeat(seat.id);
     if (!mounted) return;
     setState(() => _saving = false);
     if (result.success) {
-      context.go(LibrarianRoutes.seats, extra: 'Seat ${seat.seatNumber} was deleted.');
+      context.go(
+        LibrarianRoutes.seats,
+        extra: 'Seat ${seat.seatNumber} was deleted.',
+      );
     } else {
       _showMessage(result.message!);
     }
@@ -258,7 +269,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
                 savedUrl: _removeImage ? null : _editing?.imageUrl,
                 enabled: repository.supportsImageUpload,
                 disabledReason:
-                    'Seat photos need Firebase Storage (not available with demo data).',
+                    'Seat photo uploads are unavailable with demo data.',
                 uploadProgress: _uploadProgress,
                 onPicked: (image) => setState(() {
                   _image = image;
@@ -294,7 +305,8 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
                       controller: _zone,
                       hint: 'Row D',
                       textCapitalization: TextCapitalization.words,
-                      validator: (v) => LibrarianValidators.required(v, 'Row / zone'),
+                      validator: (v) =>
+                          LibrarianValidators.required(v, 'Row / zone'),
                     ),
                   ),
                 ],
@@ -304,7 +316,8 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
                 controller: _readingRoom,
                 hint: 'Reading Room A',
                 textCapitalization: TextCapitalization.words,
-                validator: (v) => LibrarianValidators.required(v, 'Reading room'),
+                validator: (v) =>
+                    LibrarianValidators.required(v, 'Reading room'),
               ),
               _SeatTypeField(
                 value: _type,

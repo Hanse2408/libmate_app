@@ -77,7 +77,9 @@ void main() {
     await tester.tap(find.text('View Reservation'));
     await tester.pumpAndSettle();
 
-    final screen = tester.widget<MyReservationsScreen>(find.byType(MyReservationsScreen));
+    final screen = tester.widget<MyReservationsScreen>(
+      find.byType(MyReservationsScreen),
+    );
     expect(screen.showSeats, isTrue);
     expect(find.byType(SeatBookingConfirmationScreen), findsNothing);
   });

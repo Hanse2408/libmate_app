@@ -40,10 +40,16 @@ class _FakeAuthRepository implements AuthRepository {
   Stream<User?> get authStateChanges => _controller.stream;
 
   @override
-  Future<User?> signIn({required String email, required String password}) async => null;
+  Future<User?> signIn({
+    required String email,
+    required String password,
+  }) async => null;
 
   @override
-  Future<User?> signUp({required String email, required String password}) async => null;
+  Future<User?> signUp({
+    required String email,
+    required String password,
+  }) async => null;
 
   @override
   Future<void> signOut() async {
@@ -86,7 +92,8 @@ Future<(GoRouter, _FakeAuthRepository)> _pumpApp(WidgetTester tester) async {
   return (router, authRepository);
 }
 
-String _path(GoRouter router) => router.routerDelegate.currentConfiguration.uri.path;
+String _path(GoRouter router) =>
+    router.routerDelegate.currentConfiguration.uri.path;
 
 const _librarianPaths = [
   LibrarianRoutes.dashboard,
@@ -101,7 +108,9 @@ const _librarianPaths = [
 ];
 
 void main() {
-  testWidgets('signed-out users are sent to Login from Librarian routes', (tester) async {
+  testWidgets('signed-out users are sent to Login from Librarian routes', (
+    tester,
+  ) async {
     final (router, _) = await _pumpApp(tester);
     expect(_path(router), AppRoutes.login);
 
@@ -112,27 +121,28 @@ void main() {
     }
   });
 
-  testWidgets('a librarian account opens the Dashboard and every Librarian section', (
-    tester,
-  ) async {
-    final (router, auth) = await _pumpApp(tester);
+  testWidgets(
+    'a librarian account opens the Dashboard and every Librarian section',
+    (tester) async {
+      final (router, auth) = await _pumpApp(tester);
 
-    auth.emitSignedIn(); // Firebase reports a signed-in user with role librarian
-    await tester.pumpAndSettle();
-    expect(_path(router), LibrarianRoutes.dashboard);
-    expect(find.textContaining(', Janith'), findsOneWidget);
-
-    for (final path in _librarianPaths) {
-      router.go(path);
+      auth.emitSignedIn(); // Firebase reports a signed-in user with role librarian
       await tester.pumpAndSettle();
-      expect(_path(router), path);
-    }
+      expect(_path(router), LibrarianRoutes.dashboard);
+      expect(find.textContaining(', Janith'), findsOneWidget);
 
-    // A librarian cannot open another role's area.
-    router.go(AppRoutes.studentHome);
-    await tester.pumpAndSettle();
-    expect(_path(router), LibrarianRoutes.dashboard);
-  });
+      for (final path in _librarianPaths) {
+        router.go(path);
+        await tester.pumpAndSettle();
+        expect(_path(router), path);
+      }
+
+      // A librarian cannot open another role's area.
+      router.go(AppRoutes.studentHome);
+      await tester.pumpAndSettle();
+      expect(_path(router), LibrarianRoutes.dashboard);
+    },
+  );
 
   testWidgets('signing out from Settings returns to Login', (tester) async {
     final (router, auth) = await _pumpApp(tester);
@@ -142,7 +152,11 @@ void main() {
     router.go(LibrarianRoutes.settings);
     await tester.pumpAndSettle();
     final logOut = find.text('Log Out');
-    await tester.scrollUntilVisible(logOut, 300, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      logOut,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.ensureVisible(logOut); // not hidden behind the bottom nav
     await tester.pumpAndSettle();
     await tester.tap(logOut.hitTestable());

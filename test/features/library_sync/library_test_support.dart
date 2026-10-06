@@ -5,14 +5,14 @@ import 'dart:typed_data';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libmate_app/core/services/image_storage_service.dart';
+import 'package:libmate_app/core/services/cloudinary_upload_service.dart';
 import 'package:libmate_app/features/librarian/data/librarian_firestore_repository.dart';
 import 'package:libmate_app/features/student/common/data/student_library_repository.dart';
 
-/// Stands in for Firebase Storage: keeps uploaded files in a map and can be
-/// told to fail, like a missing bucket or a rules refusal.
+/// Keeps uploaded image bytes in memory and can be told to fail.
 class FakeImageStorage implements ImageStorage {
   final Map<String, Uint8List> files = {};
-  final List<String> deleted = [];
+  var _nextId = 0;
 
   /// When set, uploads throw with this message.
   String? failWith;
@@ -21,23 +21,24 @@ class FakeImageStorage implements ImageStorage {
   bool hang = false;
 
   @override
-  Future<String> upload(
-    String path,
+  Future<CloudMediaAsset> upload(
     ImageUpload image, {
     void Function(double progress)? onProgress,
   }) async {
     if (failWith != null) throw ImageStorageException(failWith!);
-    if (hang) return Completer<String>().future;
-    onProgress?.call(0.5);
-    files[path] = image.bytes;
+    if (hang) return Completer<CloudMediaAsset>().future;
+    final publicId = 'seat_images/test-${_nextId++}';
+    files[publicId] = image.bytes;
     onProgress?.call(1);
-    return 'https://storage.test/$path';
-  }
-
-  @override
-  Future<void> delete(String path) async {
-    files.remove(path);
-    deleted.add(path);
+    return CloudMediaAsset(
+      secureUrl:
+          'https://res.cloudinary.com/test/image/upload/$publicId.${image.extension}',
+      publicId: publicId,
+      resourceType: 'image',
+      format: image.extension,
+      sizeBytes: image.bytes.length,
+      fileName: image.fileName,
+    );
   }
 }
 

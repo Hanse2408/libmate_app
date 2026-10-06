@@ -8,7 +8,8 @@ void main() {
 
   setUp(() => repository = LibrarianMockRepository());
 
-  int pendingCount() => repository.reservations.where((r) => r.isPending).length;
+  int pendingCount() =>
+      repository.reservations.where((r) => r.isPending).length;
 
   group('Approving reservations', () {
     test('available book is approved and one copy is taken', () async {
@@ -16,7 +17,10 @@ void main() {
       final result = await repository.approveReservation('RSV-1001');
 
       expect(result.success, isTrue);
-      expect(repository.reservationById('RSV-1001')!.status, ReservationStatus.approved);
+      expect(
+        repository.reservationById('RSV-1001')!.status,
+        ReservationStatus.approved,
+      );
       expect(repository.bookById('B001')!.availableCopies, before - 1);
       expect(pendingCount(), 5);
     });
@@ -56,9 +60,18 @@ void main() {
     });
 
     test('approvalBlocker explains conflicts', () {
-      expect(repository.approvalBlocker(repository.reservationById('RSV-1001')!), isNull);
-      expect(repository.approvalBlocker(repository.reservationById('RSV-1010')!), isNotNull);
-      expect(repository.approvalBlocker(repository.reservationById('RSV-1011')!), isNotNull);
+      expect(
+        repository.approvalBlocker(repository.reservationById('RSV-1001')!),
+        isNull,
+      );
+      expect(
+        repository.approvalBlocker(repository.reservationById('RSV-1010')!),
+        isNotNull,
+      );
+      expect(
+        repository.approvalBlocker(repository.reservationById('RSV-1011')!),
+        isNotNull,
+      );
     });
 
     test('approval marks the related request notification as read', () async {
@@ -70,7 +83,10 @@ void main() {
 
   group('Rejecting reservations', () {
     test('pending reservation is rejected with the reason', () async {
-      final result = await repository.rejectReservation('RSV-1003', 'Duplicate request');
+      final result = await repository.rejectReservation(
+        'RSV-1003',
+        'Duplicate request',
+      );
 
       expect(result.success, isTrue);
       final reservation = repository.reservationById('RSV-1003')!;
@@ -81,8 +97,14 @@ void main() {
 
     test('cannot reject twice or reject an approved reservation', () async {
       await repository.rejectReservation('RSV-1003', 'Duplicate request');
-      expect((await repository.rejectReservation('RSV-1003', 'Again')).success, isFalse);
-      expect((await repository.rejectReservation('RSV-1004', 'No')).success, isFalse);
+      expect(
+        (await repository.rejectReservation('RSV-1003', 'Again')).success,
+        isFalse,
+      );
+      expect(
+        (await repository.rejectReservation('RSV-1004', 'No')).success,
+        isFalse,
+      );
     });
   });
 

@@ -14,28 +14,40 @@ import 'librarian_test_helpers.dart';
 
 /// Light-mode colours that must not appear anywhere in dark mode.
 const _lightText = [Color(0xFF172033), Color(0xFF64748B)];
-const _lightSurfaces = [Color(0xFFFFFFFF), Color(0xFFF8FAFC), Color(0xFFEFF6FF), Color(0xFFE2E8F0)];
+const _lightSurfaces = [
+  Color(0xFFFFFFFF),
+  Color(0xFFF8FAFC),
+  Color(0xFFEFF6FF),
+  Color(0xFFE2E8F0),
+];
 
-LibrarianMockRepository _darkRepository() => LibrarianMockRepository()..setDarkMode(true);
+LibrarianMockRepository _darkRepository() =>
+    LibrarianMockRepository()..setDarkMode(true);
 
 /// Light text or light surfaces currently built on screen.
 List<String> _lightLeftovers(WidgetTester tester) {
   final problems = <String>[];
-  for (final paragraph in tester.renderObjectList<RenderParagraph>(find.byType(RichText))) {
+  for (final paragraph in tester.renderObjectList<RenderParagraph>(
+    find.byType(RichText),
+  )) {
     final color = paragraph.text.style?.color;
     if (color != null && _lightText.contains(color)) {
       problems.add('light text "${paragraph.text.toPlainText()}"');
     }
   }
-  bool isLight(Color? c) => c != null && c.a > 0.9 && _lightSurfaces.contains(c.withValues(alpha: 1));
-  for (final box in tester.widgetList<DecoratedBox>(find.byType(DecoratedBox))) {
+  bool isLight(Color? c) =>
+      c != null && c.a > 0.9 && _lightSurfaces.contains(c.withValues(alpha: 1));
+  for (final box in tester.widgetList<DecoratedBox>(
+    find.byType(DecoratedBox),
+  )) {
     final decoration = box.decoration;
     if (decoration is BoxDecoration && isLight(decoration.color)) {
       problems.add('light box ${decoration.color}');
     }
   }
   for (final material in tester.widgetList<Material>(find.byType(Material))) {
-    if (isLight(material.color)) problems.add('light material ${material.color}');
+    if (isLight(material.color))
+      problems.add('light material ${material.color}');
   }
   return problems;
 }
@@ -62,50 +74,75 @@ void main() {
     expect(LibrarianTheme.dark.brightness, Brightness.dark);
   });
 
-  testWidgets('the Settings switch turns the whole Librarian area dark and back', (tester) async {
-    final router = await pumpLibrarian(tester, LibrarianRoutes.settings, size: const Size(400, 2600));
-    final darkSwitch = find.descendant(
-      of: find.ancestor(of: find.text('Dark Mode'), matching: find.byType(Row)).first,
-      matching: find.byType(Switch),
-    );
-    Color background() =>
-        tester.widget<Scaffold>(find.byType(Scaffold).last).backgroundColor ??
-        Theme.of(tester.element(find.text('Dark Mode'))).scaffoldBackgroundColor;
-    Color textColor(String text) =>
-        tester.renderObject<RenderParagraph>(find.text(text).first).text.style!.color!;
+  testWidgets(
+    'the Settings switch turns the whole Librarian area dark and back',
+    (tester) async {
+      final router = await pumpLibrarian(
+        tester,
+        LibrarianRoutes.settings,
+        size: const Size(400, 2600),
+      );
+      final darkSwitch = find.descendant(
+        of: find
+            .ancestor(of: find.text('Dark Mode'), matching: find.byType(Row))
+            .first,
+        matching: find.byType(Switch),
+      );
+      Color background() =>
+          tester.widget<Scaffold>(find.byType(Scaffold).last).backgroundColor ??
+          Theme.of(tester.element(find.text('Dark Mode')))
+              .scaffoldBackgroundColor;
+      Color textColor(String text) => tester
+          .renderObject<RenderParagraph>(find.text(text).first)
+          .text
+          .style!
+          .color!;
 
-    expect(background(), LibrarianPalette.light.background);
-    expect(textColor('Dark Mode'), LibrarianPalette.light.text);
+      expect(background(), LibrarianPalette.light.background);
+      expect(textColor('Dark Mode'), LibrarianPalette.light.text);
 
-    await tester.tap(darkSwitch);
-    await tester.pumpAndSettle();
-    expect(repositoryOf(tester).darkMode, isTrue);
-    expect(background(), LibrarianPalette.dark.background);
-    expect(textColor('Dark Mode'), LibrarianPalette.dark.text); // rebuilt widgets
-    expect(find.text('Dark'), findsOneWidget); // Theme row value
-    expect(_lightLeftovers(tester), isEmpty);
+      await tester.tap(darkSwitch);
+      await tester.pumpAndSettle();
+      expect(repositoryOf(tester).darkMode, isTrue);
+      expect(background(), LibrarianPalette.dark.background);
+      expect(
+        textColor('Dark Mode'),
+        LibrarianPalette.dark.text,
+      ); // rebuilt widgets
+      expect(find.text('Dark'), findsOneWidget); // Theme row value
+      expect(_lightLeftovers(tester), isEmpty);
 
-    // Other pages are dark too.
-    router.go(LibrarianRoutes.books);
-    await tester.pumpAndSettle();
-    expect(Theme.of(tester.element(find.text('Book Management'))).brightness, Brightness.dark);
-    expect(
-      tester.widget<NavigationBar>(find.byType(NavigationBar)).backgroundColor ??
-          Theme.of(tester.element(find.byType(NavigationBar))).navigationBarTheme.backgroundColor,
-      LibrarianPalette.dark.navBar,
-    );
+      // Other pages are dark too.
+      router.go(LibrarianRoutes.books);
+      await tester.pumpAndSettle();
+      expect(
+        Theme.of(tester.element(find.text('Book Management'))).brightness,
+        Brightness.dark,
+      );
+      expect(
+        tester
+                .widget<NavigationBar>(find.byType(NavigationBar))
+                .backgroundColor ??
+            Theme.of(tester.element(find.byType(NavigationBar)))
+                .navigationBarTheme
+                .backgroundColor,
+        LibrarianPalette.dark.navBar,
+      );
 
-    // And back to light.
-    router.go(LibrarianRoutes.settings);
-    await tester.pumpAndSettle();
-    await tester.tap(darkSwitch);
-    await tester.pumpAndSettle();
-    expect(repositoryOf(tester).darkMode, isFalse);
-    expect(background(), LibrarianPalette.light.background);
-    expect(textColor('Dark Mode'), LibrarianPalette.light.text);
-  });
+      // And back to light.
+      router.go(LibrarianRoutes.settings);
+      await tester.pumpAndSettle();
+      await tester.tap(darkSwitch);
+      await tester.pumpAndSettle();
+      expect(repositoryOf(tester).darkMode, isFalse);
+      expect(background(), LibrarianPalette.light.background);
+      expect(textColor('Dark Mode'), LibrarianPalette.light.text);
+    },
+  );
 
-  testWidgets('a dialog opened in dark mode uses the dark surface', (tester) async {
+  testWidgets('a dialog opened in dark mode uses the dark surface', (
+    tester,
+  ) async {
     await pumpLibrarian(
       tester,
       LibrarianRoutes.settings,
@@ -117,14 +154,24 @@ void main() {
     await tester.pumpAndSettle();
     final dialog = tester.widget<Dialog>(find.byType(Dialog));
     final theme = Theme.of(tester.element(find.byType(Dialog)));
-    expect(dialog.backgroundColor ?? theme.dialogTheme.backgroundColor, LibrarianPalette.dark.card);
+    expect(
+      dialog.backgroundColor ?? theme.dialogTheme.backgroundColor,
+      LibrarianPalette.dark.card,
+    );
     expect(_lightLeftovers(tester), isEmpty);
   });
 
-  testWidgets('control: the colour check does find light colours in light mode', (tester) async {
-    await pumpLibrarian(tester, LibrarianRoutes.dashboard, size: const Size(390, 900));
-    expect(_lightLeftovers(tester), isNotEmpty);
-  });
+  testWidgets(
+    'control: the colour check does find light colours in light mode',
+    (tester) async {
+      await pumpLibrarian(
+        tester,
+        LibrarianRoutes.dashboard,
+        size: const Size(390, 900),
+      );
+      expect(_lightLeftovers(tester), isNotEmpty);
+    },
+  );
 
   // Dark mode must change colours only: every text run keeps the same font,
   // size, weight, letter spacing and line height as in light mode.
@@ -133,7 +180,9 @@ void main() {
     /// span on screen, in order (colours are ignored).
     List<String> typography(WidgetTester tester) {
       final runs = <String>[];
-      for (final paragraph in tester.renderObjectList<RenderParagraph>(find.byType(RichText))) {
+      for (final paragraph in tester.renderObjectList<RenderParagraph>(
+        find.byType(RichText),
+      )) {
         paragraph.text.visitChildren((span) {
           final s = span.style;
           if (span is TextSpan && (span.text ?? '').isNotEmpty) {
@@ -161,7 +210,12 @@ void main() {
         await pumpLibrarian(tester, route, size: const Size(390, 900));
         final light = typography(tester);
         LibrarianColors.palette = LibrarianPalette.light;
-        await pumpLibrarian(tester, route, size: const Size(390, 900), createRepository: _darkRepository);
+        await pumpLibrarian(
+          tester,
+          route,
+          size: const Size(390, 900),
+          createRepository: _darkRepository,
+        );
         await tester.pumpAndSettle();
         final dark = typography(tester);
         // The demo-data banner text is the same in both; compare everything.
@@ -197,9 +251,17 @@ void main() {
     ];
     for (final route in routes) {
       testWidgets(route, (tester) async {
-        await pumpLibrarian(tester, route, size: const Size(390, 900), createRepository: _darkRepository);
+        await pumpLibrarian(
+          tester,
+          route,
+          size: const Size(390, 900),
+          createRepository: _darkRepository,
+        );
         await tester.pumpAndSettle();
-        expect(Theme.of(tester.element(find.byType(NavigationBar))).brightness, Brightness.dark);
+        expect(
+          Theme.of(tester.element(find.byType(NavigationBar))).brightness,
+          Brightness.dark,
+        );
 
         // Check what is built, scrolling down until the end of the page.
         final problems = <String>{..._lightLeftovers(tester)};
@@ -216,39 +278,46 @@ void main() {
   });
 
   group('the choice is saved for the librarian (Firestore)', () {
-    test('switching dark mode is stored in users/{uid} and loaded again', () async {
-      final db = await seededFirestore();
-      final storage = FakeImageStorage();
-      final first = librarianRepo(db, storage);
-      await settle();
-      expect(first.darkMode, isFalse);
+    test(
+      'switching dark mode is stored in users/{uid} and loaded again',
+      () async {
+        final db = await seededFirestore();
+        final storage = FakeImageStorage();
+        final first = librarianRepo(db, storage);
+        await settle();
+        expect(first.darkMode, isFalse);
 
-      expect((await first.setDarkMode(true)).success, isTrue);
-      expect(first.darkMode, isTrue);
-      final profile = (await db.collection('users').doc(librarianUid).get()).data()!;
-      expect(profile['librarianDarkMode'], isTrue);
-      expect(profile['role'], 'librarian'); // nothing else changed
-      first.dispose();
+        expect((await first.setDarkMode(true)).success, isTrue);
+        expect(first.darkMode, isTrue);
+        final profile = (await db.collection('users').doc(librarianUid).get())
+            .data()!;
+        expect(profile['librarianDarkMode'], isTrue);
+        expect(profile['role'], 'librarian'); // nothing else changed
+        first.dispose();
 
-      // Like restarting the app: a new repository reads the saved choice.
-      final reopened = librarianRepo(db, storage);
-      await settle();
-      expect(reopened.darkMode, isTrue);
-      reopened.dispose();
-    });
+        // Like restarting the app: a new repository reads the saved choice.
+        final reopened = librarianRepo(db, storage);
+        await settle();
+        expect(reopened.darkMode, isTrue);
+        reopened.dispose();
+      },
+    );
 
-    test('if saving fails the previous mode is restored and the reason shown', () async {
-      final db = await seededFirestore();
-      final repo = LibrarianFirestoreRepository(
-        firestore: db,
-        imageStorage: FakeImageStorage(),
-        librarianUid: 'missing-user', // no profile document to update
-      );
-      await settle();
-      final result = await repo.setDarkMode(true);
-      expect(result.success, isFalse);
-      expect(repo.darkMode, isFalse);
-      repo.dispose();
-    });
+    test(
+      'if saving fails the previous mode is restored and the reason shown',
+      () async {
+        final db = await seededFirestore();
+        final repo = LibrarianFirestoreRepository(
+          firestore: db,
+          imageStorage: FakeImageStorage(),
+          librarianUid: 'missing-user', // no profile document to update
+        );
+        await settle();
+        final result = await repo.setDarkMode(true);
+        expect(result.success, isFalse);
+        expect(repo.darkMode, isFalse);
+        repo.dispose();
+      },
+    );
   });
 }

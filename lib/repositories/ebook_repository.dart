@@ -37,20 +37,25 @@ class EbookRepository {
   Stream<List<EbookRecord>> watchEbooks() => _service.watchEbooks();
 
   /// Published e-books only (Student side).
-  Stream<List<EbookRecord>> watchPublishedEbooks() => _service.watchPublishedEbooks();
+  Stream<List<EbookRecord>> watchPublishedEbooks() =>
+      _service.watchPublishedEbooks();
 
   /// Downloads the e-book's PDF to the device. Completes only when the file
   /// is saved; otherwise throws EbookDownloadException with the reason.
-  Future<SavedPdf> downloadPdf(EbookRecord ebook, {void Function(double progress)? onProgress}) {
+  Future<SavedPdf> downloadPdf(
+    EbookRecord ebook, {
+    void Function(double progress)? onProgress,
+  }) {
     final downloader = _downloader;
     if (downloader == null) {
       throw const EbookDownloadException('Downloads are not available here.');
     }
     if (!ebook.hasPdf) {
-      throw const EbookDownloadException('No PDF is available for this e-book yet.');
+      throw const EbookDownloadException(
+        'No PDF is available for this e-book yet.',
+      );
     }
     return downloader.download(
-      storagePath: ebook.pdfPath,
       url: ebook.pdfUrl!,
       fileName: _fileNameFor(ebook),
       onProgress: onProgress,
@@ -64,23 +69,22 @@ class EbookRepository {
   }
 
   /// Creates ([isNew]) or updates [ebook]. [newPdf] is uploaded first and
-  /// replaces the current PDF. Publishing needs a PDF; drafts do not.
+  /// replaces the current PDF; [newCover] likewise replaces only the cover.
+  /// Publishing needs a PDF; drafts do not.
   Future<ActionResult> save({
     required EbookRecord ebook,
     required bool isNew,
     PdfFile? newPdf,
+    ImageUpload? newCover,
     void Function(double progress)? onUploadProgress,
   }) async {
     if (ebook.isPublished && !ebook.hasPdf && newPdf == null) {
-      return const ActionResult.failure('Upload the PDF before publishing the e-book.');
+      return const ActionResult.failure(
+        'Upload the PDF before publishing the e-book.',
+      );
     }
 
     final id = isNew ? _service.newId() : ebook.id;
-    String? uploadedPath;
-    // True once the write was sent but not confirmed (offline): Firestore
-    // may still save it later, so the uploaded PDF must be kept.
-    var writeMayArrive = false;
-
     final result = await _run(() async {
       if (ebook.isbn.trim().isNotEmpty &&
           await _service.isbnInUse(ebook.isbn, exceptId: isNew ? null : id)) {
@@ -98,32 +102,55 @@ class EbookRepository {
         publisher: ebook.publisher.trim(),
         publishedYear: ebook.publishedYear,
         pages: ebook.pages,
-        location: ebook.location.trim().isEmpty ? EbookRecord.defaultLocation : ebook.location.trim(),
+        location: ebook.location.trim().isEmpty
+            ? EbookRecord.defaultLocation
+            : ebook.location.trim(),
         coverAsset: ebook.coverAsset,
+        coverPublicId: ebook.coverPublicId,
         pdfUrl: ebook.pdfUrl,
         pdfPath: ebook.pdfPath,
+        pdfPublicId: ebook.pdfPublicId,
+        pdfResourceType: ebook.pdfResourceType,
+        pdfFormat: ebook.pdfFormat,
         pdfFileName: ebook.pdfFileName,
         pdfSizeBytes: ebook.pdfSizeBytes,
         status: ebook.status,
       );
 
+      if (newCover != null) {
+        final cover = await _service
+            .uploadCover(newCover, onProgress: onUploadProgress)
+            .timeout(
+              uploadTimeout,
+              onTimeout: () => throw ImageStorageException(
+                'The cover upload did not finish within ${uploadTimeout.inMinutes} '
+                'minutes. Check your internet connection and try again.',
+              ),
+            );
+        record = record.copyWith(
+          coverAsset: cover.secureUrl,
+          coverPublicId: cover.publicId,
+        );
+      }
+
       if (newPdf != null) {
-        uploadedPath = _service.pdfPathFor(id);
-        final url = await _service
-            .uploadPdf(uploadedPath!, newPdf, onProgress: onUploadProgress)
+        final uploadedAsset = await _service
+            .uploadPdf(newPdf, onProgress: onUploadProgress)
             .timeout(
               uploadTimeout,
               onTimeout: () => throw ImageStorageException(
                 'The PDF upload did not finish within ${uploadTimeout.inMinutes} '
-                'minutes, so nothing was saved. Check your connection and that '
-                'Firebase Storage is enabled.',
+                'minutes. Check your internet connection and try again.',
               ),
             );
         record = record.copyWith(
-          pdfUrl: url,
-          pdfPath: uploadedPath,
-          pdfFileName: newPdf.fileName,
-          pdfSizeBytes: newPdf.sizeBytes,
+          pdfUrl: uploadedAsset.secureUrl,
+          clearPdfPath: true,
+          pdfPublicId: uploadedAsset.publicId,
+          pdfResourceType: uploadedAsset.resourceType,
+          pdfFormat: uploadedAsset.format,
+          pdfFileName: uploadedAsset.fileName,
+          pdfSizeBytes: uploadedAsset.sizeBytes,
         );
       }
 
@@ -133,7 +160,6 @@ class EbookRepository {
       try {
         await write.timeout(writeTimeout);
       } on TimeoutException {
-        writeMayArrive = true;
         throw ActionRefused(
           'Firebase did not confirm the save within ${writeTimeout.inSeconds} '
           'seconds (you may be offline). Check E-book Management before trying again.',
@@ -142,39 +168,23 @@ class EbookRepository {
 
       // Read it back: success is only reported when the document exists.
       final saved = await _service.fetchFromServer(id).timeout(writeTimeout);
-      if (saved == null || saved.pdfPath != record.pdfPath) {
-        throw const ActionRefused('Firebase did not return the saved e-book. Please check the list.');
+      if (saved == null ||
+          saved.pdfUrl != record.pdfUrl ||
+          saved.pdfPublicId != record.pdfPublicId ||
+          saved.coverAsset != record.coverAsset) {
+        throw const ActionRefused(
+          'Firebase did not return the saved e-book. Please check the list.',
+        );
       }
     });
-
-    if (result.success) {
-      // The replaced PDF is no longer used.
-      final oldPath = ebook.pdfPath;
-      if (!isNew && uploadedPath != null && oldPath != null && oldPath != uploadedPath) {
-        await _deleteQuietly(oldPath);
-      }
-    } else if (uploadedPath != null && !writeMayArrive) {
-      // The e-book was not saved: do not leave its new PDF behind.
-      await _deleteQuietly(uploadedPath!);
-    }
     return result;
   }
 
-  /// Deletes the e-book document, then its PDF from Storage.
+  /// Deletes the Firestore reference. Cloudinary assets are not deleted by the
+  /// mobile client because authenticated deletion requires a server secret.
+  /// Unreferenced assets can be cleaned manually in Cloudinary Media Library.
   Future<ActionResult> delete(EbookRecord ebook) async {
-    final removed = await _run(() => _service.delete(ebook.id).timeout(writeTimeout));
-    if (!removed.success) return removed;
-    final path = ebook.pdfPath;
-    if (path == null) return removed;
-    try {
-      await _service.deletePdf(path);
-      return removed;
-    } catch (e) {
-      return ActionResult.failure(
-        '"${ebook.title}" was deleted, but its PDF could not be removed from '
-        'Storage ($e). You can delete $path in the Firebase console.',
-      );
-    }
+    return _run(() => _service.delete(ebook.id).timeout(writeTimeout));
   }
 
   Future<ActionResult> _run(Future<void> Function() action) async {
@@ -188,15 +198,13 @@ class EbookRepository {
     } on FirebaseException catch (e) {
       return ActionResult.failure(describeFirestoreError(e));
     } on TimeoutException {
-      return const ActionResult.failure('Firebase did not respond in time. Please try again.');
+      return const ActionResult.failure(
+        'Firebase did not respond in time. Please try again.',
+      );
     } catch (_) {
-      return const ActionResult.failure('Something went wrong. Please try again.');
+      return const ActionResult.failure(
+        'Something went wrong. Please try again.',
+      );
     }
-  }
-
-  Future<void> _deleteQuietly(String path) async {
-    try {
-      await _service.deletePdf(path);
-    } catch (_) {}
   }
 }

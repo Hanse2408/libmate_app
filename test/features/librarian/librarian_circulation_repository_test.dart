@@ -22,27 +22,47 @@ void main() {
 
     test('filter by status and search', () {
       final loans = repository.borrowings;
-      expect(const BorrowingFilter(status: BorrowingStatus.overdue).apply(loans).length, 4);
-      expect(const BorrowingFilter(query: 'LN-2011').apply(loans).single.memberName, 'Nimali Perera');
+      expect(
+        const BorrowingFilter(status: BorrowingStatus.overdue)
+            .apply(loans)
+            .length,
+        4,
+      );
+      expect(
+        const BorrowingFilter(query: 'LN-2011').apply(loans).single.memberName,
+        'Nimali Perera',
+      );
       expect(const BorrowingFilter(query: 'it23003341').apply(loans).length, 2);
-      expect(const BorrowingFilter(query: '9780262046305').apply(loans).length, 4);
+      expect(
+        const BorrowingFilter(query: '9780262046305').apply(loans).length,
+        4,
+      );
       // Overdue loans are listed first.
-      expect(const BorrowingFilter().apply(loans).first.status, BorrowingStatus.overdue);
+      expect(
+        const BorrowingFilter().apply(loans).first.status,
+        BorrowingStatus.overdue,
+      );
     });
 
-    test('returning a loan puts the copy back; it cannot be returned twice', () async {
-      final copies = repository.bookById('B001')!.availableCopies;
+    test(
+      'returning a loan puts the copy back; it cannot be returned twice',
+      () async {
+        final copies = repository.bookById('B001')!.availableCopies;
 
-      final result = await repository.markBorrowingReturned('LN-2002');
-      expect(result.success, isTrue);
-      expect(repository.borrowingById('LN-2002')!.status, BorrowingStatus.returned);
-      expect(repository.bookById('B001')!.availableCopies, copies + 1);
+        final result = await repository.markBorrowingReturned('LN-2002');
+        expect(result.success, isTrue);
+        expect(
+          repository.borrowingById('LN-2002')!.status,
+          BorrowingStatus.returned,
+        );
+        expect(repository.bookById('B001')!.availableCopies, copies + 1);
 
-      final again = await repository.markBorrowingReturned('LN-2002');
-      expect(again.success, isFalse);
-      expect(again.message, contains('already been returned'));
-      expect(repository.bookById('B001')!.availableCopies, copies + 1);
-    });
+        final again = await repository.markBorrowingReturned('LN-2002');
+        expect(again.success, isFalse);
+        expect(again.message, contains('already been returned'));
+        expect(repository.bookById('B001')!.availableCopies, copies + 1);
+      },
+    );
 
     test('renewing extends the due date by the loan period', () async {
       final before = repository.borrowingById('LN-2011')!;
@@ -54,22 +74,42 @@ void main() {
       expect(after.renewals, 1);
     });
 
-    test('renewal limit, overdue, returned and reserved books are refused', () async {
-      await repository.renewBorrowing('LN-2011');
-      await repository.renewBorrowing('LN-2011');
-      expect((await repository.renewBorrowing('LN-2011')).message, contains('2 times'));
+    test(
+      'renewal limit, overdue, returned and reserved books are refused',
+      () async {
+        await repository.renewBorrowing('LN-2011');
+        await repository.renewBorrowing('LN-2011');
+        expect(
+          (await repository.renewBorrowing('LN-2011')).message,
+          contains('2 times'),
+        );
 
-      expect((await repository.renewBorrowing('LN-2003')).message, contains('Overdue'));
-      expect((await repository.renewBorrowing('LN-1990')).message, contains('returned'));
-      // RSV-1001 is a pending reservation for Clean Code.
-      expect((await repository.renewBorrowing('LN-2001')).message, contains('reserved'));
-    });
+        expect(
+          (await repository.renewBorrowing('LN-2003')).message,
+          contains('Overdue'),
+        );
+        expect(
+          (await repository.renewBorrowing('LN-1990')).message,
+          contains('returned'),
+        );
+        // RSV-1001 is a pending reservation for Clean Code.
+        expect(
+          (await repository.renewBorrowing('LN-2001')).message,
+          contains('reserved'),
+        );
+      },
+    );
 
     test('renewal uses the loan period from Settings', () async {
-      await repository.updateSettings(repository.settings.copyWith(loanPeriodDays: 7));
+      await repository.updateSettings(
+        repository.settings.copyWith(loanPeriodDays: 7),
+      );
       final before = repository.borrowingById('LN-2007')!.dueDate;
       await repository.renewBorrowing('LN-2007');
-      expect(repository.borrowingById('LN-2007')!.dueDate, before.add(const Duration(days: 7)));
+      expect(
+        repository.borrowingById('LN-2007')!.dueDate,
+        before.add(const Duration(days: 7)),
+      );
     });
   });
 
@@ -83,24 +123,64 @@ void main() {
     });
 
     test('search and filters', () {
-      expect(const MemberFilter(query: 'sachini').apply(repository).single.id, 'IT23003341');
-      expect(const MemberFilter(query: 'it23514658@my').apply(repository).single.name, 'Nilumi Dakshika');
-      expect(const MemberFilter(option: MemberFilterOption.overdue).apply(repository).length, 4);
-      expect(const MemberFilter(option: MemberFilterOption.suspended).apply(repository).single.name, 'Amaya Senanayake');
+      expect(
+        const MemberFilter(query: 'sachini').apply(repository).single.id,
+        'IT23003341',
+      );
+      expect(
+        const MemberFilter(query: 'it23514658@my')
+            .apply(repository)
+            .single
+            .name,
+        'Nilumi Dakshika',
+      );
+      expect(
+        const MemberFilter(option: MemberFilterOption.overdue)
+            .apply(repository)
+            .length,
+        4,
+      );
+      expect(
+        const MemberFilter(option: MemberFilterOption.suspended)
+            .apply(repository)
+            .single
+            .name,
+        'Amaya Senanayake',
+      );
     });
 
     test('suspend and reactivate', () async {
-      expect((await repository.updateMemberStatus('IT23004512', MemberStatus.suspended)).success, isTrue);
+      expect(
+        (await repository.updateMemberStatus(
+          'IT23004512',
+          MemberStatus.suspended,
+        )).success,
+        isTrue,
+      );
       expect(repository.memberById('IT23004512')!.isActive, isFalse);
-      expect((await repository.updateMemberStatus('IT23004512', MemberStatus.suspended)).success, isFalse);
-      expect((await repository.updateMemberStatus('IT23004512', MemberStatus.active)).success, isTrue);
+      expect(
+        (await repository.updateMemberStatus(
+          'IT23004512',
+          MemberStatus.suspended,
+        )).success,
+        isFalse,
+      );
+      expect(
+        (await repository.updateMemberStatus(
+          'IT23004512',
+          MemberStatus.active,
+        )).success,
+        isTrue,
+      );
     });
   });
 
   group('Settings', () {
     test('valid changes are saved, invalid ones refused', () async {
       expect(repository.settings.loanPeriodDays, 14);
-      final ok = await repository.updateSettings(repository.settings.copyWith(maxBorrowLimit: 8));
+      final ok = await repository.updateSettings(
+        repository.settings.copyWith(maxBorrowLimit: 8),
+      );
       expect(ok.success, isTrue);
       expect(repository.settings.maxBorrowLimit, 8);
 
@@ -114,7 +194,10 @@ void main() {
 
   group('LibrarianReport', () {
     test('weekly summary values', () {
-      final report = LibrarianReport.fromRepository(repository, ReportPeriod.weekly);
+      final report = LibrarianReport.fromRepository(
+        repository,
+        ReportPeriod.weekly,
+      );
 
       expect(report.totalTitles, 9);
       expect(report.totalCopies, 32);
@@ -126,7 +209,10 @@ void main() {
       expect(report.countFor(report.reservationStatus, 'Approved'), 4);
       expect(report.countFor(report.reservationStatus, 'Rejected'), 1);
       expect(report.occupancyRate, closeTo(8 / 17, 0.001));
-      expect(report.mostReserved.first, (label: 'Introduction to Algorithms', count: 2));
+      expect(report.mostReserved.first, (
+        label: 'Introduction to Algorithms',
+        count: 2,
+      ));
       expect(report.countFor(report.bookingPeriods, 'Morning'), 2);
       expect(report.countFor(report.bookingPeriods, 'Afternoon'), 5);
       expect(report.activity.length, 7);
@@ -134,15 +220,24 @@ void main() {
     });
 
     test('monthly view covers 4 weeks', () {
-      final report = LibrarianReport.fromRepository(repository, ReportPeriod.monthly);
+      final report = LibrarianReport.fromRepository(
+        repository,
+        ReportPeriod.monthly,
+      );
       expect(report.activity.length, 4);
       expect(report.returnedInPeriod, 4);
-      expect(report.mostBorrowed.first, (label: 'Introduction to Algorithms', count: 4));
+      expect(report.mostBorrowed.first, (
+        label: 'Introduction to Algorithms',
+        count: 4,
+      ));
     });
 
     test('reflects changes in the repository', () async {
       await repository.markBorrowingReturned('LN-2003');
-      final report = LibrarianReport.fromRepository(repository, ReportPeriod.weekly);
+      final report = LibrarianReport.fromRepository(
+        repository,
+        ReportPeriod.weekly,
+      );
       expect(report.overdueLoans, 3);
       expect(report.returnedInPeriod, 2);
     });

@@ -11,7 +11,7 @@ import 'librarian_repository.dart';
 
 /// Chooses where Librarian data comes from.
 ///
-/// By default the app uses Firebase (Firestore + Storage), so changes are
+/// By default the app uses Firebase Firestore and Cloudinary for media, so changes are
 /// saved and shared with students. Demo data is only used when the app is
 /// started with `flutter run --dart-define=LIBMATE_DEMO_DATA=true`; the
 /// Librarian screens then show a "Demo data" banner. A failed Firebase write
@@ -25,18 +25,19 @@ class LibrarianDataSource {
     if (useDemoData) return LibrarianMockRepository();
     return LibrarianFirestoreRepository(
       firestore: FirebaseFirestore.instance,
-      imageStorage: FirebaseImageStorage(),
+      imageStorage: CloudinaryImageStorage(),
       librarianUid: authProvider.user?.uid ?? '',
     );
   }
 
-  /// E-books are always stored in Firebase (`ebooks` + Storage PDFs).
+  /// E-book records are stored in Firestore and PDFs in Cloudinary.
   static EbookProvider createEbooks(AuthProvider authProvider) {
     return EbookProvider(
       EbookRepository(
         service: EbookService(
           firestore: FirebaseFirestore.instance,
-          files: FirebaseEbookFileStorage(),
+          files: CloudinaryEbookFileStorage(),
+          images: CloudinaryImageStorage(),
         ),
         librarianUid: authProvider.user?.uid ?? '',
       ),

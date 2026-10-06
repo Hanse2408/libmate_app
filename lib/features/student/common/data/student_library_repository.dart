@@ -67,16 +67,21 @@ class StudentLibraryRepository extends ChangeNotifier {
 
   /// E-books (published, from the shared `ebooks` collection) and PDF
   /// downloads. Created the first time an e-book screen is opened.
-  StudentEbookProvider get ebooks => _ebooks ??= (_createEbooks ?? _defaultEbooks)();
+  StudentEbookProvider get ebooks =>
+      _ebooks ??= (_createEbooks ?? _defaultEbooks)();
 
   StudentEbookProvider _defaultEbooks() {
     return StudentEbookProvider(
       EbookRepository(
-        service: EbookService(firestore: _db, files: FirebaseEbookFileStorage()),
+        service: EbookService(
+          firestore: _db,
+          files: CloudinaryEbookFileStorage(),
+        ),
         downloader: createEbookDownloader(),
       ),
     );
   }
+
   bool _disposed = false;
   List<StudentNotification> _notifications = const [];
 
@@ -100,7 +105,8 @@ class StudentLibraryRepository extends ChangeNotifier {
   /// This student's notifications, newest first.
   List<StudentNotification> get notifications => _notifications;
 
-  int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
+  int get unreadNotificationCount =>
+      _notifications.where((n) => !n.isRead).length;
 
   bool get isLoading => _waiting.isNotEmpty;
 
@@ -126,9 +132,7 @@ class StudentLibraryRepository extends ChangeNotifier {
   /// The student's pending or approved reservation of [bookId], if any.
   ReservationRecord? activeReservationForBook(String bookId) {
     for (final r in _myReservations) {
-      if (r.type == ReservationType.book &&
-          r.itemId == bookId &&
-          r.isActive) {
+      if (r.type == ReservationType.book && r.itemId == bookId && r.isActive) {
         return r;
       }
     }
@@ -141,17 +145,12 @@ class StudentLibraryRepository extends ChangeNotifier {
     _watch(_col(FirestoreCollections.books), 'books', (docs) {
       _books = [
         for (final d in docs) BookRecord.fromMap(d.id, d.data()),
-      ]..sort(
-          (a, b) => a.title.toLowerCase().compareTo(
-                b.title.toLowerCase(),
-              ),
-        );
+      ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     });
 
     _watch(_col(FirestoreCollections.seats), 'seats', (docs) {
-      _seats = [
-        for (final d in docs) SeatRecord.fromMap(d.id, d.data()),
-      ]..sort((a, b) {
+      _seats = [for (final d in docs) SeatRecord.fromMap(d.id, d.data())]
+        ..sort((a, b) {
           final room = a.readingRoom.compareTo(b.readingRoom);
           return room != 0 ? room : a.seatNumber.compareTo(b.seatNumber);
         });
@@ -164,9 +163,7 @@ class StudentLibraryRepository extends ChangeNotifier {
       (docs) {
         _myReservations = [
           for (final d in docs) ReservationRecord.fromMap(d.id, d.data()),
-        ]..sort(
-            (a, b) => b.requestedAt.compareTo(a.requestedAt),
-          );
+        ]..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
       },
     );
 
@@ -187,35 +184,26 @@ class StudentLibraryRepository extends ChangeNotifier {
       _col(FirestoreCollections.settings)
           .doc(FirestoreCollections.librarySettingsDoc)
           .snapshots()
-          .listen(
-        (snapshot) {
-          _settings = LibrarianSettings.fromMap(
-            snapshot.data() ?? const {},
-          );
-          _received('settings');
-        },
-        onError: (Object error) => _failed('settings', error),
-      ),
+          .listen((snapshot) {
+            _settings = LibrarianSettings.fromMap(snapshot.data() ?? const {});
+            _received('settings');
+          }, onError: (Object error) => _failed('settings', error)),
     );
   }
 
   void _watch(
     Query<Map<String, dynamic>> query,
     String name,
-    void Function(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-    ) onData,
+    void Function(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs)
+    onData,
   ) {
     _waiting.add(name);
 
     _subscriptions.add(
-      query.snapshots().listen(
-        (snapshot) {
-          onData(snapshot.docs);
-          _received(name);
-        },
-        onError: (Object error) => _failed(name, error),
-      ),
+      query.snapshots().listen((snapshot) {
+        onData(snapshot.docs);
+        _received(name);
+      }, onError: (Object error) => _failed(name, error)),
     );
   }
 
@@ -230,8 +218,9 @@ class StudentLibraryRepository extends ChangeNotifier {
     if (_disposed) return;
     _waiting.remove(name);
 
-    final reason =
-        error is FirebaseException ? describeFirestoreError(error) : '';
+    final reason = error is FirebaseException
+        ? describeFirestoreError(error)
+        : '';
 
     _loadError = 'Could not load $name. $reason'.trim();
 
@@ -241,18 +230,12 @@ class StudentLibraryRepository extends ChangeNotifier {
   /// Seat-hours already booked on [day] (by anyone), as slot ids. Students
   /// see only which seat and hour is taken, not who booked it.
   Stream<Set<String>> bookedSlotIds(DateTime day) {
-    final date = Timestamp.fromDate(
-      DateTime(day.year, day.month, day.day),
-    );
+    final date = Timestamp.fromDate(DateTime(day.year, day.month, day.day));
 
     return _col(FirestoreCollections.seatSlots)
         .where('date', isEqualTo: date)
         .snapshots()
-        .map(
-          (snapshot) => {
-            for (final d in snapshot.docs) d.id,
-          },
-        );
+        .map((snapshot) => {for (final d in snapshot.docs) d.id});
   }
 
   void _stopListening() {
@@ -281,10 +264,13 @@ class StudentLibraryRepository extends ChangeNotifier {
   /// Marks one of this student's notifications as read (already read: no-op).
   Future<ActionResult> markNotificationRead(String id) async {
     final notification = _notifications.where((n) => n.id == id).firstOrNull;
-    if (notification == null) return const ActionResult.failure('Notification not found.');
+    if (notification == null)
+      return const ActionResult.failure('Notification not found.');
     if (notification.isRead) return const ActionResult.success();
     return _run(() async {
-      await _col(FirestoreCollections.notifications).doc(id).update({'isRead': true});
+      await _col(FirestoreCollections.notifications)
+          .doc(id)
+          .update({'isRead': true});
       return null;
     });
   }
@@ -296,7 +282,9 @@ class StudentLibraryRepository extends ChangeNotifier {
     return _run(() async {
       final batch = _db.batch();
       for (final n in unread) {
-        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {'isRead': true});
+        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {
+          'isRead': true,
+        });
       }
       await batch.commit();
       return null;
@@ -346,21 +334,9 @@ class StudentLibraryRepository extends ChangeNotifier {
 
     final now = DateTime.now();
 
-    final start = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      startHour,
-    );
+    final start = DateTime(date.year, date.month, date.day, startHour);
 
-    if (start.isBefore(
-      DateTime(
-        now.year,
-        now.month,
-        now.day,
-        now.hour,
-      ),
-    )) {
+    if (start.isBefore(DateTime(now.year, now.month, now.day, now.hour))) {
       return 'This time has already passed.';
     }
 
@@ -372,12 +348,7 @@ class StudentLibraryRepository extends ChangeNotifier {
       return 'Seat ${seat.seatNumber} is occupied right now.';
     }
 
-    final wanted = SeatSlots.ids(
-      seat.id,
-      date,
-      startHour,
-      endHour,
-    );
+    final wanted = SeatSlots.ids(seat.id, date, startHour, endHour);
 
     if (wanted.any(bookedSlots.contains)) {
       return 'Seat ${seat.seatNumber} is already booked at this time.';
@@ -410,12 +381,6 @@ class StudentLibraryRepository extends ChangeNotifier {
           (r.startHour ?? 0) < endHour &&
           startHour < (r.endHour ?? 0),
     );
-
-    if (clash) {
-      return 'You already have a seat booked at this time.';
-    }
-
-    return null;
   }
 
   // ---------------- Actions ----------------
@@ -447,25 +412,16 @@ class StudentLibraryRepository extends ChangeNotifier {
         );
 
         if (!bookSnap.exists) {
-          throw const ActionRefused(
-            'This book is no longer in the catalogue.',
-          );
+          throw const ActionRefused('This book is no longer in the catalogue.');
         }
 
-        final latest = BookRecord.fromMap(
-          book.id,
-          bookSnap.data()!,
-        );
+        final latest = BookRecord.fromMap(book.id, bookSnap.data()!);
 
         if (!latest.isAvailable) {
-          throw const ActionRefused(
-            'No copies are available right now.',
-          );
+          throw const ActionRefused('No copies are available right now.');
         }
 
-        final ref = _col(
-          FirestoreCollections.reservations,
-        ).doc();
+        final ref = _col(FirestoreCollections.reservations).doc();
 
         // Store the ID of the reservation just created.
         createdReservationId = ref.id;
@@ -491,10 +447,7 @@ class StudentLibraryRepository extends ChangeNotifier {
 
         tx.set(
           _col(FirestoreCollections.notifications).doc(),
-          _newRequest(
-            '${student.name} requested "${latest.title}".',
-            ref.id,
-          ),
+          _newRequest('${student.name} requested "${latest.title}".', ref.id),
         );
         tx.set(
           _col(FirestoreCollections.notifications).doc(),
@@ -502,7 +455,8 @@ class StudentLibraryRepository extends ChangeNotifier {
             recipientUid: student.uid,
             type: StudentNotificationType.reservationRequested,
             title: 'Reservation Requested',
-            message: 'Your request for "${latest.title}" was sent. '
+            message:
+                'Your request for "${latest.title}" was sent. '
                 'You will be notified when a librarian approves it.',
             reservationId: ref.id,
             itemId: latest.id,
@@ -516,62 +470,54 @@ class StudentLibraryRepository extends ChangeNotifier {
   }
 
   /// Updates the student's own active book reservation.
-Future<ActionResult> updateBookReservation({
-  required String reservationId,
-  required DateTime pickupDate,
-  required String pickupLocation,
-  required int loanPeriodDays,
-  required String notes,
-}) {
-  return _run(() async {
-    await _db.runTransaction((tx) async {
-      final ref = _col(
-        FirestoreCollections.reservations,
-      ).doc(reservationId);
+  Future<ActionResult> updateBookReservation({
+    required String reservationId,
+    required DateTime pickupDate,
+    required String pickupLocation,
+    required int loanPeriodDays,
+    required String notes,
+  }) {
+    return _run(() async {
+      await _db.runTransaction((tx) async {
+        final ref = _col(FirestoreCollections.reservations).doc(reservationId);
 
-      final snap = await tx.get(ref);
+        final snap = await tx.get(ref);
 
-      if (!snap.exists) {
-        throw const ActionRefused(
-          'Reservation not found.',
+        if (!snap.exists) {
+          throw const ActionRefused('Reservation not found.');
+        }
+
+        final reservation = ReservationRecord.fromMap(
+          reservationId,
+          snap.data()!,
         );
-      }
 
-      final reservation = ReservationRecord.fromMap(
-        reservationId,
-        snap.data()!,
-      );
+        if (reservation.studentUid != student.uid) {
+          throw const ActionRefused('This is not your reservation.');
+        }
 
-      if (reservation.studentUid != student.uid) {
-        throw const ActionRefused(
-          'This is not your reservation.',
-        );
-      }
+        if (reservation.type != ReservationType.book) {
+          throw const ActionRefused(
+            'Only book reservations can be modified here.',
+          );
+        }
 
-      if (reservation.type != ReservationType.book) {
-        throw const ActionRefused(
-          'Only book reservations can be modified here.',
-        );
-      }
+        if (!reservation.isActive) {
+          throw const ActionRefused('This reservation is no longer active.');
+        }
 
-      if (!reservation.isActive) {
-        throw const ActionRefused(
-          'This reservation is no longer active.',
-        );
-      }
-
-      tx.update(ref, {
-        'date': Timestamp.fromDate(pickupDate),
-        'pickupLocation': pickupLocation,
-        'loanPeriodDays': loanPeriodDays,
-        'notes': notes.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        tx.update(ref, {
+          'date': Timestamp.fromDate(pickupDate),
+          'pickupLocation': pickupLocation,
+          'loanPeriodDays': loanPeriodDays,
+          'notes': notes.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
-    });
 
-    return null;
-  });
-}
+      return null;
+    });
+  }
 
   /// Books [seat] for [startHour]–[endHour] on [date]. Seat bookings need no
   /// librarian approval: the reservation is confirmed (approved) at once and
@@ -584,27 +530,15 @@ Future<ActionResult> updateBookReservation({
     required int startHour,
     required int endHour,
   }) async {
-    final blocker = seatBookingBlocker(
-      seat,
-      date,
-      startHour,
-      endHour,
-    );
+    final blocker = seatBookingBlocker(seat, date, startHour, endHour);
 
     if (blocker != null) {
       return ActionResult.failure(blocker);
     }
 
-    final day = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    final day = DateTime(date.year, date.month, date.day);
 
-    final slotLabel = ReservationRecord.slotLabel(
-      startHour,
-      endHour,
-    );
+    final slotLabel = ReservationRecord.slotLabel(startHour, endHour);
 
     return _run(() async {
       await _checkNoSeatClash(date, startHour, endHour);
@@ -618,15 +552,10 @@ Future<ActionResult> updateBookReservation({
         );
 
         if (!seatSnap.exists) {
-          throw const ActionRefused(
-            'This seat no longer exists.',
-          );
+          throw const ActionRefused('This seat no longer exists.');
         }
 
-        final latest = SeatRecord.fromMap(
-          seat.id,
-          seatSnap.data()!,
-        );
+        final latest = SeatRecord.fromMap(seat.id, seatSnap.data()!);
 
         if (latest.status == SeatStatus.maintenance ||
             (_isToday(day) && latest.status == SeatStatus.occupied)) {
@@ -637,12 +566,7 @@ Future<ActionResult> updateBookReservation({
         }
 
         final slotRefs = [
-          for (final id in SeatSlots.ids(
-            seat.id,
-            day,
-            startHour,
-            endHour,
-          ))
+          for (final id in SeatSlots.ids(seat.id, day, startHour, endHour))
             _col(FirestoreCollections.seatSlots).doc(id),
         ];
 
@@ -655,9 +579,7 @@ Future<ActionResult> updateBookReservation({
           }
         }
 
-        final ref = _col(
-          FirestoreCollections.reservations,
-        ).doc();
+        final ref = _col(FirestoreCollections.reservations).doc();
 
         createdReservationId = ref.id;
 
@@ -666,7 +588,7 @@ Future<ActionResult> updateBookReservation({
           ReservationRecord(
             id: ref.id,
             type: ReservationType.seat,
-            status: ReservationStatus.pending,
+            status: ReservationStatus.approved,
             studentUid: student.uid,
             studentId: student.studentId,
             studentName: student.name,
@@ -688,14 +610,6 @@ Future<ActionResult> updateBookReservation({
             'studentUid': student.uid,
           });
         }
-
-        tx.set(
-          _col(FirestoreCollections.notifications).doc(),
-          _newRequest(
-            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
-            ref.id,
-          ),
-        );
       });
 
       return createdReservationId;
@@ -749,7 +663,9 @@ Future<ActionResult> updateBookReservation({
           throw const ActionRefused('This is not your reservation.');
         }
         if (current.type != ReservationType.seat) {
-          throw const ActionRefused('Only seat reservations can be modified here.');
+          throw const ActionRefused(
+            'Only seat reservations can be modified here.',
+          );
         }
         if (current.status != ReservationStatus.approved) {
           throw ActionRefused(
@@ -760,7 +676,9 @@ Future<ActionResult> updateBookReservation({
           throw const ActionRefused('This seat booking has already ended.');
         }
 
-        final seatSnap = await tx.get(_col(FirestoreCollections.seats).doc(seat.id));
+        final seatSnap = await tx.get(
+          _col(FirestoreCollections.seats).doc(seat.id),
+        );
         if (!seatSnap.exists) {
           throw const ActionRefused('This seat no longer exists.');
         }
@@ -785,13 +703,16 @@ Future<ActionResult> updateBookReservation({
         final toClaim = newIds.where((id) => !oldIds.contains(id)).toList();
         final toRelease = oldIds.where((id) => !newIds.contains(id)).toList();
 
-        if (toClaim.isEmpty && toRelease.isEmpty && latest.id == current.itemId) {
+        if (toClaim.isEmpty &&
+            toRelease.isEmpty &&
+            latest.id == current.itemId) {
           return; // nothing changed
         }
 
         // All reads come before any write.
         final claimRefs = [
-          for (final id in toClaim) _col(FirestoreCollections.seatSlots).doc(id),
+          for (final id in toClaim)
+            _col(FirestoreCollections.seatSlots).doc(id),
         ];
         for (final slotRef in claimRefs) {
           if ((await tx.get(slotRef)).exists) {
@@ -833,27 +754,18 @@ Future<ActionResult> updateBookReservation({
   Future<ActionResult> cancelReservation(String id) {
     return _run(() async {
       await _db.runTransaction((tx) async {
-        final ref = _col(
-          FirestoreCollections.reservations,
-        ).doc(id);
+        final ref = _col(FirestoreCollections.reservations).doc(id);
 
         final snap = await tx.get(ref);
 
         if (!snap.exists) {
-          throw const ActionRefused(
-            'Reservation not found.',
-          );
+          throw const ActionRefused('Reservation not found.');
         }
 
-        final reservation = ReservationRecord.fromMap(
-          id,
-          snap.data()!,
-        );
+        final reservation = ReservationRecord.fromMap(id, snap.data()!);
 
         if (reservation.studentUid != student.uid) {
-          throw const ActionRefused(
-            'This is not your reservation.',
-          );
+          throw const ActionRefused('This is not your reservation.');
         }
 
         if (!reservation.isActive) {
@@ -864,9 +776,7 @@ Future<ActionResult> updateBookReservation({
         }
 
         if (reservation.type == ReservationType.seat && reservation.hasEnded) {
-          throw const ActionRefused(
-            'This seat booking has already ended.',
-          );
+          throw const ActionRefused('This seat booking has already ended.');
         }
 
         if (reservation.type == ReservationType.book &&
@@ -895,9 +805,7 @@ Future<ActionResult> updateBookReservation({
             start,
             end,
           )) {
-            tx.delete(
-              _col(FirestoreCollections.seatSlots).doc(slotId),
-            );
+            tx.delete(_col(FirestoreCollections.seatSlots).doc(slotId));
           }
         }
 
@@ -918,7 +826,8 @@ Future<ActionResult> updateBookReservation({
             recipientUid: student.uid,
             type: StudentNotificationType.reservationCancelled,
             title: 'Reservation Cancelled',
-            message: 'You cancelled your reservation for ${reservation.itemName}.',
+            message:
+                'You cancelled your reservation for ${reservation.itemName}.',
             reservationId: id,
             itemId: reservation.itemId,
           ),
@@ -932,21 +841,15 @@ Future<ActionResult> updateBookReservation({
 
   // ---------------- Helpers ----------------
 
-  Future<ActionResult> _run(
-    Future<String?> Function() action,
-  ) async {
+  Future<ActionResult> _run(Future<String?> Function() action) async {
     try {
       final reservationId = await action();
 
-      return ActionResult.success(
-        reservationId: reservationId,
-      );
+      return ActionResult.success(reservationId: reservationId);
     } on ActionRefused catch (e) {
       return ActionResult.failure(e.message);
     } on FirebaseException catch (e) {
-      return ActionResult.failure(
-        describeFirestoreError(e),
-      );
+      return ActionResult.failure(describeFirestoreError(e));
     } catch (_) {
       return const ActionResult.failure(
         'Something went wrong. Please try again.',
@@ -974,12 +877,7 @@ Future<ActionResult> updateBookReservation({
         .get();
 
     final duplicate = mine.docs
-        .map(
-          (d) => ReservationRecord.fromMap(
-            d.id,
-            d.data(),
-          ),
-        )
+        .map((d) => ReservationRecord.fromMap(d.id, d.data()))
         .any(
           (r) =>
               r.type == ReservationType.book &&
@@ -1016,8 +914,12 @@ Future<ActionResult> updateBookReservation({
               (r.startHour ?? 0) < endHour &&
               startHour < (r.endHour ?? 0),
         );
-    if (clash) throw const ActionRefused('You already have a seat booked at this time.');
+    if (clash) {
+      throw const ActionRefused('You already have a seat booked at this time.');
+    }
   }
+
+  Map<String, dynamic> _newRequest(String message, String reservationId) {
     return LibrarianNotification(
       id: '',
       type: LibrarianNotificationType.newRequest,
@@ -1028,14 +930,10 @@ Future<ActionResult> updateBookReservation({
     ).toMap();
   }
 
-  static bool _isToday(DateTime date) =>
-      _sameDay(date, DateTime.now());
+  static bool _isToday(DateTime date) => _sameDay(date, DateTime.now());
 
   static bool _sameDay(DateTime a, DateTime b) =>
-      a.year == b.year &&
-      a.month == b.month &&
-      a.day == b.day;
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-  static String _hh(int hour) =>
-      '${hour.toString().padLeft(2, '0')}:00';
+  static String _hh(int hour) => '${hour.toString().padLeft(2, '0')}:00';
 }

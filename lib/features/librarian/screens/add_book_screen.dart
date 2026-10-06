@@ -3,14 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../../../core/services/image_storage_service.dart';
 import '../data/librarian_repository.dart';
 import '../models/action_result.dart';
 import '../models/book_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_validators.dart';
-import '../widgets/book_cover_asset_field.dart';
+import '../widgets/book_cover.dart';
 import '../widgets/form_action_buttons.dart';
+import '../widgets/image_upload_field.dart';
 import '../widgets/info_section_card.dart';
 import '../widgets/labeled_text_field.dart';
 import '../widgets/librarian_empty_state.dart';
@@ -44,8 +46,12 @@ class _AddBookScreenState extends State<AddBookScreen> {
   LibrarianRepository? _repository;
   BookRecord? _editing;
 
-  /// Chosen cover image in assets/images/books/ (saved as `coverAsset`).
+  /// Saved cover (Cloudinary URL or older asset path); null when removed.
   String? _coverAsset;
+
+  /// Newly picked cover, uploaded when the form is saved.
+  ImageUpload? _coverImage;
+  double? _uploadProgress;
   bool _saving = false;
 
   bool get _isEdit => widget.bookId != null;
@@ -121,6 +127,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _onUploadProgress(double value) {
+    if (mounted) setState(() => _uploadProgress = value);
+  }
+
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
 
@@ -129,7 +139,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
     final copies = int.parse(_copies.text.trim());
     final publishedYear = int.tryParse(_year.text.trim()) ?? 0;
     final pages = int.tryParse(_pages.text.trim()) ?? 0;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _uploadProgress = _coverImage == null ? null : 0;
+    });
 
     ActionResult result;
     try {
@@ -145,6 +158,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
           totalCopies: copies,
           description: _description.text,
           coverAsset: _coverAsset,
+          coverImage: _coverImage,
+          onUploadProgress: _onUploadProgress,
           publisher: _publisher.text,
           publishedYear: publishedYear,
           pages: pages,
@@ -160,6 +175,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
           totalCopies: copies,
           description: _description.text,
           coverAsset: _coverAsset,
+          coverImage: _coverImage,
+          onUploadProgress: _onUploadProgress,
           publisher: _publisher.text,
           publishedYear: publishedYear,
           pages: pages,
@@ -170,7 +187,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
     } finally {
       // Always stop the spinner, whatever happened.
       if (mounted) {
-        setState(() => _saving = false);
+        setState(() {
+          _saving = false;
+          _uploadProgress = null;
+        });
       }
     }
     if (!mounted) return;
@@ -257,11 +277,26 @@ class _AddBookScreenState extends State<AddBookScreen> {
           header,
           InfoSectionCard(
             children: [
-              BookCoverAssetField(
-                title: _title.text.trim(),
-                coverAsset: _coverAsset,
-                enabled: !_saving,
-                onChanged: (path) => setState(() => _coverAsset = path),
+              ImageUploadField(
+                label: 'Book Cover',
+                previewSize: const Size(120, 160),
+                placeholder: BookCover(
+                  title: _title.text.trim(),
+                  width: 120,
+                  height: 160,
+                ),
+                picked: _coverImage,
+                savedUrl: _coverAsset,
+                enabled: repository.supportsImageUpload,
+                disabledReason: 'Cover uploads are unavailable with demo data.',
+                uploadProgress: _uploadProgress,
+                chooseLabel: 'Choose Cover',
+                replaceLabel: 'Change Cover',
+                onPicked: (image) => setState(() => _coverImage = image),
+                onRemove: () => setState(() {
+                  _coverImage = null;
+                  _coverAsset = null;
+                }),
               ),
             ],
           ),
