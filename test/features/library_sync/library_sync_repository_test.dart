@@ -336,18 +336,27 @@ void main() {
       other.dispose();
     });
 
-    test('a seat booking waits for librarian approval and alerts the librarian', () async {
+    test('a seat booking is confirmed at once, with no librarian approval', () async {
       final seat = await addSeat('A01');
       final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       expect(result.success, isTrue, reason: result.message);
       await settle();
 
-      final booking = (await db.collection('reservations').get()).docs.single.data();
-      expect(booking['type'], 'seat');
-      expect(booking['status'], 'pending');
-      expect(student.myReservations.single.status, ReservationStatus.pending);
-      expect(librarian.reservations.single.itemId, seat.id); // librarian sees it
-      expect(librarian.notifications.first.title, 'New Reservation Request');
+      final doc = (await db.collection('reservations').get()).docs.single;
+      expect(result.reservationId, doc.id); // the exact reservation created
+      expect(doc.data()['type'], 'seat');
+      expect(doc.data()['status'], 'approved');
+      expect(student.myReservations.single.status, ReservationStatus.approved);
+      expect(librarian.reservations.single.itemId, seat.id);
+
+      // One slot per booked hour, linked to the reservation.
+      final slots = (await db.collection('seatSlots').get()).docs;
+      expect(slots, hasLength(2));
+      expect(slots.every((s) => s.data()['reservationId'] == doc.id), isTrue);
+
+      // No "waiting for approval" notification for either side.
+      expect(librarian.notifications.any((n) => n.title == 'New Reservation Request'), isFalse);
+      expect(student.notifications, isEmpty);
     });
 
     test('a student cannot hold two seats at the same time', () async {

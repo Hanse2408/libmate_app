@@ -14,6 +14,7 @@ import 'package:libmate_app/features/librarian/widgets/book_list_tile.dart';
 import 'package:libmate_app/features/student/book_reservation/screens/book_details_screen.dart';
 import 'package:libmate_app/features/student/book_reservation/screens/find_books_screen.dart';
 import 'package:libmate_app/features/student/book_reservation/screens/my_reservations_screen.dart';
+import 'package:libmate_app/features/student/seat_booking/screens/seat_booking_confirmation_screen.dart';
 import 'package:libmate_app/features/student/seat_booking/screens/seat_booking_screen.dart';
 import 'package:libmate_app/features/student/seat_booking/widgets/booking_details_card.dart';
 import 'package:libmate_app/models/reservation.dart' as shared;
@@ -259,12 +260,19 @@ void main() {
 
     await tester.tap(bookButton);
     await tester.pumpAndSettle();
-    expect(find.text('Seat requested. It is waiting for librarian approval.'), findsOneWidget);
-    final booking = (await db.collection('reservations').get()).docs.single.data();
+    final bookingDoc = (await db.collection('reservations').get()).docs.single;
+    final booking = bookingDoc.data();
     expect(booking['type'], 'seat');
-    expect(booking['status'], 'pending'); // waits for the librarian
+    expect(booking['status'], 'approved'); // no librarian approval
     expect(booking['itemId'], seatDoc.id);
     expect(booking['studentUid'], studentUid);
+
+    // H01 opens H02 with the booking that was just made.
+    expect(find.byType(SeatBookingConfirmationScreen), findsOneWidget);
+    expect(find.text('Seat booked successfully!'), findsOneWidget);
+    expect(find.text(bookingDoc.id), findsOneWidget);
+    expect(find.textContaining('approval'), findsNothing);
+    expect((await db.collection('reservations').get()).docs, hasLength(1));
   });
 
   testWidgets('a seat-hour taken by another student is shown as booked', (tester) async {

@@ -125,14 +125,16 @@ service cloud.firestore {
       allow read: if isStaff()
         || (signedIn() && resource.data.studentUid == request.auth.uid);
 
-      // A student creates a reservation for themselves. Book requests and
-      // seat bookings start pending until a librarian approves or rejects them.
+      // A student creates a reservation for themselves. Book requests start
+      // pending until a librarian approves or rejects them; seat bookings need
+      // no approval and are created already approved (shown as "Confirmed").
       allow create: if isActiveStudent()
         && request.resource.data.studentUid == request.auth.uid
-        && request.resource.data.status == 'pending'
         && ((request.resource.data.type == 'book'
+              && request.resource.data.status == 'pending'
               && exists(/databases/$(database)/documents/books/$(request.resource.data.itemId)))
           || (request.resource.data.type == 'seat'
+              && request.resource.data.status == 'approved'
               && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))));
 
       // Staff approve / reject / complete. A student may only cancel their

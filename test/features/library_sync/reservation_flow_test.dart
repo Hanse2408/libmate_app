@@ -224,25 +224,26 @@ void main() {
       expect(student.seatById(seat.id)!.seatNumber, 'A01');
     });
 
-    test('a seat request is seen by the librarian; approval reaches the student', () async {
+    test('a seat booking is confirmed at once and the librarian sees it', () async {
       final seat = await addSeat();
       final booked = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       expect(booked.success, isTrue, reason: booked.message);
       await settle();
 
       final request = librarian.reservations.single;
+      expect(request.id, booked.reservationId);
       expect(request.type, ReservationType.seat);
-      expect(request.status, ReservationStatus.pending);
+      expect(request.status, ReservationStatus.approved);
       expect(request.timeSlot, '10:00 - 12:00');
-
-      expect((await librarian.approveReservation(request.id)).success, isTrue);
-      await settle();
       expect(student.myReservations.single.status, ReservationStatus.approved);
     });
 
     test('a rejected seat booking frees the seat and the student sees it', () async {
       final seat = await addSeat();
       await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
+      await settle();
+      // Seat bookings are confirmed at once; this is an older pending one.
+      await db.collection('reservations').doc(librarian.reservations.single.id).update({'status': 'pending'});
       await settle();
 
       await librarian.rejectReservation(librarian.reservations.single.id, 'Room closed');
@@ -302,13 +303,17 @@ void main() {
       final seat = await addSeat();
       await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       await settle();
+      // Seat bookings are confirmed at once; this is an older pending one.
+      await db.collection('reservations').doc(librarian.reservations.single.id).update({'status': 'pending'});
+      await settle();
       await librarian.rejectReservation(librarian.reservations.single.id, 'Room closed');
       await settle();
 
       final rejected = student.notifications.first;
       expect(rejected.type, StudentNotificationType.reservationRejected);
       expect(rejected.message, contains('Room closed'));
-      expect(typesOf(student), contains(StudentNotificationType.reservationRequested));
+      // A new seat booking sends no "requested" notification.
+      expect(typesOf(student), isNot(contains(StudentNotificationType.reservationRequested)));
     });
 
     test('cancelling notifies the student', () async {

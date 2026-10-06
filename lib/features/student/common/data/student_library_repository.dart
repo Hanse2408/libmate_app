@@ -553,10 +553,11 @@ Future<ActionResult> updateBookReservation({
   });
 }
 
-  /// Books [seat] for [startHour]–[endHour] on [date]. The booking is saved as
-  /// pending for a librarian to approve or reject; the seat-hours are claimed
-  /// at once in the same transaction, so an overlapping booking by another
-  /// student is refused even while this one is pending.
+  /// Books [seat] for [startHour]–[endHour] on [date]. Seat bookings need no
+  /// librarian approval: the reservation is confirmed (approved) at once and
+  /// the seat-hours are claimed in the same transaction, so an overlapping
+  /// booking by another student is refused. The result carries the new
+  /// reservation's ID.
   Future<ActionResult> bookSeat({
     required SeatRecord seat,
     required DateTime date,
@@ -577,6 +578,9 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
 
     return _run(() async {
       await _checkNoSeatClash(date, startHour, endHour);
+
+      String? createdReservationId;
+
       await _db.runTransaction((tx) async {
         await _checkAccountActive(tx);
 
@@ -626,12 +630,14 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
           FirestoreCollections.reservations,
         ).doc();
 
+        createdReservationId = ref.id;
+
         tx.set(
           ref,
           ReservationRecord(
             id: ref.id,
             type: ReservationType.seat,
-            status: ReservationStatus.pending,
+            status: ReservationStatus.approved,
             studentUid: student.uid,
             studentId: student.studentId,
             studentName: student.name,
@@ -653,29 +659,9 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
             'studentUid': student.uid,
           });
         }
-        tx.set(
-          _col(FirestoreCollections.notifications).doc(),
-          _newRequest(
-            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
-            ref.id,
-          ),
-        );
-        tx.set(
-          _col(FirestoreCollections.notifications).doc(),
-          StudentNotification.create(
-            recipientUid: student.uid,
-            type: StudentNotificationType.reservationRequested,
-            title: 'Seat Booking Requested',
-            message: 'Seat ${latest.seatNumber} on ${_day(date)}, $slotLabel is '
-                'waiting for librarian approval.',
-            reservationId: ref.id,
-            itemId: latest.id,
-          ),
-        );
       });
 
-      // Book-seat does not need to return a reservation ID.
-      return null;
+      return createdReservationId;
     });
   }
 
@@ -867,15 +853,6 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
       createdAt: DateTime.now(),
       reservationId: reservationId,
     ).toMap();
-  }
-
-  /// e.g. "7 Oct 2026"
-  static String _day(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   static bool _isToday(DateTime date) =>

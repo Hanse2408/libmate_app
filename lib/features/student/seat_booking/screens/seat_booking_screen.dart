@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
 import '../../common/data/student_library_repository.dart';
 import '../providers/seat_booking_provider.dart';
+import 'seat_booking_confirmation_screen.dart';
 import '../widgets/book_seat_bar.dart';
 import '../widgets/booking_details_card.dart';
 import '../widgets/booking_pickers.dart';
@@ -14,7 +15,8 @@ import '../widgets/selected_seat_card.dart';
 /// Book a reading-room seat: choose a date and time, then a free seat.
 ///
 /// Seats are the ones librarians manage (Firestore `seats`, live). A booking
-/// holds the seat at once and waits for a librarian to approve or reject it.
+/// is confirmed at once (no librarian approval) and opens the H02
+/// confirmation screen.
 class SeatBookingScreen extends StatefulWidget {
   const SeatBookingScreen({super.key, required this.library});
 
@@ -26,6 +28,7 @@ class SeatBookingScreen extends StatefulWidget {
 
 class _SeatBookingScreenState extends State<SeatBookingScreen> {
   late final SeatBookingProvider _provider = SeatBookingProvider(widget.library);
+  bool _handlingBooking = false;
 
   @override
   void dispose() {
@@ -70,14 +73,34 @@ class _SeatBookingScreenState extends State<SeatBookingScreen> {
   }
 
   Future<void> _book() async {
+    if (_handlingBooking) return;
+    _handlingBooking = true;
+
+    // book() clears the selection, so keep the booking details first.
+    final seat = _provider.selectedSeat;
+    final date = _provider.date;
+    final startHour = _provider.startHour;
+    final endHour = _provider.endHour;
+
     final result = await _provider.book();
-    if (!mounted || !result.success) return;
-    _showMessage(
-      'Seat requested. It is waiting for librarian approval.',
-      action: SnackBarAction(
-        label: 'View',
-        textColor: Colors.white,
-        onPressed: _openMyBookings,
+    final reservationId = result.reservationId;
+
+    if (!mounted || !result.success || seat == null || reservationId == null) {
+      _handlingBooking = false;
+      return;
+    }
+
+    // Replace H01 so Back cannot lead to a second booking by accident.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => SeatBookingConfirmationScreen(
+          library: widget.library,
+          seat: seat,
+          date: date,
+          startHour: startHour,
+          endHour: endHour,
+          reservationId: reservationId,
+        ),
       ),
     );
   }
