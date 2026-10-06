@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
+import 'find_books_screen.dart';
+import 'my_reservations_screen.dart';
 import '../../common/data/student_library_repository.dart';
 import 'reservation_details_screen.dart';
 
@@ -54,7 +57,7 @@ class BookingConfirmationScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
@@ -463,89 +466,38 @@ class BookingConfirmationScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
+Widget _buildBottomNavigationBar(BuildContext context) {
+  return StudentBottomNavigation(
+    selectedIndex: 2,
+    onHome: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    },
+    onSearch: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => FindBooksScreen(
+            library: library,
           ),
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'Reservations',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.account_circle_outlined,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
+      );
+    },
+    onReservations: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MyReservationsScreen(
+            library: library,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
+      );
+    },
+    onProfile: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProfileScreen(library: library),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
+  
 }

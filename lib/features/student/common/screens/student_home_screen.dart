@@ -2,7 +2,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';*/
 import 'package:flutter/material.dart';
-
+import '../widgets/student_bottom_navigation.dart';
 import '../../../../models/reservation.dart' as shared;
 import '../../book_reservation/screens/find_books_screen.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
@@ -33,7 +33,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   static const Color accentGold = Color(0xFFF2B84B);
   static const Color availableGreen = Color(0xFF22A06B);
 
-  final int _selectedNavIndex = 0;
+  
   late final StudentLibraryRepository _library = widget.createLibrary();
 
   @override
@@ -602,48 +602,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _selectedNavIndex,
-      // The other tabs open on top of Home, so Home stays selected.
-      onTap: (index) {
-        switch (index) {
-          case 1:
-            _openFindBooks();
-          case 2:
-            _openReservations();
-          case 3:
-            _open(const ProfileScreen());
-        }
-      },
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: cardWhite,
-      selectedItemColor: primaryBlue,
-      unselectedItemColor: const Color(0xFF94A8C4),
-      selectedFontSize: 11,
-      unselectedFontSize: 11,
-      elevation: 8,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.manage_search_outlined),
-          activeIcon: Icon(Icons.manage_search_rounded),
-          label: 'Search',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_month_outlined),
-          activeIcon: Icon(Icons.calendar_month_rounded),
-          label: 'Reservations',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline_rounded),
-          activeIcon: Icon(Icons.person_rounded),
-          label: 'Profile',
-        ),
-      ],
-    );
-  }
+  return StudentBottomNavigation(
+    selectedIndex: 0,
+    onHome: () {
+      // Already on Home.
+    },
+    onSearch: _openFindBooks,
+    onReservations: _openReservations,
+    onProfile: () {
+      _open(ProfileScreen(library: _library));
+    },
+  );
+}
 }
