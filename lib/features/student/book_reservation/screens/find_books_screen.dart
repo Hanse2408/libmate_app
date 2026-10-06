@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../common/widgets/student_bottom_navigation.dart';
+
 import '../../../../core/widgets/stored_image.dart';
 import '../../common/data/student_library_repository.dart';
 import 'book_details_screen.dart';
-import '../../common/screens/profile_screen.dart';
-import 'my_reservations_screen.dart';
 
 /// Browse and search the library catalogue. The list is the same Firestore
 /// `books` collection the Librarian manages, so new books appear live.
@@ -570,34 +568,91 @@ void dispose() {
     );
   }
 
-Widget _buildBottomNavigationBar() {
-  return StudentBottomNavigation(
-    selectedIndex: 1,
-    onHome: () {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    },
-    onSearch: () {
-      // Already on Search.
-    },
-    onReservations: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MyReservationsScreen(
-            library: widget.library,
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Color(0xFFE2E8F0),
           ),
         ),
-      );
-    },
-    onProfile: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(library: widget.library),
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 70,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_outlined,
+                label: 'Home',
+                selected: false,
+              ),
+              _buildNavItem(
+                icon: Icons.search_rounded,
+                label: 'Search',
+                selected: true,
+              ),
+              _buildNavItem(
+                icon: Icons.bookmark_border_rounded,
+                label: 'Reservations',
+                selected: false,
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Profile',
+                selected: false,
+              ),
+            ],
+          ),
         ),
-      );
-    },
-  );
-}
-  
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool selected,
+  }) {
+    return InkWell(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 5,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: selected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF94A3B8),
+              size: 23,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF94A3B8),
+                fontSize: 10,
+                fontWeight: selected
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showFilterDialog() {
     showModalBottomSheet<void>(
       context: context,
@@ -691,3 +746,4 @@ class Book {
   final String description;
   final Color color;
 }
+
