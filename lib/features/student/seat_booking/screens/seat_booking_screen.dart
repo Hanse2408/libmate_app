@@ -13,8 +13,8 @@ import '../widgets/selected_seat_card.dart';
 
 /// Book a reading-room seat: choose a date and time, then a free seat.
 ///
-/// Seats are the ones librarians manage (Firestore `seats`, live). Seat
-/// bookings are confirmed immediately: no librarian approval is needed.
+/// Seats are the ones librarians manage (Firestore `seats`, live). A booking
+/// holds the seat at once and waits for a librarian to approve or reject it.
 class SeatBookingScreen extends StatefulWidget {
   const SeatBookingScreen({super.key, required this.library});
 
@@ -73,7 +73,7 @@ class _SeatBookingScreenState extends State<SeatBookingScreen> {
     final result = await _provider.book();
     if (!mounted || !result.success) return;
     _showMessage(
-      'Seat booked successfully.',
+      'Seat requested. It is waiting for librarian approval.',
       action: SnackBarAction(
         label: 'View',
         textColor: Colors.white,

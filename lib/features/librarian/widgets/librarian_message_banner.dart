@@ -9,14 +9,18 @@ class LibrarianMessageBanner extends StatelessWidget {
     super.key,
     required this.message,
     this.title,
-    this.color = LibrarianColors.available,
+    this._color,
     this.icon = Icons.check,
     this.onClose,
   });
 
   final String message;
   final String? title;
-  final Color color;
+
+  /// Defaults to the palette's green, read when building so it follows
+  /// light / dark mode.
+  Color get color => _color ?? LibrarianColors.available;
+  final Color? _color;
   final IconData icon;
   final VoidCallback? onClose;
 

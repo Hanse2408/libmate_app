@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/firestore_collections.dart';
 import '../../../core/services/firestore_errors.dart';
 import '../../../core/services/image_storage_service.dart';
+import '../../../models/notification.dart';
 import '../models/action_result.dart';
 import '../models/book_record.dart';
 import '../models/borrowing_record.dart';
@@ -35,6 +36,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
   }) : _db = firestore,
        _images = imageStorage {
     _listen();
+    _loadDarkMode();
   }
 
   final FirebaseFirestore _db;
@@ -127,6 +129,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         _notifications = [
           for (final d in docs) LibrarianNotification.fromMap(d.id, d.data()),
         ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _announceNewNotifications();
       },
     );
 
@@ -175,6 +178,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
   @override
   void dispose() {
+    _disposed = true;
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
@@ -217,6 +221,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           }
           tx.update(bookRef, {
             'availableCopies': book.availableCopies - 1,
+            // Also stored for books saved in the earlier format (no counts).
+            'totalCopies': book.totalCopies,
             'available': book.availableCopies - 1 > 0, // read by Student screens
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -246,6 +252,18 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           'status': ReservationStatus.approved.name,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        _notifyStudent(
+          tx,
+          recipientUid: reservation.studentUid,
+          type: StudentNotificationType.reservationApproved,
+          title: 'Reservation Approved',
+          message: reservation.type == ReservationType.book
+              ? '"${reservation.itemName}" is ready for you to collect from '
+                    '${_day(reservation.date)}.'
+              : 'Your booking for ${reservation.itemName} on ${_day(reservation.date)}, '
+                    '${reservation.timeSlot ?? ''} is confirmed.',
+          reservation: reservation,
+        );
         tx.set(
           _col(FirestoreCollections.notifications).doc(),
           _notification(
@@ -279,6 +297,15 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         });
         // Free the seat-hours this booking was holding.
         _deleteSeatSlots(tx, reservation);
+        _notifyStudent(
+          tx,
+          recipientUid: reservation.studentUid,
+          type: StudentNotificationType.reservationRejected,
+          title: 'Reservation Rejected',
+          message: 'Your reservation for ${reservation.itemName} was rejected: '
+              '${reason.trim().isEmpty ? 'Rejected by librarian.' : reason.trim()}',
+          reservation: reservation,
+        );
         tx.set(
           _col(FirestoreCollections.notifications).doc(),
           _notification(
@@ -335,6 +362,24 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           'memberUid': reservation.studentUid,
           'reservationId': id,
         });
+        _notifyStudent(
+          tx,
+          recipientUid: reservation.studentUid,
+          type: StudentNotificationType.bookCollected,
+          title: 'Book Collected',
+          message: '"${book.title}" is now on loan to you. '
+              'Please return it by ${_day(loan.dueDate)}.',
+          reservation: reservation,
+        );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _notification(
+            LibrarianNotificationType.bookCollected,
+            'Book Collected',
+            '"${book.title}" is now on loan to ${reservation.studentName}.',
+            reservationId: id,
+          ),
+        );
         tx.update(resRef, {
           'status': ReservationStatus.completed.name,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -529,11 +574,21 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         imageUrl: url,
         imagePath: uploadedPath,
       );
-      await ref.set({
-        ...seat.toMap(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': librarianUid,
-      });
+      final batch = _db.batch()
+        ..set(ref, {
+          ...seat.toMap(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': librarianUid,
+        })
+        ..set(
+          _col(FirestoreCollections.notifications).doc(),
+          _notification(
+            LibrarianNotificationType.seatUpdate,
+            'New Seat Added',
+            'Seat ${seat.seatNumber} was added to ${seat.readingRoom}.',
+          ),
+        );
+      await batch.commit();
     });
     if (!result.success) await _deleteImageQuietly(uploadedPath);
     return result;
@@ -650,11 +705,20 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         final bookSnap = await tx.get(bookRef);
 
         tx.update(loanRef, {'returnedAt': FieldValue.serverTimestamp()});
+        _notifyStudent(
+          tx,
+          recipientUid: loanSnap.data()!['memberUid'] as String? ?? '',
+          type: StudentNotificationType.bookReturned,
+          title: 'Book Returned',
+          message: 'Thank you for returning "${loan.bookTitle}".',
+          itemId: loan.bookId,
+        );
         if (bookSnap.exists) {
           final book = BookRecord.fromMap(bookSnap.id, bookSnap.data()!);
           if (book.availableCopies < book.totalCopies) {
             tx.update(bookRef, {
               'availableCopies': book.availableCopies + 1,
+              'totalCopies': book.totalCopies,
               'available': true, // read by Student screens
               'updatedAt': FieldValue.serverTimestamp(),
             });
@@ -688,12 +752,27 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         if (loan.isReturned || loan.renewals >= LibrarianSettings.maxRenewals) {
           throw const ActionRefused('This loan can no longer be renewed.');
         }
+        final newDue = loan.dueDate.add(Duration(days: _settings.loanPeriodDays));
         tx.update(ref, {
-          'dueDate': Timestamp.fromDate(
-            loan.dueDate.add(Duration(days: _settings.loanPeriodDays)),
-          ),
+          'dueDate': Timestamp.fromDate(newDue),
           'renewals': loan.renewals + 1,
         });
+        _notifyStudent(
+          tx,
+          recipientUid: snap.data()!['memberUid'] as String? ?? '',
+          type: StudentNotificationType.loanRenewed,
+          title: 'Loan Renewed',
+          message: '"${loan.bookTitle}" is now due on ${_day(newDue)}.',
+          itemId: loan.bookId,
+        );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _notification(
+            LibrarianNotificationType.loanRenewed,
+            'Loan Renewed',
+            '"${loan.bookTitle}" for ${loan.memberName} is now due on ${_day(newDue)}.',
+          ),
+        );
       });
     });
   }
@@ -734,6 +813,64 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     await _run(() {
       return _col(FirestoreCollections.notifications).doc(id).update({'isRead': true});
     });
+  }
+
+  // ---------------- Appearance ----------------
+
+  /// The theme choice is saved per librarian in their own profile,
+  /// `users/{uid}.librarianDarkMode`, so it is kept after a restart and on
+  /// other devices. (Users may edit their own profile, see firestore.rules.)
+  DocumentReference<Map<String, dynamic>>? get _profileDoc => librarianUid.isEmpty
+      ? null
+      : _col(FirestoreCollections.users).doc(librarianUid);
+
+  bool _disposed = false;
+  bool _darkModeChanged = false;
+
+  // ---------------- New notifications (toast) ----------------
+
+  /// Ids of the notifications already seen; null until the first snapshot.
+  Set<String>? _seenNotificationIds;
+
+  /// The first snapshot is what already exists, so it only fills
+  /// [_seenNotificationIds]. Later snapshots announce the ids not seen
+  /// before, i.e. notifications created while the librarian is signed in.
+  void _announceNewNotifications() {
+    final seen = _seenNotificationIds;
+    if (seen == null) {
+      _seenNotificationIds = {for (final n in _notifications) n.id};
+      return;
+    }
+    // Oldest first, so the toasts appear in the order they were created.
+    for (final n in _notifications.reversed) {
+      if (seen.add(n.id)) announceNotification(n);
+    }
+  }
+
+  Future<void> _loadDarkMode() async {
+    final doc = _profileDoc;
+    if (doc == null) return;
+    try {
+      final snapshot = await doc.get();
+      // Signed out meanwhile, or the librarian already switched the mode
+      // (their choice wins over the value read before it was saved).
+      if (_disposed || _darkModeChanged) return;
+      applyDarkMode(snapshot.data()?['librarianDarkMode'] == true);
+    } catch (_) {
+      // Not loaded (e.g. offline): keep the light theme.
+    }
+  }
+
+  @override
+  Future<ActionResult> setDarkMode(bool on) async {
+    _darkModeChanged = true;
+    final previous = darkMode;
+    applyDarkMode(on); // switch immediately
+    final doc = _profileDoc;
+    if (doc == null) return const ActionResult.success();
+    final result = await _run(() => doc.update({'librarianDarkMode': on}));
+    if (!result.success) applyDarkMode(previous);
+    return result;
   }
 
   @override
@@ -889,6 +1026,41 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
       }
       return batch.commit();
     });
+  }
+
+  /// Tells the student about a change to their reservation or loan, in the
+  /// same transaction as the change (so it is only sent if the change is
+  /// saved). Skipped for records without a student uid (e.g. old data).
+  void _notifyStudent(
+    Transaction tx, {
+    required String recipientUid,
+    required StudentNotificationType type,
+    required String title,
+    required String message,
+    ReservationRecord? reservation,
+    String? itemId,
+  }) {
+    if (recipientUid.isEmpty) return;
+    tx.set(
+      _col(FirestoreCollections.notifications).doc(),
+      StudentNotification.create(
+        recipientUid: recipientUid,
+        type: type,
+        title: title,
+        message: message,
+        reservationId: reservation?.id,
+        itemId: reservation?.itemId ?? itemId,
+      ),
+    );
+  }
+
+  /// e.g. "7 Oct 2026"
+  static String _day(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   /// A librarian action, saved as already read so it does not raise the badge.

@@ -35,7 +35,7 @@ class InfoSectionCard extends StatelessWidget {
           if (title != null) ...[
             Text(
               title!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: LibrarianColors.text,
                 fontSize: 21,
                 fontWeight: FontWeight.w700,

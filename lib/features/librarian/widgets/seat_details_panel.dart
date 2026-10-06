@@ -50,7 +50,7 @@ class SeatDetailsPanel extends StatelessWidget {
             Expanded(
               child: Text(
                 'Seat ${seat.seatNumber}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: LibrarianColors.text,
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -70,7 +70,7 @@ class SeatDetailsPanel extends StatelessWidget {
                 aspectRatio: 16 / 9,
                 child: StoredImage(
                   url: seat.imageUrl,
-                  fallback: const ColoredBox(color: LibrarianColors.lightBlue),
+                  fallback: ColoredBox(color: LibrarianColors.lightBlue),
                 ),
               ),
             ),
@@ -83,7 +83,7 @@ class SeatDetailsPanel extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.secondaryText,
                     fontSize: 17,
                   ),
@@ -93,7 +93,7 @@ class SeatDetailsPanel extends StatelessWidget {
                   child: Text(
                     value,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.text,
                       fontSize: 17,
                       fontWeight: FontWeight.w500,

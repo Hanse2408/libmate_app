@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/services/image_storage_service.dart';
@@ -44,6 +46,40 @@ abstract class LibrarianRepository extends ChangeNotifier {
 
   /// Whether book covers / seat photos can be uploaded (needs Firebase Storage).
   bool get supportsImageUpload => false;
+
+  final StreamController<LibrarianNotification> _incoming =
+      StreamController<LibrarianNotification>.broadcast();
+
+  /// Every Librarian notification (`audience: "librarian"`) as it arrives
+  /// in real time, for the top banner (LibrarianToastController): all types,
+  /// from students and from librarians, read or unread. Only those already
+  /// there when the data first loaded are skipped.
+  Stream<LibrarianNotification> get incomingNotifications => _incoming.stream;
+
+  /// Publishes a newly arrived notification (see [incomingNotifications]).
+  @protected
+  void announceNotification(LibrarianNotification notification) {
+    if (!_incoming.isClosed) _incoming.add(notification);
+  }
+
+  @override
+  void dispose() {
+    _incoming.close();
+    super.dispose();
+  }
+
+  bool _darkMode = false;
+
+  /// The Librarian screens use the dark theme (Settings > Dark Mode).
+  bool get darkMode => _darkMode;
+
+  /// Updates the theme choice in memory and rebuilds the Librarian screens.
+  @protected
+  void applyDarkMode(bool on) {
+    if (on == _darkMode) return;
+    _darkMode = on;
+    notifyListeners();
+  }
 
   int get unreadNotificationCount => notifications.where((n) => !n.isRead).length;
 
@@ -379,6 +415,11 @@ abstract class LibrarianRepository extends ChangeNotifier {
   Future<void> markNotificationRead(String id);
 
   Future<void> markAllNotificationsRead();
+
+  /// Switches the Librarian screens to dark (or light) mode and remembers the
+  /// choice for this librarian. The switch happens at once; if saving fails
+  /// the previous mode is restored and the reason returned.
+  Future<ActionResult> setDarkMode(bool on);
 
   // ---------------- Helpers ----------------
 

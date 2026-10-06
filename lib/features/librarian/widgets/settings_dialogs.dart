@@ -137,7 +137,7 @@ class _HoursDialogState extends State<_HoursDialog> {
           const SizedBox(height: LibrarianSpacing.md),
           _dropdown('Closes at', _closing, (h) => _closing = h),
           if (!valid)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: LibrarianSpacing.sm),
               child: Text(
                 'Closing time must be after opening time.',

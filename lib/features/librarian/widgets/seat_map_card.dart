@@ -40,7 +40,7 @@ class SeatMapCard extends StatelessWidget {
           const SizedBox(height: LibrarianSpacing.md + 4),
           Text(
             '${zone.toUpperCase()} — ${zones[zone]!.first.type.label.toUpperCase()}',
-            style: const TextStyle(
+            style: TextStyle(
               color: LibrarianColors.secondaryText,
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -127,7 +127,7 @@ class _Legend extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 status == SeatStatus.maintenance ? 'Maint.' : status.label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: LibrarianColors.secondaryText,
                   fontSize: 15,
                 ),

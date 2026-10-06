@@ -42,7 +42,7 @@ class MemberCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: LibrarianColors.text,
+            backgroundColor: LibrarianColors.avatar,
             child: Text(
               LibrarianFormatters.initials(member.name),
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),

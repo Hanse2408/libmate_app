@@ -165,7 +165,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(router.currentPath, LibrarianRoutes.reservationConfirmation('RSV-1003'));
-      expect(find.text('Reservation Rejected'), findsOneWidget);
+      // The confirmation page title (the new-notification banner above it
+      // shows the same words, so look inside the page only).
+      expect(
+        find.descendant(of: find.byType(Scaffold).first, matching: find.text('Reservation Rejected')),
+        findsOneWidget,
+      );
+      expect(find.text('Reservation Rejected'), findsNWidgets(2)); // page + banner
       final reservation = repositoryOf(tester).reservationById('RSV-1003')!;
       expect(reservation.status, ReservationStatus.rejected);
       expect(reservation.rejectionReason, 'Duplicate request');

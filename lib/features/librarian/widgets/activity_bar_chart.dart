@@ -31,7 +31,7 @@ class ActivityBarChart extends StatelessWidget {
                   children: [
                     Text(
                       '${entry.count}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: LibrarianColors.text,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -57,7 +57,7 @@ class ActivityBarChart extends StatelessWidget {
                       fit: BoxFit.scaleDown,
                       child: Text(
                         entry.label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: LibrarianColors.secondaryText,
                           fontSize: 12,
                         ),

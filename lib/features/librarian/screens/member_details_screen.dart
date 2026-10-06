@@ -167,7 +167,7 @@ class _ProfileCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: LibrarianColors.text,
+              backgroundColor: LibrarianColors.avatar,
               child: Text(
                 LibrarianFormatters.initials(member.name),
                 style: const TextStyle(
@@ -184,7 +184,7 @@ class _ProfileCard extends StatelessWidget {
                 children: [
                   Text(
                     member.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.text,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -192,11 +192,11 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   Text(
                     'Student ID: ${member.id}',
-                    style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 16),
+                    style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 16),
                   ),
                   Text(
                     member.programme,
-                    style: const TextStyle(color: LibrarianColors.secondaryText),
+                    style: TextStyle(color: LibrarianColors.secondaryText),
                   ),
                 ],
               ),
@@ -215,7 +215,7 @@ class _NoneText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(color: LibrarianColors.secondaryText));
+    return Text(text, style: TextStyle(color: LibrarianColors.secondaryText));
   }
 }
 
@@ -278,7 +278,7 @@ class _AccountStatusCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Current status',
                 style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
@@ -294,7 +294,7 @@ class _AccountStatusCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 52),
                   foregroundColor: LibrarianColors.unavailable,
-                  side: const BorderSide(color: LibrarianColors.unavailable, width: 1.5),
+                  side: BorderSide(color: LibrarianColors.unavailable, width: 1.5),
                 ),
                 child: const Text('Suspend Account'),
               )

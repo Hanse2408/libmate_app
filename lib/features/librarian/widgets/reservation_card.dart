@@ -34,7 +34,7 @@ class ReservationCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: LibrarianColors.text,
+            backgroundColor: LibrarianColors.avatar,
             child: Text(
               LibrarianFormatters.initials(reservation.studentName),
               style: const TextStyle(

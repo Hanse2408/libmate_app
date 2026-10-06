@@ -7,6 +7,11 @@ import '../../../../core/constants/firestore_collections.dart';
 import '../../../../core/services/firestore_errors.dart';
 import '../../../../models/action_result.dart';
 import '../../../../models/book.dart';
+import '../../../../models/notification.dart';
+import '../../../../core/services/ebook_downloader.dart';
+import '../../../../core/services/ebook_service.dart';
+import '../../../../repositories/ebook_repository.dart';
+import '../../ebooks/providers/student_ebook_provider.dart';
 import '../../../../models/reservation.dart';
 import '../../../../models/seat.dart';
 import '../../../librarian/models/librarian_notification.dart';
@@ -45,12 +50,35 @@ class StudentLibraryRepository extends ChangeNotifier {
   StudentLibraryRepository({
     required FirebaseFirestore firestore,
     required this.student,
+    this.onSignOut,
+    this._createEbooks,
   }) : _db = firestore {
     _listen();
   }
 
   final FirebaseFirestore _db;
   final StudentIdentity student;
+
+  /// The app's existing sign-out (AuthProvider.signOut), set by the router.
+  final Future<void> Function()? onSignOut;
+
+  final StudentEbookProvider Function()? _createEbooks;
+  StudentEbookProvider? _ebooks;
+
+  /// E-books (published, from the shared `ebooks` collection) and PDF
+  /// downloads. Created the first time an e-book screen is opened.
+  StudentEbookProvider get ebooks => _ebooks ??= (_createEbooks ?? _defaultEbooks)();
+
+  StudentEbookProvider _defaultEbooks() {
+    return StudentEbookProvider(
+      EbookRepository(
+        service: EbookService(firestore: _db, files: FirebaseEbookFileStorage()),
+        downloader: createEbookDownloader(),
+      ),
+    );
+  }
+  bool _disposed = false;
+  List<StudentNotification> _notifications = const [];
 
   List<BookRecord> _books = const [];
   List<SeatRecord> _seats = const [];
@@ -68,6 +96,11 @@ class StudentLibraryRepository extends ChangeNotifier {
   List<ReservationRecord> get myReservations => _myReservations;
 
   LibrarianSettings get settings => _settings;
+
+  /// This student's notifications, newest first.
+  List<StudentNotification> get notifications => _notifications;
+
+  int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
 
   bool get isLoading => _waiting.isNotEmpty;
 
@@ -137,6 +170,18 @@ class StudentLibraryRepository extends ChangeNotifier {
       },
     );
 
+    // Only this student's notifications (the rules refuse anyone else's).
+    _watch(
+      _col(FirestoreCollections.notifications)
+          .where('recipientUid', isEqualTo: student.uid),
+      'notifications',
+      (docs) {
+        _notifications = [
+          for (final d in docs) StudentNotification.fromMap(d.id, d.data()),
+        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      },
+    );
+
     _waiting.add('settings');
     _subscriptions.add(
       _col(FirestoreCollections.settings)
@@ -175,11 +220,14 @@ class StudentLibraryRepository extends ChangeNotifier {
   }
 
   void _received(String name) {
+    if (_disposed) return;
     _waiting.remove(name);
     notifyListeners();
   }
 
   void _failed(String name, Object error) {
+    // After sign-out the listeners may report "permission denied"; ignore.
+    if (_disposed) return;
     _waiting.remove(name);
 
     final reason =
@@ -207,13 +255,52 @@ class StudentLibraryRepository extends ChangeNotifier {
         );
   }
 
-  @override
-  void dispose() {
+  void _stopListening() {
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
+    _subscriptions.clear();
+  }
 
+  @override
+  void dispose() {
+    _disposed = true;
+    _stopListening();
+    _ebooks?.dispose();
     super.dispose();
+  }
+
+  /// Logs the student out with the app's existing AuthProvider. Listeners
+  /// stop first, so no "permission denied" errors appear while signing out.
+  /// The router then sends the user to the Login screen.
+  Future<void> signOut() async {
+    _stopListening();
+    await onSignOut?.call();
+  }
+
+  /// Marks one of this student's notifications as read (already read: no-op).
+  Future<ActionResult> markNotificationRead(String id) async {
+    final notification = _notifications.where((n) => n.id == id).firstOrNull;
+    if (notification == null) return const ActionResult.failure('Notification not found.');
+    if (notification.isRead) return const ActionResult.success();
+    return _run(() async {
+      await _col(FirestoreCollections.notifications).doc(id).update({'isRead': true});
+      return null;
+    });
+  }
+
+  /// Marks all of this student's unread notifications as read.
+  Future<ActionResult> markAllNotificationsRead() async {
+    final unread = _notifications.where((n) => !n.isRead).toList();
+    if (unread.isEmpty) return const ActionResult.success();
+    return _run(() async {
+      final batch = _db.batch();
+      for (final n in unread) {
+        batch.update(_col(FirestoreCollections.notifications).doc(n.id), {'isRead': true});
+      }
+      await batch.commit();
+      return null;
+    });
   }
 
   // ---------------- Rules ----------------
@@ -389,6 +476,18 @@ class StudentLibraryRepository extends ChangeNotifier {
             ref.id,
           ),
         );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.reservationRequested,
+            title: 'Reservation Requested',
+            message: 'Your request for "${latest.title}" was sent. '
+                'You will be notified when a librarian approves it.',
+            reservationId: ref.id,
+            itemId: latest.id,
+          ),
+        );
       });
 
       // Return the ID of the reservation that was just created.
@@ -454,10 +553,10 @@ Future<ActionResult> updateBookReservation({
   });
 }
 
-  /// Books [seat] for [startHour]–[endHour] on [date]. Seat bookings need no
-  /// librarian approval, so the reservation is saved as approved straight away.
-  /// The seat-hours are claimed in the same transaction, so an overlapping
-  /// booking by another student is refused.
+  /// Books [seat] for [startHour]–[endHour] on [date]. The booking is saved as
+  /// pending for a librarian to approve or reject; the seat-hours are claimed
+  /// at once in the same transaction, so an overlapping booking by another
+  /// student is refused even while this one is pending.
   Future<ActionResult> bookSeat({
     required SeatRecord seat,
     required DateTime date,
@@ -532,7 +631,7 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
           ReservationRecord(
             id: ref.id,
             type: ReservationType.seat,
-            status: ReservationStatus.approved,
+            status: ReservationStatus.pending,
             studentUid: student.uid,
             studentId: student.studentId,
             studentName: student.name,
@@ -554,6 +653,25 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
             'studentUid': student.uid,
           });
         }
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          _newRequest(
+            '${student.name} booked Seat ${latest.seatNumber} ($slotLabel).',
+            ref.id,
+          ),
+        );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.reservationRequested,
+            title: 'Seat Booking Requested',
+            message: 'Seat ${latest.seatNumber} on ${_day(date)}, $slotLabel is '
+                'waiting for librarian approval.',
+            reservationId: ref.id,
+            itemId: latest.id,
+          ),
+        );
       });
 
       // Book-seat does not need to return a reservation ID.
@@ -638,6 +756,17 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
             createdAt: DateTime.now(),
             reservationId: id,
           ).toMap(),
+        );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.reservationCancelled,
+            title: 'Reservation Cancelled',
+            message: 'You cancelled your reservation for ${reservation.itemName}.',
+            reservationId: id,
+            itemId: reservation.itemId,
+          ),
         );
       });
 
@@ -738,6 +867,15 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
       createdAt: DateTime.now(),
       reservationId: reservationId,
     ).toMap();
+  }
+
+  /// e.g. "7 Oct 2026"
+  static String _day(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   static bool _isToday(DateTime date) =>

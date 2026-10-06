@@ -73,9 +73,40 @@ service cloud.firestore {
         && d.availableCopies >= 0 && d.availableCopies <= d.totalCopies;
     }
 
+    function validCopies() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() > 0
+        && d.totalCopies is int && d.totalCopies >= 1
+        && d.availableCopies is int
+        && d.availableCopies >= 0 && d.availableCopies <= d.totalCopies;
+    }
+
     match /books/{bookId} {
       allow read: if signedIn();
-      allow create, update: if isStaff() && validBook();
+      allow create: if isStaff() && validBook();
+      // Updates (approve / return / edit) only need valid copy counts, so
+      // books saved in the earlier format (no isbn / isbnKey) still work.
+      allow update: if isStaff() && validCopies();
+      allow delete: if isStaff();
+    }
+
+    // E-books (separate from printed books). Staff manage them; signed-in
+    // users may read published ones (for the Student side later). Only the
+    // PDF's Storage URL / path is stored, never the file.
+    function validEbook() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() > 0
+        && d.author is string && d.author.size() > 0
+        && d.category is string && d.category.size() > 0
+        && d.status in ['draft', 'published']
+        && d.publishedYear is int && d.pages is int
+        && (d.status == 'draft' || (d.pdfUrl is string && d.pdfUrl.size() > 0));
+    }
+
+    match /ebooks/{ebookId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.status == 'published');
+      allow create, update: if isStaff() && validEbook();
       allow delete: if isStaff();
     }
 
@@ -94,15 +125,14 @@ service cloud.firestore {
       allow read: if isStaff()
         || (signedIn() && resource.data.studentUid == request.auth.uid);
 
-      // A student creates a reservation for themselves. A book request starts
-      // pending (a librarian approves it); a seat booking is confirmed at once.
+      // A student creates a reservation for themselves. Book requests and
+      // seat bookings start pending until a librarian approves or rejects them.
       allow create: if isActiveStudent()
         && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.status == 'pending'
         && ((request.resource.data.type == 'book'
-              && request.resource.data.status == 'pending'
               && exists(/databases/$(database)/documents/books/$(request.resource.data.itemId)))
           || (request.resource.data.type == 'seat'
-              && request.resource.data.status == 'approved'
               && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))));
 
       // Staff approve / reject / complete. A student may only cancel their
@@ -157,13 +187,33 @@ service cloud.firestore {
     }
 
     // ---------------- Notifications ----------------
+    // Librarian alerts (audience "librarian") and per-student notifications
+    // (audience "student", recipientUid = the student's uid) share this
+    // collection. A student only ever sees and changes their own.
     match /notifications/{notificationId} {
-      allow read, update, delete: if isStaff();
-      // Students can only send "new request" / "cancelled" alerts to staff.
+      allow read: if isStaff()
+        || (signedIn() && resource.data.recipientUid == request.auth.uid);
+
+      // A student may only mark their own notification as read.
+      allow update: if isStaff()
+        || (signedIn()
+          && resource.data.recipientUid == request.auth.uid
+          && request.resource.data.isRead == true
+          && changedOnly(['isRead']));
+
+      allow delete: if isStaff();
+
+      // Staff notify anyone. Students can send "new request" / "cancelled"
+      // alerts to staff, and confirmations addressed to themselves only.
       allow create: if isStaff()
         || (isStudent()
           && request.resource.data.audience == 'librarian'
           && request.resource.data.type in ['newRequest', 'cancelled']
+          && request.resource.data.isRead == false)
+        || (isStudent()
+          && request.resource.data.audience == 'student'
+          && request.resource.data.recipientUid == request.auth.uid
+          && request.resource.data.type in ['reservationRequested', 'reservationCancelled']
           && request.resource.data.isRead == false);
     }
 

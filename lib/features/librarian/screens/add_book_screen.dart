@@ -399,7 +399,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 52),
                 foregroundColor: LibrarianColors.unavailable,
-                side: const BorderSide(color: LibrarianColors.unavailable),
+                side: BorderSide(color: LibrarianColors.unavailable),
               ),
             ),
           ],

@@ -43,7 +43,7 @@ class LabeledTextField extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               color: LibrarianColors.text,
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -61,7 +61,7 @@ class LabeledTextField extends StatelessWidget {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: LibrarianColors.secondaryText),
+              hintStyle: TextStyle(color: LibrarianColors.secondaryText),
               filled: true,
               fillColor: LibrarianColors.lightBlue,
               contentPadding: const EdgeInsets.symmetric(

@@ -38,7 +38,7 @@ class BookSummaryCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: LibrarianColors.text,
                       fontSize: 21,
                       fontWeight: FontWeight.w700,
@@ -48,7 +48,7 @@ class BookSummaryCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       book!.author,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: LibrarianColors.secondaryText,
                         fontSize: 17,
                       ),
@@ -65,14 +65,14 @@ class BookSummaryCard extends StatelessWidget {
                       ),
                       child: Text(
                         book!.category,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: LibrarianColors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ] else
-                    const Text(
+                    Text(
                       'This book is no longer in the catalogue.',
                       style: TextStyle(color: LibrarianColors.unavailable),
                     ),
@@ -80,7 +80,7 @@ class BookSummaryCard extends StatelessWidget {
                     const SizedBox(height: LibrarianSpacing.sm + 4),
                     Text(
                       'ISBN: $isbn',
-                      style: const TextStyle(color: LibrarianColors.secondaryText),
+                      style: TextStyle(color: LibrarianColors.secondaryText),
                     ),
                   ],
                 ],

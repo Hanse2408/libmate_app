@@ -725,6 +725,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Signs out with the existing AuthProvider (same as the Librarian). The
+  /// router then replaces the Student pages with the Login screen, so Back
+  /// cannot return to them.
+  Future<void> _signOut() async {
+    try {
+      await widget.library.signOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not log out. Please try again.')),
+      );
+    }
+  }
+
   void _logout() {
     showDialog<void>(
       context: context,
@@ -763,14 +777,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Logout will be connected to Firebase Auth later.',
-                    ),
-                  ),
-                );
+                _signOut();
               },
               child: const Text(
                 'Log Out',

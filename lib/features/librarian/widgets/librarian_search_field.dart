@@ -36,7 +36,7 @@ class _LibrarianSearchFieldState extends State<LibrarianSearchField> {
   Widget build(BuildContext context) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
-      borderSide: const BorderSide(color: LibrarianColors.border),
+      borderSide: BorderSide(color: LibrarianColors.border),
     );
 
     return TextField(
@@ -49,8 +49,8 @@ class _LibrarianSearchFieldState extends State<LibrarianSearchField> {
       style: const TextStyle(fontSize: 17),
       decoration: InputDecoration(
         hintText: widget.hint,
-        hintStyle: const TextStyle(color: LibrarianColors.secondaryText),
-        prefixIcon: const Icon(Icons.search, color: LibrarianColors.secondaryText),
+        hintStyle: TextStyle(color: LibrarianColors.secondaryText),
+        prefixIcon: Icon(Icons.search, color: LibrarianColors.secondaryText),
         suffixIcon: _controller.text.isEmpty
             ? null
             : IconButton(

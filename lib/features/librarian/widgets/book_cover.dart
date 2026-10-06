@@ -22,12 +22,13 @@ class BookCover extends StatelessWidget {
   final double width;
   final double height;
 
+  // Covers are artwork: the same colours in light and dark mode.
   static final List<Color> _palette = [
-    LibrarianColors.navy,
-    LibrarianColors.primary,
-    LibrarianColors.text,
-    Color.lerp(LibrarianColors.available, LibrarianColors.text, 0.35)!,
-    Color.lerp(LibrarianColors.unavailable, LibrarianColors.text, 0.3)!,
+    LibrarianPalette.light.navy,
+    LibrarianPalette.light.primary,
+    LibrarianPalette.light.text,
+    Color.lerp(LibrarianPalette.light.available, LibrarianPalette.light.text, 0.35)!,
+    Color.lerp(LibrarianPalette.light.unavailable, LibrarianPalette.light.text, 0.3)!,
   ];
 
   @override

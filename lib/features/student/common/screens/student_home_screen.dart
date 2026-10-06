@@ -8,6 +8,7 @@ import '../../book_reservation/screens/find_books_screen.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
 import '../../seat_booking/screens/seat_booking_screen.dart';
 import '../data/student_library_repository.dart';
+import '../../notifications/screens/student_notifications_screen.dart';
 import 'profile_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -130,37 +131,48 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ],
           ),
         ),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const Icon(
-              Icons.notifications_none_rounded,
-              color: textDark,
-              size: 28,
-            ),
-            Positioned(
-              right: -4,
-              top: -5,
-              child: Container(
-                width: 17,
-                height: 17,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDC4C4C),
-                  shape: BoxShape.circle,
+        // Live unread count of this student's notifications.
+        Tooltip(
+          message: 'Notifications',
+          child: InkWell(
+            onTap: () => _open(StudentNotificationsScreen(library: _library)),
+            customBorder: const CircleBorder(),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: textDark,
+                  size: 28,
                 ),
-                child: const Center(
-                  child: Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                if (_library.unreadNotificationCount > 0)
+                  Positioned(
+                    right: -4,
+                    top: -5,
+                    child: Container(
+                      width: 17,
+                      height: 17,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDC4C4C),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          _library.unreadNotificationCount > 9
+                              ? '9+'
+                              : '${_library.unreadNotificationCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
         const SizedBox(width: 14),
         Container(

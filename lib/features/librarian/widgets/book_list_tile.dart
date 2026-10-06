@@ -36,7 +36,7 @@ class BookListTile extends StatelessWidget {
                         book.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: LibrarianColors.text,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -52,7 +52,7 @@ class BookListTile extends StatelessWidget {
                   book.author,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.secondaryText,
                     fontSize: 16,
                   ),
@@ -64,7 +64,7 @@ class BookListTile extends StatelessWidget {
                       child: Text(
                         '${book.category} · ${book.availableCopies} of ${book.totalCopies} available',
                         maxLines: 2,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: LibrarianColors.secondaryText,
                           fontSize: 14,
                         ),

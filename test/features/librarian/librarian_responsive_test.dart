@@ -31,6 +31,8 @@ void main() {
     LibrarianRoutes.memberDetails('IT23012876'), // suspended, no activity
     LibrarianRoutes.reports,
     LibrarianRoutes.settings,
+    LibrarianRoutes.ebooks,
+    LibrarianRoutes.addEbook,
   ];
 
   for (final width in [360.0, 390.0, 720.0, 1280.0]) {

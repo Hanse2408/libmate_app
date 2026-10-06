@@ -259,11 +259,10 @@ void main() {
 
     await tester.tap(bookButton);
     await tester.pumpAndSettle();
-    expect(find.text('Seat booked successfully.'), findsOneWidget);
-    expect(find.textContaining('pending'), findsNothing);
+    expect(find.text('Seat requested. It is waiting for librarian approval.'), findsOneWidget);
     final booking = (await db.collection('reservations').get()).docs.single.data();
     expect(booking['type'], 'seat');
-    expect(booking['status'], 'approved'); // confirmed at once, no librarian step
+    expect(booking['status'], 'pending'); // waits for the librarian
     expect(booking['itemId'], seatDoc.id);
     expect(booking['studentUid'], studentUid);
   });

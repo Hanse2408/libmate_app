@@ -21,6 +21,8 @@ class NotificationTile extends StatelessWidget {
       LibrarianNotificationType.rejected => (Icons.block, LibrarianColors.unavailable),
       LibrarianNotificationType.cancelled => (Icons.event_busy, LibrarianColors.secondaryText),
       LibrarianNotificationType.bookReturned => (Icons.web_asset, LibrarianColors.primary),
+      LibrarianNotificationType.bookCollected => (Icons.outbox_outlined, LibrarianColors.primary),
+      LibrarianNotificationType.loanRenewed => (Icons.update, LibrarianColors.primary),
       LibrarianNotificationType.dueReminder => (Icons.notifications_none, LibrarianColors.gold),
       LibrarianNotificationType.bookAdded => (Icons.add, LibrarianColors.primary),
       LibrarianNotificationType.seatUpdate => (Icons.chair_outlined, LibrarianColors.secondaryText),
@@ -58,7 +60,7 @@ class NotificationTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   notification.message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.secondaryText,
                     fontSize: 15,
                   ),
@@ -80,7 +82,7 @@ class NotificationTile extends StatelessWidget {
               margin: const EdgeInsets.only(left: LibrarianSpacing.sm),
               width: 12,
               height: 12,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: LibrarianColors.primary,
                 shape: BoxShape.circle,
               ),

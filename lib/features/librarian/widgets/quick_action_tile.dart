@@ -34,7 +34,7 @@ class QuickActionTile extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.text,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

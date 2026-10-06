@@ -39,7 +39,7 @@ class AttentionCard extends StatelessWidget {
               children: [
                 Text(
                   message,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: LibrarianColors.text,
                     fontSize: 16,
                   ),
@@ -49,13 +49,13 @@ class AttentionCard extends StatelessWidget {
                   children: [
                     Text(
                       actionLabel,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: LibrarianColors.secondaryText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: LibrarianSpacing.xs),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward,
                       size: 16,
                       color: LibrarianColors.secondaryText,

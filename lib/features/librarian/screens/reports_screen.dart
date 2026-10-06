@@ -64,7 +64,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: LibrarianSpacing.md),
             const _SubTitle('Popular booking periods'),
-            ReportBarList(entries: report.bookingPeriods, color: LibrarianColors.navy),
+            ReportBarList(entries: report.bookingPeriods, color: LibrarianColors.emphasis),
           ]),
           _section('Borrowing', [
             ReportBarList(
@@ -102,12 +102,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: LibrarianSpacing.sm + 4),
                 Row(
                   children: [
-                    const Icon(Icons.date_range, size: 18, color: LibrarianColors.secondaryText),
+                    Icon(Icons.date_range, size: 18, color: LibrarianColors.secondaryText),
                     const SizedBox(width: LibrarianSpacing.xs),
                     Expanded(
                       child: Text(
                         report.rangeLabel,
-                        style: const TextStyle(color: LibrarianColors.secondaryText, fontSize: 15),
+                        style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 15),
                       ),
                     ),
                   ],
@@ -169,7 +169,7 @@ class _SubTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: LibrarianSpacing.sm),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           color: LibrarianColors.secondaryText,
           fontSize: 14,
           fontWeight: FontWeight.w700,

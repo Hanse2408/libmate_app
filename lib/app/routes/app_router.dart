@@ -71,6 +71,8 @@ class AppRouter {
     final studentId = profile?.studentId?.trim() ?? '';
     return StudentLibraryRepository(
       firestore: FirebaseFirestore.instance,
+      // Logout reuses the existing AuthProvider; the redirect then shows Login.
+      onSignOut: authProvider.signOut,
       student: StudentIdentity(
         uid: user.uid,
         studentId: studentId.isEmpty ? user.uid : studentId,

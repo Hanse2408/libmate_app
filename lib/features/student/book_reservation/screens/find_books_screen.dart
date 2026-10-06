@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
 import '../../../../core/widgets/stored_image.dart';
 import '../../common/data/student_library_repository.dart';
+import '../../ebooks/screens/ebooks_screen.dart';
 import 'book_details_screen.dart';
 import '../../common/screens/profile_screen.dart';
 import 'my_reservations_screen.dart';
@@ -25,11 +26,35 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
 
   String _selectedCategory = 'All';
 
-  /// "All" plus the categories of the books in the catalogue.
+  /// The "eBooks" category opens the E-books page (digital books from the
+  /// `ebooks` collection) instead of filtering the printed books.
+  static const String ebooksCategory = 'eBooks';
+
+  /// "All", the categories of the books in the catalogue, and "eBooks".
   List<String> get _categories {
-    final categories = {for (final book in widget.library.books) book.category}.toList()
+    final categories = {
+      for (final book in widget.library.books)
+        if (book.category != ebooksCategory) book.category,
+    }.toList()
       ..sort();
-    return ['All', ...categories];
+    return ['All', ...categories, ebooksCategory];
+  }
+
+  void _selectCategory(String category) {
+    if (category == ebooksCategory) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EbooksScreen(
+            library: widget.library,
+            initialQuery: _searchController.text,
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _selectedCategory = category;
+    });
   }
 
 
@@ -264,11 +289,7 @@ void dispose() {
             final isSelected = category == _selectedCategory;
 
             return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category;
-                });
-              },
+              onTap: () => _selectCategory(category),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
@@ -653,10 +674,8 @@ Widget _buildBottomNavigationBar() {
                           color: Color(0xFFCBD5E1),
                         ),
                   onTap: () {
-                    setState(() {
-                      _selectedCategory = category;
-                    });
                     Navigator.pop(context);
+                    _selectCategory(category);
                   },
                 ),
               ),

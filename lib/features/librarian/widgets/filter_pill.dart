@@ -47,14 +47,14 @@ class FilterPill extends StatelessWidget {
               child: Text(
                 '$label: ${options[selectedIndex]}',
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: LibrarianColors.primary,
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            const Icon(Icons.arrow_drop_down, color: LibrarianColors.primary, size: 20),
+            Icon(Icons.arrow_drop_down, color: LibrarianColors.primary, size: 20),
           ],
         ),
       ),

@@ -336,7 +336,7 @@ void main() {
       other.dispose();
     });
 
-    test('a seat booking is confirmed at once and asks no librarian approval', () async {
+    test('a seat booking waits for librarian approval and alerts the librarian', () async {
       final seat = await addSeat('A01');
       final result = await student.bookSeat(seat: seat, date: tomorrow(), startHour: 10, endHour: 12);
       expect(result.success, isTrue, reason: result.message);
@@ -344,9 +344,10 @@ void main() {
 
       final booking = (await db.collection('reservations').get()).docs.single.data();
       expect(booking['type'], 'seat');
-      expect(booking['status'], 'approved');
-      expect(student.myReservations.single.status, ReservationStatus.approved);
-      expect(librarian.notifications, isEmpty);
+      expect(booking['status'], 'pending');
+      expect(student.myReservations.single.status, ReservationStatus.pending);
+      expect(librarian.reservations.single.itemId, seat.id); // librarian sees it
+      expect(librarian.notifications.first.title, 'New Reservation Request');
     });
 
     test('a student cannot hold two seats at the same time', () async {

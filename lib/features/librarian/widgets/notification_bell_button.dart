@@ -22,7 +22,7 @@ class NotificationBellButton extends StatelessWidget {
         isLabelVisible: unreadCount > 0,
         backgroundColor: LibrarianColors.unavailable,
         label: Text('$unreadCount'),
-        child: const Icon(
+        child: Icon(
           Icons.notifications_none_outlined,
           size: 28,
           color: LibrarianColors.text,

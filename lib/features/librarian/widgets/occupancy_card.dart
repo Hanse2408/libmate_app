@@ -56,13 +56,13 @@ class OccupancyCard extends StatelessWidget {
                       children: [
                         Text(
                           '$percent%',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: LibrarianColors.text,
                             fontSize: 26,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'OCCUPIED',
                           style: TextStyle(
                             color: LibrarianColors.secondaryText,
@@ -120,7 +120,7 @@ class _LegendRow extends StatelessWidget {
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: LibrarianColors.secondaryText,
                 fontSize: 16,
               ),
@@ -128,7 +128,7 @@ class _LegendRow extends StatelessWidget {
           ),
           Text(
             '$count',
-            style: const TextStyle(color: LibrarianColors.text, fontSize: 16),
+            style: TextStyle(color: LibrarianColors.text, fontSize: 16),
           ),
         ],
       ),
