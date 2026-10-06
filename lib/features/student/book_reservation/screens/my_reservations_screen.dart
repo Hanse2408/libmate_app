@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-
+import 'modify_book_reservation_screen.dart';
 import '../../../../models/reservation.dart' as shared;
 import '../../common/data/student_library_repository.dart';
 import '../../common/widgets/student_book_cover.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
+import '../../common/screens/profile_screen.dart';
+import 'find_books_screen.dart';
 
 /// The student's own book and seat reservations, read live from Firestore.
 /// A librarian's approval or rejection appears here straight away.
@@ -253,8 +256,17 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                   backgroundColor: const Color(0xFFEAF3FF),
                   textColor: const Color(0xFF1267D9),
                   onPressed: reservation.canCancel
-                      ? () => _showModifyMessage(reservation)
-                      : null,
+    ? () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ModifyBookReservationScreen(
+              library: widget.library,
+              reservationId: reservation.id,
+            ),
+          ),
+        );
+      }
+    : null,
                 ),
               ),
               const SizedBox(width: 20),
@@ -412,17 +424,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     );
   }
 
-  void _showModifyMessage(BookReservation reservation) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'To change a reservation, cancel it and make a new one.',
-          ),
-        ),
-      );
-  }
+  
 
   void _confirmCancellation(BookReservation reservation) {
     showDialog<void>(
@@ -499,92 +501,35 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
+ Widget _buildBottomNavigationBar() {
+  return StudentBottomNavigation(
+    selectedIndex: 2,
+    onHome: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    },
+    onSearch: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => FindBooksScreen(
+            library: widget.library,
           ),
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Reservations',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
+      );
+    },
+    onReservations: () {
+      // Already on Reservations.
+    },
+    onProfile: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProfileScreen(library: widget.library),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: label == 'Home'
-          ? () => Navigator.of(context).popUntil((route) => route.isFirst)
-          : () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF1267D9)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF1267D9)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+ 
 
   static String _formatDate(DateTime date) {
     const months = [

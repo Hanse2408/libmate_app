@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-
+import '../../common/widgets/student_bottom_navigation.dart';
 import '../../../../core/widgets/stored_image.dart';
 import '../../common/data/student_library_repository.dart';
 import 'book_details_screen.dart';
+import '../../common/screens/profile_screen.dart';
+import 'my_reservations_screen.dart';
 
 /// Browse and search the library catalogue. The list is the same Firestore
 /// `books` collection the Librarian manages, so new books appear live.
+
 class FindBooksScreen extends StatefulWidget {
   const FindBooksScreen({super.key, required this.library});
 
@@ -16,7 +19,9 @@ class FindBooksScreen extends StatefulWidget {
 }
 
 class _FindBooksScreenState extends State<FindBooksScreen> {
+
   final TextEditingController _searchController = TextEditingController();
+
 
   String _selectedCategory = 'All';
 
@@ -26,6 +31,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
       ..sort();
     return ['All', ...categories];
   }
+
 
   /// The books librarians have saved in Firestore (updates live).
   List<Book> get _books {
@@ -51,41 +57,43 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     Color(0xFFF2B84B),
   ];
 
-  List<Book> get _filteredBooks {
-    final searchText = _searchController.text.toLowerCase().trim();
 
-    return _books.where((book) {
-      final matchesCategory =
-          _selectedCategory == 'All' ||
-          book.category == _selectedCategory;
+    List<Book> get _filteredBooks {
+  final searchText = _searchController.text.toLowerCase().trim();
 
-      final matchesSearch =
-          searchText.isEmpty ||
-          book.title.toLowerCase().contains(searchText) ||
-          book.author.toLowerCase().contains(searchText) ||
-          book.category.toLowerCase().contains(searchText);
+  return _books.where((book) {
+    final matchesCategory =
+        _selectedCategory == 'All' ||
+        book.category == _selectedCategory;
 
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
+    final matchesSearch =
+        searchText.isEmpty ||
+        book.title.toLowerCase().contains(searchText) ||
+        book.author.toLowerCase().contains(searchText) ||
+        book.category.toLowerCase().contains(searchText);
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
+    return matchesCategory && matchesSearch;
+  }).toList();
+}
+
+@override
+void initState() {
+  super.initState();
+  _searchController.addListener(_onSearchChanged);
+}
 
   void _onSearchChanged() {
     setState(() {});
   }
 
-  @override
-  void dispose() {
-    _searchController
-      ..removeListener(_onSearchChanged)
-      ..dispose();
-    super.dispose();
-  }
+ @override
+void dispose() {
+  _searchController
+    ..removeListener(_onSearchChanged)
+    ..dispose();
+
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -232,71 +240,70 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
-  Widget _buildCategories() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Categories',
-          style: TextStyle(
-            color: Color(0xFF172033),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+ Widget _buildCategories() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Categories',
+        style: TextStyle(
+          color: Color(0xFF172033),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = category == _selectedCategory;
+      ),
+      const SizedBox(height: 14),
+      SizedBox(
+        height: 42,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _categories.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),        
+        itemBuilder: (context, index) {
+            final category = _categories[index];
+            final isSelected = category == _selectedCategory;
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF2563EB)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
                     color: isSelected
                         ? const Color(0xFF2563EB)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF64748B),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-              );
-            },
-          ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
-      ],
-    );
-  }
-
+      ),
+    ],
+  );
+}
   Widget _buildBookSection() {
     final books = _filteredBooks;
 
@@ -458,6 +465,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
+
   Widget _buildBookCover(Book book) {
     // The librarian's uploaded cover, or the generated one.
     final generated = _buildGeneratedCover(book);
@@ -510,10 +518,13 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
               ),
             ),
           ],
+
         ),
-      ),
-    );
-  }
+      
+    ),
+   
+  );
+}
 
   Widget _buildEmptyState() {
     return Container(
@@ -559,91 +570,34 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
+Widget _buildBottomNavigationBar() {
+  return StudentBottomNavigation(
+    selectedIndex: 1,
+    onHome: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    },
+    onSearch: () {
+      // Already on Search.
+    },
+    onReservations: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MyReservationsScreen(
+            library: widget.library,
           ),
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 70,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.bookmark_border_rounded,
-                label: 'Reservations',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
+      );
+    },
+    onProfile: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProfileScreen(library: widget.library),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 5,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-              size: 23,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+      );
+    },
+  );
+}
+  
   void _showFilterDialog() {
     showModalBottomSheet<void>(
       context: context,
@@ -713,6 +667,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
     );
   }
 }
+
 
 class Book {
   const Book({

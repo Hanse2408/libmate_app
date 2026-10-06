@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
-
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
+import '../../common/data/student_library_repository.dart';
+import 'find_books_screen.dart';
+import 'my_reservations_screen.dart';
 class ModifyBookReservationScreen extends StatefulWidget {
-  const ModifyBookReservationScreen({super.key});
+const ModifyBookReservationScreen({
+  super.key,
+  required this.library,
+  required this.reservationId,
+});
+
+final StudentLibraryRepository library;
+final String reservationId;
 
   @override
   State<ModifyBookReservationScreen> createState() =>
@@ -10,8 +21,8 @@ class ModifyBookReservationScreen extends StatefulWidget {
 
 class _ModifyBookReservationScreenState
     extends State<ModifyBookReservationScreen> {
-  DateTime _reservationDate = DateTime(2025, 9, 15);
-  String _pickupLocation = 'Main Library, 3rd Floor';
+late DateTime _reservationDate;
+late String _pickupLocation;
 
   final TextEditingController _notesController = TextEditingController(
     text: 'Will collect in the afternoon around 3:00 PM.\nPlease hold.',
@@ -23,6 +34,19 @@ class _ModifyBookReservationScreenState
     'Main Desk, Floor 1',
     'Library Collection Desk',
   ];
+
+  @override
+void initState() {
+  super.initState();
+
+  final reservation = widget.library.myReservations.firstWhere(
+    (r) => r.id == widget.reservationId,
+  );
+
+  _reservationDate = reservation.date;
+  _pickupLocation =
+      reservation.pickupLocation ?? 'Main Library, 3rd Floor';
+}
 
   @override
   void dispose() {
@@ -621,51 +645,70 @@ class _ModifyBookReservationScreenState
     }
   }
 
-  void _confirmUpdate() {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: const Text(
-            'Reservation Updated',
-            style: TextStyle(
-              color: Color(0xFF172033),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: Text(
-            'Your reservation has been updated.\n\n'
-            'Date: ${_formatDate(_reservationDate)}\n'
-            'Pickup: $_pickupLocation\n'
-            'Notes: ${_notesController.text}',
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _confirmUpdate() async {
+  final result = await widget.library.updateBookReservation(
+    reservationId: widget.reservationId,
+    pickupDate: _reservationDate,
+    pickupLocation: _pickupLocation,
+    loanPeriodDays: widget.library.settings.loanPeriodDays,
+    notes: _notesController.text,
+  );
+
+  if (!mounted) return;
+
+  if (!result.success) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message!),
+      ),
     );
+    return;
   }
 
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Text(
+          'Reservation Updated',
+          style: TextStyle(
+            color: Color(0xFF172033),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'Your reservation has been updated.\n\n'
+          'Date: ${_formatDate(_reservationDate)}\n'
+          'Pickup: $_pickupLocation\n'
+          'Notes: ${_notesController.text}',
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF2563EB),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
   void _discardChanges() {
     Navigator.of(context).maybePop();
   }
@@ -689,88 +732,37 @@ class _ModifyBookReservationScreenState
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
+Widget _buildBottomNavigationBar() {
+  return StudentBottomNavigation(
+    selectedIndex: 2,
+    onHome: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    },
+    onSearch: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => FindBooksScreen(
+            library: widget.library,
           ),
         ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Reservations',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
+      );
+    },
+    onReservations: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MyReservationsScreen(
+            library: widget.library,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
+      );
+    },
+    onProfile: () {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProfileScreen(library: widget.library),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 }
