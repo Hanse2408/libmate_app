@@ -87,6 +87,12 @@ class ReservationRecord {
     return !endsAt.isAfter(DateTime.now());
   }
 
+  /// A confirmed seat booking that has not ended can still be modified.
+  bool get canModifySeat =>
+      type == ReservationType.seat &&
+      status == ReservationStatus.approved &&
+      !hasEnded;
+
   /// Seat bookings: first hour of the slot, e.g. 13 for "13:00 - 15:00".
   int? get startHour => _hourAt(0);
 

@@ -7,6 +7,7 @@ import '../providers/seat_booking_provider.dart';
 import '../widgets/booking_details_card.dart';
 import '../widgets/seat_booking_colors.dart';
 import '../widgets/seat_reservation_info_card.dart';
+import 'modify_seat_reservation_screen.dart';
 
 /// H04 – details of one of the student's seat reservations.
 ///
@@ -46,9 +47,17 @@ class _SeatReservationDetailsScreenState extends State<SeatReservationDetailsScr
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// H05 (modify seat reservation) is not built yet; connect it here.
+  /// Opens H05. H04 follows the live reservation, so it shows the changes
+  /// as soon as it is back on screen.
   void _openModify() {
-    _showMessage('Modifying a seat reservation will be available soon.');
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ModifySeatReservationScreen(
+          library: widget.library,
+          reservation: _reservation,
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmCancel() async {
@@ -144,23 +153,25 @@ class _SeatReservationDetailsScreenState extends State<SeatReservationDetailsScr
           ],
           if (canChange) ...[
             const SizedBox(height: 24),
-            SizedBox(
-              height: 46,
-              child: ElevatedButton(
-                onPressed: _isCancelling ? null : _openModify,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SeatColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-                ),
-                child: const Text(
-                  'Modify Reservation',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            if (reservation.canModifySeat) ...[
+              SizedBox(
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: _isCancelling ? null : _openModify,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SeatColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                  ),
+                  child: const Text(
+                    'Modify Reservation',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             SizedBox(
               height: 46,
               child: OutlinedButton(

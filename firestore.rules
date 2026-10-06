@@ -163,6 +163,25 @@ service cloud.firestore {
           'updatedAt'
         ]);
 
+      // Students may move their own confirmed seat booking to another seat,
+      // date or time. Owner, type and status cannot change, and the new seat
+      // must exist. (The seatSlots are swapped in the same transaction.)
+      allow update: if isActiveStudent()
+        && resource.data.studentUid == request.auth.uid
+        && resource.data.type == 'seat'
+        && resource.data.status == 'approved'
+        && request.resource.data.studentUid == resource.data.studentUid
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.status == resource.data.status
+        && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))
+        && changedOnly([
+          'itemId',
+          'itemName',
+          'date',
+          'timeSlot',
+          'updatedAt'
+        ]);
+
       allow delete: if false;
     }
 
