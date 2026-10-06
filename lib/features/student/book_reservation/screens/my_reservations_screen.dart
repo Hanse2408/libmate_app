@@ -6,6 +6,7 @@ import '../../common/widgets/student_book_cover.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
 import '../../common/screens/profile_screen.dart';
 import 'find_books_screen.dart';
+import '../../seat_booking/screens/seat_reservation_details_screen.dart';
 
 /// The student's own book and seat reservations, read live from Firestore.
 /// A librarian's approval or rejection appears here straight away.
@@ -218,6 +219,32 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }
 
   Widget _buildReservationCard(BookReservation reservation) {
+    final card = _buildCardBody(reservation);
+    if (!reservation.isSeat) return card;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openSeatDetails(reservation.id),
+      child: card,
+    );
+  }
+
+  /// Opens H04 for a seat card, with the selected reservation.
+  void _openSeatDetails(String reservationId) {
+    final selected = widget.library.myReservations
+        .where((r) => r.id == reservationId)
+        .firstOrNull;
+    if (selected == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SeatReservationDetailsScreen(
+          library: widget.library,
+          reservation: selected,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardBody(BookReservation reservation) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       decoration: BoxDecoration(

@@ -700,6 +700,12 @@ final slotLabel = '${_hh(startHour)} - ${_hh(endHour)}';
           );
         }
 
+        if (reservation.type == ReservationType.seat && reservation.hasEnded) {
+          throw const ActionRefused(
+            'This seat booking has already ended.',
+          );
+        }
+
         if (reservation.type == ReservationType.book &&
             reservation.status == ReservationStatus.approved) {
           throw const ActionRefused(
