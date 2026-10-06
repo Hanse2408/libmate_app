@@ -26,7 +26,7 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
           '$row${number.toString().padLeft(2, '0')}',
     ];
     return ManagerScaffold(
-      title: 'Reading Room',
+      title: 'Reading Room Monitoring',
       currentIndex: 2,
       body: ManagerPagePadding(
         child: ListView(
@@ -59,12 +59,12 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                         children: [
                           const _OccupancyLegend(
                             label: 'Available',
-                            value: '38',
+                            value: '36',
                             color: AppColors.success,
                           ),
                           _OccupancyLegend(
                             label: 'Reserved',
-                            value: '72',
+                            value: '84',
                             color: primary,
                           ),
                           const _OccupancyLegend(
@@ -138,7 +138,7 @@ class _OccupancyDonut extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          '68%',
+          '70%',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
         ),
         Text(
@@ -146,7 +146,7 @@ class _OccupancyDonut extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 8),
         ),
         Text(
-          '82 / 120',
+          '84 / 120',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 8),
         ),
       ],
@@ -172,7 +172,7 @@ class _DonutPainter extends CustomPainter {
     stroke.color = track;
     canvas.drawArc(rect, 0, math.pi * 2, false, stroke);
     stroke.color = progress;
-    canvas.drawArc(rect, -math.pi / 2, math.pi * 1.36, false, stroke);
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 1.4, false, stroke);
   }
 
   @override

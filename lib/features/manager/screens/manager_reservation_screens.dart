@@ -41,13 +41,26 @@ class _ManagerReservationsScreenState extends State<ManagerReservationsScreen> {
       return statusMatch && searchMatch;
     }).toList();
     return ManagerScaffold(
-      title: 'Reservation Management',
+      title: 'Reservation Monitoring',
       currentIndex: 1,
       body: ManagerPagePadding(
         child: Column(
           children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: AppColors.lightBlue,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Read-only view · reservation operations are handled by the librarian',
+                style: TextStyle(fontSize: 10, color: AppColors.navy),
+              ),
+            ),
+            const SizedBox(height: 9),
             SearchField(
-              hint: 'Search reservation...',
+              hint: 'Search by reservation, student or resource',
               onChanged: (value) => setState(() => _query = value.trim()),
             ),
             const SizedBox(height: 8),
@@ -206,11 +219,13 @@ class ManagerReservationDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            PrimaryButton(
-              label: 'Resolve Conflict',
-              onPressed: () => context.push(AppRoutes.managerConflict),
-            ),
-            const SizedBox(height: 7),
+            if (reservation.status == ManagerReservationStatus.conflict) ...[
+              SecondaryButton(
+                label: 'Resolve Conflict',
+                onPressed: () => context.push(AppRoutes.managerConflict),
+              ),
+              const SizedBox(height: 7),
+            ],
             SecondaryButton(label: 'Cancel', onPressed: () => context.pop()),
           ],
         ),
@@ -232,7 +247,7 @@ class _ManagerConflictScreenState extends State<ManagerConflictScreen> {
   @override
   Widget build(BuildContext context) {
     return ManagerScaffold(
-      title: 'Reservation Conflict',
+      title: 'Conflict Monitoring',
       body: ManagerPagePadding(
         child: ListView(
           children: [
@@ -249,11 +264,90 @@ class _ManagerConflictScreenState extends State<ManagerConflictScreen> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This reservation conflicts with an existing booking for the same seat and overlapping time.',
+                      'Monitoring record only. Normal booking conflicts are prevented during student booking.',
                       style: TextStyle(fontSize: 11),
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 13),
+            const _DetailHeading('Conflict Details'),
+            const SizedBox(height: 8),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(13),
+                child: Column(
+                  children: [
+                    _DetailRow(
+                      label: 'Conflict ID',
+                      value: 'C001',
+                      icon: Icons.tag_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Resource',
+                      value: 'Seat B12',
+                      icon: Icons.event_seat_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Date',
+                      value: '02 Oct 2026',
+                      icon: Icons.calendar_today_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Time',
+                      value: '10:00 AM - 12:00 PM',
+                      icon: Icons.access_time,
+                    ),
+                    _DetailRow(
+                      label: 'Affected Reservation',
+                      value: 'RES-1023',
+                      icon: Icons.event_note_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Status',
+                      value: 'Pending review',
+                      icon: Icons.info_outline,
+                      valueColor: AppColors.gold,
+                    ),
+                    _DetailRow(
+                      label: 'Detected',
+                      value: '02 Oct 2026',
+                      icon: Icons.history,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    _DetailRow(
+                      label: 'Conflict ID',
+                      value: 'C001',
+                      icon: Icons.tag_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Resource',
+                      value: 'Seat B12',
+                      icon: Icons.event_seat_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Date',
+                      value: '02 Oct 2026',
+                      icon: Icons.calendar_today_outlined,
+                    ),
+                    _DetailRow(
+                      label: 'Status',
+                      value: 'Pending review',
+                      icon: Icons.info_outline,
+                      valueColor: AppColors.gold,
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -282,7 +376,14 @@ class _ManagerConflictScreenState extends State<ManagerConflictScreen> {
                   ?.copyWith(fontSize: 11),
             ),
             const SizedBox(height: 14),
-            const _DetailHeading('Recommended Action'),
+            const _DetailHeading('Existing Resolution Workflow'),
+            const SizedBox(height: 4),
+            Text(
+              'Monitoring is the Manager\'s primary role. Existing resolution actions are retained as a secondary workflow.',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(fontSize: 10),
+            ),
+            const SizedBox(height: 10),
             RadioGroup<String>(
               groupValue: _action,
               onChanged: (value) {

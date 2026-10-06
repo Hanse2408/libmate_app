@@ -1,3 +1,15 @@
+import '../../../models/user.dart';
+
+const managerReportTypes = [
+  'Reservations',
+  'Popular Books',
+  'Overdue Books',
+  'Occupancy',
+  'Peak Usage',
+  'Users',
+  'Conflicts',
+];
+
 enum ManagerReservationStatus { confirmed, conflict, pending, cancelled }
 
 enum ManagerSeatState { available, reserved, conflict, selected }
@@ -30,12 +42,107 @@ class ManagerUser {
     required this.id,
     required this.role,
     required this.email,
+    this.isActive = true,
+    this.createdAt,
   });
 
   final String name;
   final String id;
   final String role;
   final String email;
+  final bool isActive;
+  final DateTime? createdAt;
+
+  String get status => isActive ? 'Active' : 'Inactive';
+
+  ManagerUser copyWith({
+    String? name,
+    String? id,
+    String? role,
+    String? email,
+    bool? isActive,
+    DateTime? createdAt,
+  }) {
+    return ManagerUser(
+      name: name ?? this.name,
+      id: id ?? this.id,
+      role: role ?? this.role,
+      email: email ?? this.email,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
+class ManagerUserStore {
+  ManagerUserStore._()
+    : _users = [
+        for (final user in managerUsers)
+          user.copyWith(createdAt: DateTime(2026, 10, 2)),
+      ];
+
+  static final instance = ManagerUserStore._();
+
+  final List<ManagerUser> _users;
+
+  List<ManagerUser> get users => List.unmodifiable(_users);
+
+  ManagerUser? findById(String id) {
+    for (final user in _users) {
+      if (user.id == id) return user;
+    }
+    return null;
+  }
+
+  void add(ManagerUser user) {
+    final duplicate = _users.any(
+      (existing) =>
+          existing.id.toLowerCase() == user.id.toLowerCase() ||
+          existing.email.toLowerCase() == user.email.toLowerCase(),
+    );
+    if (duplicate) {
+      throw const FormatException('A user with this ID or email already exists.');
+    }
+    _users.add(user);
+  }
+
+  void update(String id, ManagerUser updatedUser) {
+    final index = _users.indexWhere((user) => user.id == id);
+    if (index == -1) {
+      throw StateError('The user no longer exists.');
+    }
+    final duplicate = _users.any(
+      (existing) =>
+          existing.id != id &&
+          existing.email.toLowerCase() == updatedUser.email.toLowerCase(),
+    );
+    if (duplicate) {
+      throw const FormatException('A user with this email already exists.');
+    }
+    _users[index] = updatedUser;
+  }
+
+  void deactivate(String id) {
+    final index = _users.indexWhere((user) => user.id == id);
+    if (index == -1) {
+      throw StateError('The user no longer exists.');
+    }
+    _users[index] = _users[index].copyWith(isActive: false);
+  }
+}
+
+String managerRoleLabel(UserRole role) {
+  return switch (role) {
+    UserRole.student => 'Student',
+    UserRole.librarian => 'Librarian',
+    UserRole.manager => 'Manager',
+  };
+}
+
+UserRole managerRoleFromLabel(String label) {
+  return UserRole.values.firstWhere(
+    (role) => managerRoleLabel(role) == label,
+  );
 }
 
 class ManagerNotice {
@@ -50,6 +157,34 @@ class ManagerNotice {
   final String subtitle;
   final String time;
   final String kind;
+}
+
+class ManagerReportSelection {
+  const ManagerReportSelection({
+    required this.reportType,
+    required this.startDate,
+    required this.endDate,
+    this.format = 'CSV',
+  });
+
+  final String reportType;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String format;
+
+  ManagerReportSelection copyWith({
+    String? reportType,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? format,
+  }) {
+    return ManagerReportSelection(
+      reportType: reportType ?? this.reportType,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      format: format ?? this.format,
+    );
+  }
 }
 
 const managerReservations = [

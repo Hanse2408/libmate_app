@@ -4,10 +4,12 @@ class AppRoutes {
 
   static const String splash = '/';
   static const String login = '/login';
+  static const String roleSelection = '/login/roles';
   static const String signup = '/signup';
   static const String studentHome = '/student';
   static const String librarianDashboard = '/librarian';
   static const String managerDashboard = '/manager';
+  static const String managerProfile = '/manager/profile';
   static const String managerReservations = '/manager/reservations';
   static const String managerReservationDetails =
       '/manager/reservations/details';
@@ -18,5 +20,11 @@ class AppRoutes {
   static const String managerReports = '/manager/reports';
   static const String managerPolicies = '/manager/policies';
   static const String managerUsers = '/manager/users';
+  static const String managerUserDetails = '/manager/users/details';
+  static const String managerUserAdd = '/manager/users/add';
+  static const String managerUserEdit = '/manager/users/edit';
   static const String managerNotifications = '/manager/notifications';
+  static const String managerReportPreview = '/manager/reports/preview';
+  static const String managerExportConfirmation =
+      '/manager/reports/export-confirmation';
 }

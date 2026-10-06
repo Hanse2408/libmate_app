@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
 import '../widgets/manager_widgets.dart';
@@ -13,7 +15,11 @@ class ManagerReportsScreen extends StatefulWidget {
 
 class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
   int _tab = 0;
-  static const _tabs = ['Reservations', 'Popular Books', 'Overdue'];
+  DateTimeRange _dateRange = DateTimeRange(
+    start: DateTime(2026, 10, 1),
+    end: DateTime(2026, 10, 6),
+  );
+  static const _tabs = managerReportTypes;
 
   @override
   Widget build(BuildContext context) {
@@ -29,53 +35,63 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
               onChanged: (value) => setState(() => _tab = value),
             ),
             const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_month_outlined,
-                      size: 17,
-                      color: Theme.of(context).colorScheme.primary,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.lightBlue,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 17, color: AppColors.navy),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Sample figures for interface preview',
+                      style: TextStyle(fontSize: 11, color: AppColors.navy),
                     ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('This Month', style: TextStyle(fontSize: 11)),
-                    ),
-                    const Icon(Icons.keyboard_arrow_down, size: 18),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _chooseDateRange,
+              icon: const Icon(Icons.calendar_month_outlined, size: 17),
+              label: Text(
+                '${_dateLabel(_dateRange.start)} - ${_dateLabel(_dateRange.end)}',
               ),
             ),
             const SizedBox(height: 12),
-            const Row(
+            Row(
               children: [
                 Expanded(
                   child: StatCard(
                     icon: Icons.event_note_outlined,
-                    title: 'Total Reservations',
-                    value: '642',
-                    trend: '+12%',
+                    title: _tab == 0 ? 'Reservations' : 'Total Records',
+                    value: _reportTotal,
+                    trend: 'Sample',
+                    trendColor: AppColors.primary,
                   ),
                 ),
-                SizedBox(width: 7),
+                const SizedBox(width: 7),
                 Expanded(
                   child: StatCard(
                     icon: Icons.check_circle_outline,
-                    title: 'Completed',
-                    value: '580',
-                    trend: '+8%',
+                    title: _reportSecondLabel,
+                    value: _reportSecondValue,
+                    trend: 'Sample',
+                    trendColor: AppColors.primary,
                   ),
                 ),
-                SizedBox(width: 7),
+                const SizedBox(width: 7),
                 Expanded(
                   child: StatCard(
-                    icon: Icons.cancel_outlined,
-                    title: 'Cancelled',
-                    value: '62',
-                    trend: '-5%',
-                    trendColor: AppColors.error,
+                    icon: Icons.info_outline,
+                    title: _reportThirdLabel,
+                    value: _reportThirdValue,
+                    trend: 'Sample',
+                    trendColor: AppColors.primary,
                   ),
                 ),
               ],
@@ -107,10 +123,15 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
               _ReportList(tab: _tab),
             const SizedBox(height: 15),
             PrimaryButton(
-              label: 'Export Report',
-              icon: Icons.file_download_outlined,
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Report exported (demo)')),
+              label: 'Preview / Export Report',
+              icon: Icons.visibility_outlined,
+              onPressed: () => context.push(
+                AppRoutes.managerReportPreview,
+                extra: ManagerReportSelection(
+                  reportType: _tabs[_tab],
+                  startDate: _dateRange.start,
+                  endDate: _dateRange.end,
+                ),
               ),
             ),
           ],
@@ -118,6 +139,78 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
       ),
     );
   }
+
+  String get _reportTotal => switch (_tab) {
+    5 => '${ManagerUserStore.instance.users.length}',
+    1 => '${popularBooks.length}',
+    2 => '${overdueBooks.length}',
+    6 => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.conflict).length}',
+    _ => '${managerReservations.length}',
+  };
+
+  String get _reportSecondLabel => switch (_tab) {
+    1 => 'Top Book',
+    2 => 'Reminder',
+    3 || 4 => 'Occupied',
+    5 => 'Active',
+    6 => 'Pending',
+    _ => 'Confirmed',
+  };
+
+  String get _reportSecondValue => switch (_tab) {
+    1 => 'Clean Code',
+    2 => '12',
+    3 || 4 => '84',
+    5 => '${ManagerUserStore.instance.users.where((user) => user.isActive).length}',
+    6 => '1',
+    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
+  };
+
+  String get _reportThirdLabel => switch (_tab) {
+    1 => 'Reservations',
+    2 => 'Overdue',
+    3 || 4 => 'Available',
+    5 => 'Inactive',
+    6 => 'Resolved',
+    _ => 'Pending',
+  };
+
+  String get _reportThirdValue => switch (_tab) {
+    1 => '128',
+    2 => '12',
+    3 || 4 => '36',
+    5 => '${ManagerUserStore.instance.users.where((user) => !user.isActive).length}',
+    6 => '1',
+    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
+  };
+
+  Future<void> _chooseDateRange() async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      initialDateRange: _dateRange,
+    );
+    if (range != null && mounted) setState(() => _dateRange = range);
+  }
+
+  String _dateLabel(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')} ${_month(date.month)} ${date.year}';
+
+  String _month(int month) => const [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][month - 1];
 }
 
 class _ReportList extends StatelessWidget {
@@ -127,14 +220,36 @@ class _ReportList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = tab == 1 ? popularBooks : overdueBooks;
+    final items = switch (tab) {
+      1 => popularBooks,
+      2 => overdueBooks,
+      5 => [
+        for (final user in ManagerUserStore.instance.users)
+          (user.name, '${user.role} · ${user.status}'),
+      ],
+      6 => const [
+        ('Seat B12 · 10:00 AM', 'Reservation conflict · Pending'),
+        ('Seat C04 · 11:00 AM', 'Reservation conflict · Resolved'),
+      ],
+      3 || 4 => const [
+        ('Ground Floor', '84 occupied · 36 available'),
+        ('Peak time', '10:00 AM - 12:00 PM'),
+      ],
+      _ => const <(String, String)>[],
+    };
     return Column(
       children: [
         for (var i = 0; i < items.length; i++)
           Card(
             child: ListTile(
               leading: Icon(
-                tab == 1 ? Icons.menu_book_outlined : Icons.warning_amber_rounded,
+                tab == 1
+                    ? Icons.menu_book_outlined
+                    : tab == 5
+                    ? Icons.person_outline
+                    : tab == 3 || tab == 4
+                    ? Icons.event_seat_outlined
+                    : Icons.warning_amber_rounded,
                 color: tab == 1
                     ? Theme.of(context).colorScheme.primary
                     : AppColors.gold,

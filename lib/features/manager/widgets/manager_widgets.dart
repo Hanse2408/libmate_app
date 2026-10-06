@@ -14,6 +14,7 @@ class ManagerScaffold extends StatelessWidget {
     this.currentIndex,
     this.fourthItem,
     this.actions,
+    this.leading,
   });
 
   final String title;
@@ -21,13 +22,18 @@ class ManagerScaffold extends StatelessWidget {
   final int? currentIndex;
   final ManagerFourthNav? fourthItem;
   final List<Widget>? actions;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     return Theme(
       data: AppTheme.light,
       child: Scaffold(
-        appBar: AppBar(title: Text(title), actions: actions),
+        appBar: AppBar(
+          title: Text(title),
+          leading: leading,
+          actions: actions,
+        ),
         body: body,
         bottomNavigationBar: currentIndex == null
             ? null
@@ -79,7 +85,7 @@ class ManagerBottomNav extends StatelessWidget {
           AppRoutes.managerNotifications,
         ),
       },
-      ('Profile', Icons.person_outline, AppRoutes.managerUsers),
+      ('Profile', Icons.person_outline, AppRoutes.managerProfile),
     ];
     return NavigationBar(
       selectedIndex: currentIndex,
@@ -569,6 +575,7 @@ class UserListTile extends StatelessWidget {
   Widget build(BuildContext context) => Card(
     child: ListTile(
       onTap: onTap,
+      isThreeLine: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       leading: CircleAvatar(
         backgroundColor: Theme.of(context).colorScheme.primary
@@ -583,12 +590,26 @@ class UserListTile extends StatelessWidget {
         user.name,
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
       ),
-      subtitle: Text(user.id, style: const TextStyle(fontSize: 10)),
+      subtitle: Text(
+        '${user.email}\n${user.id}',
+        style: const TextStyle(fontSize: 10),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          StatusBadge(text: user.role, type: user.role),
-          const SizedBox(width: 3),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              StatusBadge(text: user.role, type: user.role),
+              const SizedBox(height: 4),
+              StatusBadge(
+                text: user.status,
+                type: user.isActive ? 'available' : 'inactive',
+              ),
+            ],
+          ),
+          const SizedBox(width: 5),
           const Icon(Icons.chevron_right, size: 18),
         ],
       ),
