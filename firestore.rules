@@ -94,15 +94,13 @@ service cloud.firestore {
       allow read: if isStaff()
         || (signedIn() && resource.data.studentUid == request.auth.uid);
 
-      // A student creates a reservation for themselves. A book request starts
-      // pending (a librarian approves it); a seat booking is confirmed at once.
+      // A student requests a reservation for themselves; it starts pending.
       allow create: if isActiveStudent()
         && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.status == 'pending'
         && ((request.resource.data.type == 'book'
-              && request.resource.data.status == 'pending'
               && exists(/databases/$(database)/documents/books/$(request.resource.data.itemId)))
           || (request.resource.data.type == 'seat'
-              && request.resource.data.status == 'approved'
               && exists(/databases/$(database)/documents/seats/$(request.resource.data.itemId))));
 
       // Staff approve / reject / complete. A student may only cancel their
@@ -114,22 +112,6 @@ service cloud.firestore {
           && !(resource.data.type == 'book' && resource.data.status == 'approved')
           && request.resource.data.status == 'cancelled'
           && changedOnly(['status', 'updatedAt']));
-
-      // Students may modify the details of their own pending book request.
-      allow update: if isActiveStudent()
-        && resource.data.studentUid == request.auth.uid
-        && resource.data.type == 'book'
-        && resource.data.status == 'pending'
-        && request.resource.data.studentUid == resource.data.studentUid
-        && request.resource.data.type == resource.data.type
-        && request.resource.data.status == resource.data.status
-        && changedOnly([
-          'date',
-          'pickupLocation',
-          'loanPeriodDays',
-          'notes',
-          'updatedAt'
-        ]);
 
       allow delete: if false;
     }
