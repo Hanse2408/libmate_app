@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerReportPreviewScreen extends StatefulWidget {
@@ -39,14 +40,14 @@ class _ManagerReportPreviewScreenState
                 color: AppColors.lightBlue,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 17, color: AppColors.navy),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, size: 17, color: AppColors.navy),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Preview uses sample data. No report file is generated yet.',
-                      style: TextStyle(fontSize: 11, color: AppColors.navy),
+                      'Preview uses the live manager data source before export.',
+                      style: const TextStyle(fontSize: 11, color: AppColors.navy),
                     ),
                   ),
                 ],
@@ -83,7 +84,7 @@ class _ManagerReportPreviewScreenState
             ),
             const SizedBox(height: 3),
             Text(
-              'Sample data · $_recordsCount records',
+              'Live data · ${_recordsCount(context)} records',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -125,13 +126,16 @@ class _ManagerReportPreviewScreenState
     );
   }
 
-  int get _recordsCount => switch (_selection.reportType) {
-    'Users' => ManagerUserStore.instance.users.length,
-    'Reservations' || 'Conflicts' => managerReservations.length,
-    'Popular Books' => popularBooks.length,
-    'Overdue Books' => overdueBooks.length,
-    _ => 4,
-  };
+  int _recordsCount(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_selection.reportType) {
+      'Users' => repository.users.length,
+      'Reservations' || 'Conflicts' => repository.reservations.length,
+      'Popular Books' => popularBooks.length,
+      'Overdue Books' => overdueBooks.length,
+      _ => 4,
+    };
+  }
 
   Future<void> _chooseDateRange() async {
     final range = await showDateRangePicker(
@@ -179,16 +183,17 @@ class _PreviewSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
     final metrics = switch (selection.reportType) {
       'Users' => [
-        ('Total Users', '${ManagerUserStore.instance.users.length}'),
+        ('Total Users', '${repository.users.length}'),
         (
           'Active',
-          '${ManagerUserStore.instance.users.where((user) => user.isActive).length}',
+          '${repository.users.where((user) => user.isActive).length}',
         ),
         (
           'Inactive',
-          '${ManagerUserStore.instance.users.where((user) => !user.isActive).length}',
+          '${repository.users.where((user) => !user.isActive).length}',
         ),
       ],
       'Popular Books' => [
@@ -209,20 +214,20 @@ class _PreviewSummary extends StatelessWidget {
       'Conflicts' => [
         (
           'Total Records',
-          '${managerReservations.where((r) => r.status == ManagerReservationStatus.conflict).length}',
+          '${repository.reservations.where((r) => r.status == ManagerReservationStatus.conflict).length}',
         ),
         ('Pending', '1'),
         ('Resolved', '1'),
       ],
       _ => [
-        ('Total Reservations', '${managerReservations.length}'),
+        ('Total Reservations', '${repository.reservations.length}'),
         (
           'Confirmed',
-          '${managerReservations.where((r) => r.status == ManagerReservationStatus.confirmed).length}',
+          '${repository.reservations.where((r) => r.status == ManagerReservationStatus.confirmed).length}',
         ),
         (
           'Pending',
-          '${managerReservations.where((r) => r.status == ManagerReservationStatus.pending).length}',
+          '${repository.reservations.where((r) => r.status == ManagerReservationStatus.pending).length}',
         ),
       ],
     };

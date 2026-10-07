@@ -9,8 +9,9 @@ enum UserRole {
   String get value => name;
 
   static UserRole fromValue(String value) {
+    final normalized = value.trim().toLowerCase();
     return UserRole.values.firstWhere(
-      (role) => role.name == value,
+      (role) => role.name == normalized,
       orElse: () => UserRole.student,
     );
   }

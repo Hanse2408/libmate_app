@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerReportsScreen extends StatefulWidget {
@@ -41,14 +42,14 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                 color: AppColors.lightBlue,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 17, color: AppColors.navy),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, size: 17, color: AppColors.navy),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Sample figures for interface preview',
-                      style: TextStyle(fontSize: 11, color: AppColors.navy),
+                      'Live figures from the active manager data source',
+                      style: const TextStyle(fontSize: 11, color: AppColors.navy),
                     ),
                   ),
                 ],
@@ -69,8 +70,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.event_note_outlined,
                     title: _tab == 0 ? 'Reservations' : 'Total Records',
-                    value: _reportTotal,
-                    trend: 'Sample',
+                    value: _reportTotal(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -79,8 +80,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.check_circle_outline,
                     title: _reportSecondLabel,
-                    value: _reportSecondValue,
-                    trend: 'Sample',
+                    value: _reportSecondValue(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -89,8 +90,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.info_outline,
                     title: _reportThirdLabel,
-                    value: _reportThirdValue,
-                    trend: 'Sample',
+                    value: _reportThirdValue(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -140,13 +141,16 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
     );
   }
 
-  String get _reportTotal => switch (_tab) {
-    5 => '${ManagerUserStore.instance.users.length}',
-    1 => '${popularBooks.length}',
-    2 => '${overdueBooks.length}',
-    6 => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.conflict).length}',
-    _ => '${managerReservations.length}',
-  };
+  String _reportTotal(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      5 => '${repository.users.length}',
+      1 => '${popularBooks.length}',
+      2 => '${overdueBooks.length}',
+      6 => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.conflict).length}',
+      _ => '${repository.reservations.length}',
+    };
+  }
 
   String get _reportSecondLabel => switch (_tab) {
     1 => 'Top Book',
@@ -157,14 +161,17 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
     _ => 'Confirmed',
   };
 
-  String get _reportSecondValue => switch (_tab) {
-    1 => 'Clean Code',
-    2 => '12',
-    3 || 4 => '84',
-    5 => '${ManagerUserStore.instance.users.where((user) => user.isActive).length}',
-    6 => '1',
-    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
-  };
+  String _reportSecondValue(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      1 => 'Clean Code',
+      2 => '12',
+      3 || 4 => '84',
+      5 => '${repository.users.where((user) => user.isActive).length}',
+      6 => '1',
+      _ => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
+    };
+  }
 
   String get _reportThirdLabel => switch (_tab) {
     1 => 'Reservations',
@@ -175,14 +182,17 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
     _ => 'Pending',
   };
 
-  String get _reportThirdValue => switch (_tab) {
-    1 => '128',
-    2 => '12',
-    3 || 4 => '36',
-    5 => '${ManagerUserStore.instance.users.where((user) => !user.isActive).length}',
-    6 => '1',
-    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
-  };
+  String _reportThirdValue(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      1 => '128',
+      2 => '12',
+      3 || 4 => '36',
+      5 => '${repository.users.where((user) => !user.isActive).length}',
+      6 => '1',
+      _ => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
+    };
+  }
 
   Future<void> _chooseDateRange() async {
     final range = await showDateRangePicker(
@@ -220,11 +230,12 @@ class _ReportList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
     final items = switch (tab) {
       1 => popularBooks,
       2 => overdueBooks,
       5 => [
-        for (final user in ManagerUserStore.instance.users)
+        for (final user in repository.users)
           (user.name, '${user.role} · ${user.status}'),
       ],
       6 => const [

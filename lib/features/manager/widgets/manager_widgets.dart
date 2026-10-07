@@ -124,7 +124,7 @@ class StatusBadge extends StatelessWidget {
       _ => (AppColors.secondaryText, 0.12),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: alpha),
         borderRadius: BorderRadius.circular(20),
@@ -594,24 +594,30 @@ class UserListTile extends StatelessWidget {
         '${user.email}\n${user.id}',
         style: const TextStyle(fontSize: 10),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              StatusBadge(text: user.role, type: user.role),
-              const SizedBox(height: 4),
-              StatusBadge(
-                text: user.status,
-                type: user.isActive ? 'available' : 'inactive',
+      trailing: SizedBox(
+        width: 110,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                runSpacing: 4,
+                spacing: 4,
+                children: [
+                  StatusBadge(text: user.role, type: user.role),
+                  StatusBadge(
+                    text: user.status,
+                    type: user.isActive ? 'available' : 'inactive',
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(width: 5),
-          const Icon(Icons.chevron_right, size: 18),
-        ],
+            ),
+            const SizedBox(width: 5),
+            const Icon(Icons.chevron_right, size: 18),
+          ],
+        ),
       ),
     ),
   );

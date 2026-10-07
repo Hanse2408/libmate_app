@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerPoliciesScreen extends StatefulWidget {
@@ -12,7 +13,24 @@ class ManagerPoliciesScreen extends StatefulWidget {
 }
 
 class _ManagerPoliciesScreenState extends State<ManagerPoliciesScreen> {
-  final _values = [3, 5, 7, 2, 7];
+  late List<int> _values;
+
+  @override
+  void initState() {
+    super.initState();
+    _values = [3, 5, 7, 2, 7];
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final repository = ManagerScope.of(context).repository;
+    final nextValues = List<int>.from(repository.policyValues);
+    if (_values.length != nextValues.length ||
+        _values.asMap().entries.any((entry) => entry.value != nextValues[entry.key])) {
+      setState(() => _values = nextValues);
+    }
+  }
 
   static const _policies = [
     (
@@ -40,7 +58,7 @@ class _ManagerPoliciesScreenState extends State<ManagerPoliciesScreen> {
 
   Future<void> _editValue(int index) async {
     var value = _values[index];
-    await showDialog<void>(
+    final result = await showDialog<int>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -63,20 +81,22 @@ class _ManagerPoliciesScreenState extends State<ManagerPoliciesScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, null),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                setState(() => _values[index] = value);
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context, value),
               child: const Text('Apply'),
             ),
           ],
         ),
       ),
     );
+
+    if (result == null) return;
+    if (!mounted) return;
+    setState(() => _values[index] = result);
+    ManagerScope.of(context).repository.updatePolicyValue(index, result);
   }
 
   @override
@@ -164,15 +184,15 @@ class _ManagerPoliciesScreenState extends State<ManagerPoliciesScreen> {
             const SizedBox(height: 12),
             PrimaryButton(
               label: 'Save Changes',
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Policies saved (demo)')),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Demo mode: policy values are stored locally for this session only.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+              onPressed: () {
+                final repository = ManagerScope.of(context).repository;
+                for (var i = 0; i < _values.length; i++) {
+                  repository.updatePolicyValue(i, _values[i]);
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Policy values saved successfully.')),
+                );
+              },
             ),
           ],
         ),

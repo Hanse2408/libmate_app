@@ -57,7 +57,11 @@ class _LibMateStartupState extends State<_LibMateStartup> {
       auth: authProvider,
       sinceLaunch: widget.sinceLaunch,
     );
-    final appRouter = AppRouter(authProvider, startup: startup);
+    final appRouter = AppRouter(
+      authProvider,
+      startup: startup,
+      createManagerRepository: () => AppRouter.firestoreManagerRepository(authProvider),
+    );
     if (mounted) setState(() => _router = appRouter.router);
   }
 

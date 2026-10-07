@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../models/user.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerUserFormScreen extends StatefulWidget {
@@ -134,11 +135,6 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Text(
-                'Demo mode: changes are held locally and are not connected to Firebase.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
             ],
           ),
         ),
@@ -180,10 +176,11 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
       createdAt: widget.user?.createdAt ?? DateTime.now(),
     );
     try {
+      final repository = ManagerScope.of(context).repository;
       if (_isEditing) {
-        ManagerUserStore.instance.update(widget.user!.id, user);
+        repository.updateUser(widget.user!.id, user);
       } else {
-        ManagerUserStore.instance.add(user);
+        repository.addUser(user);
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
