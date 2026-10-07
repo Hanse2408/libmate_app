@@ -1,152 +1,102 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
-
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData get light => _createTheme(
+
+static ThemeData get light => _theme(
     brightness: Brightness.light,
-    primary: AppColors.primary,
-    background: AppColors.background,
-    card: AppColors.lightCard,
-    text: AppColors.text,
-    secondaryText: AppColors.secondaryText,
-    border: AppColors.border,
-    navy: AppColors.navy,
-    lightBlue: AppColors.lightBlue,
+    background: const Color(0xFFF8FAFC),
+    card: Colors.white,
+    primary: const Color(0xFF2563EB),
+    text: const Color(0xFF172033),
+    secondaryText: const Color(0xFF64748B),
   );
 
-  static ThemeData get dark => _createTheme(
+static ThemeData get dark => _theme(
     brightness: Brightness.dark,
-    primary: AppColors.darkPrimary,
-    background: AppColors.darkBackground,
-    card: AppColors.darkCard,
-    text: AppColors.darkText,
-    secondaryText: AppColors.darkSecondaryText,
-    border: Colors.transparent,
-    navy: AppColors.navy,
-    lightBlue: AppColors.navy.withValues(alpha: 0.35),
+    background: const Color(0xFF0F172A),
+    card: const Color(0xFF172554),
+    primary: const Color(0xFF3B82F6),
+    text: const Color(0xFFF8FAFC),
+    secondaryText: const Color(0xFFCBD5E1),
   );
 
-  static ThemeData _createTheme({
+  static ThemeData _theme({
     required Brightness brightness,
-    required Color primary,
     required Color background,
     required Color card,
+    required Color primary,
     required Color text,
     required Color secondaryText,
-    required Color border,
-    required Color navy,
-    required Color lightBlue,
   }) {
-    final scheme = ColorScheme.fromSeed(
+    final colorScheme = ColorScheme.fromSeed(
       seedColor: primary,
       brightness: brightness,
       primary: primary,
-      secondary: AppColors.gold,
+      secondary: const Color(0xFFF2B84B),
       surface: card,
       onSurface: text,
-      error: AppColors.error,
+      error: const Color(0xFFDC4C4C),
     );
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    );
+
     return ThemeData(
-      useMaterial3: true,
       brightness: brightness,
-      colorScheme: scheme,
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
-      appBarTheme: AppBarTheme(
-        backgroundColor: background,
-        foregroundColor: text,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleTextStyle: TextStyle(
-          color: text,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        color: card,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: border == Colors.transparent
-              ? BorderSide.none
-              : BorderSide(color: border),
-        ),
+      canvasColor: background,
+      cardTheme: CardThemeData(color: card),
+      dividerTheme: DividerThemeData(
+        color: brightness == Brightness.dark
+            ? const Color(0xFF334155)
+            : const Color(0xFFE2E8F0),
       ),
       textTheme: TextTheme(
-        titleLarge: TextStyle(color: text, fontWeight: FontWeight.w700),
-        titleMedium: TextStyle(color: text, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(color: text),
         bodyMedium: TextStyle(color: text),
         bodySmall: TextStyle(color: secondaryText),
+        titleLarge: TextStyle(color: text),
+        titleMedium: TextStyle(color: text),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: card,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: border == Colors.transparent ? navy : border,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: border == Colors.transparent ? navy : border,
-          ),
+          horizontal: 16,
+          vertical: 15,
         ),
       ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(0, 48),
-          shape: shape,
-        ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: text,
+        elevation: 0,
       ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: text,
-          minimumSize: const Size(0, 48),
-          shape: shape,
-          side: BorderSide(
-            color: border == Colors.transparent ? secondaryText : border,
-          ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStatePropertyAll(primary),
+        trackColor: WidgetStatePropertyAll(
+          brightness == Brightness.dark
+              ? const Color(0xFF1E3A8A)
+              : const Color(0xFFBFDBFE),
         ),
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: card,
-        indicatorColor: Colors.transparent,
-        iconTheme: WidgetStateProperty.resolveWith(
-          (states) => IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? primary
-                : secondaryText,
-          ),
-        ),
-        labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => TextStyle(
-            color: states.contains(WidgetState.selected)
-                ? primary
-                : secondaryText,
-            fontSize: 10,
-          ),
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: lightBlue,
-        selectedColor: primary,
-        side: BorderSide(color: border),
       ),
     );
+  }
+}
+
+class AppThemeController extends ChangeNotifier {
+  static final AppThemeController instance = AppThemeController._();
+
+  AppThemeController._();
+
+  bool _isDarkMode = false;
+
+  bool get isDarkMode => _isDarkMode;
+
+  ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+  void setDarkMode(bool enabled) {
+    if (_isDarkMode == enabled) return;
+    _isDarkMode = enabled;
+    notifyListeners();
   }
 }

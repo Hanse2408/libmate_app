@@ -50,7 +50,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   /// The book was deleted by a librarian (or has not loaded).
   Widget _buildMissingBook() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -59,12 +59,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               child: Center(
                 child: widget.library.isLoading
                     ? const CircularProgressIndicator()
-                    : const Padding(
+                    : Padding(
                         padding: EdgeInsets.all(24),
                         child: Text(
                           'This book is no longer in the catalogue.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
               ),
@@ -77,7 +80,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Widget _buildDetails() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -120,12 +123,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               Navigator.of(context).maybePop();
             },
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Book Details',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -153,13 +156,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   Widget _buildCircleButton({
     required IconData icon,
     required VoidCallback onPressed,
-    Color iconColor = const Color(0xFF172033),
+    Color? iconColor,
   }) {
     return Container(
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFFE2E8F0),
@@ -170,7 +173,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         padding: EdgeInsets.zero,
         icon: Icon(
           icon,
-          color: iconColor,
+          color: iconColor ?? Theme.of(context).colorScheme.onSurface,
           size: 19,
         ),
       ),
@@ -181,8 +184,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     return Container(
       width: double.infinity,
       height: 230,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
       ),
       child: Center(
         child: StudentBookCover(
@@ -203,8 +206,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF172033),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
@@ -213,8 +216,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         Text(
           'by $author',
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 14,
           ),
         ),
@@ -235,13 +238,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Text(
             category,
-            style: const TextStyle(
-              color: Color(0xFF2563EB),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -281,7 +284,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         vertical: 18,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -324,8 +327,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
           ),
         ),
@@ -357,10 +360,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Description',
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -368,7 +371,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         const SizedBox(height: 8),
         Text(
           description,
-          style: const TextStyle(
+          style: TextStyle(
             color: Color(0xFF475569),
             fontSize: 13,
             height: 1.6,
@@ -418,7 +421,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
           disabledBackgroundColor: const Color(0xFFCBD5E1),
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

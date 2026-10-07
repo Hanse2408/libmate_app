@@ -11,10 +11,6 @@ class StudentNotificationsScreen extends StatelessWidget {
 
   final StudentLibraryRepository library;
 
-  static const Color _text = Color(0xFF172033);
-  static const Color _secondary = Color(0xFF64748B);
-  static const Color _primary = Color(0xFF2563EB);
-
   /// Runs a Firestore action and shows its error, if it fails.
   Future<void> _run(BuildContext context, Future<ActionResult> Function() action) async {
     final result = await action();
@@ -27,7 +23,7 @@ class StudentNotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: library,
@@ -42,12 +38,20 @@ class StudentNotificationsScreen extends StatelessWidget {
                       IconButton(
                         tooltip: 'Back',
                         onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _text, size: 21),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          size: 21,
+                        ),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Notifications',
-                          style: TextStyle(color: _text, fontSize: 21, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       if (library.unreadNotificationCount > 0)
@@ -78,7 +82,10 @@ class StudentNotificationsScreen extends StatelessWidget {
           child: Text(
             library.loadError ?? 'You have no notifications yet.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: _secondary, fontSize: 15),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 15,
+            ),
           ),
         ),
       );
@@ -89,14 +96,16 @@ class StudentNotificationsScreen extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final n = notifications[index];
-        final (icon, color) = _style(n.type);
+        final (icon, color) = _style(context, n.type);
         return InkWell(
           onTap: n.isRead ? null : () => _run(context, () => library.markNotificationRead(n.id)),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: n.isRead ? Colors.white : const Color(0xFFEFF6FF),
+              color: n.isRead
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFD6E3F2)),
             ),
@@ -116,17 +125,26 @@ class StudentNotificationsScreen extends StatelessWidget {
                       Text(
                         n.title,
                         style: TextStyle(
-                          color: _text,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 15,
                           fontWeight: n.isRead ? FontWeight.w600 : FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(n.message, style: const TextStyle(color: _secondary, fontSize: 13)),
+                      Text(
+                        n.message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         _ago(n.createdAt),
-                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -137,7 +155,10 @@ class StudentNotificationsScreen extends StatelessWidget {
                     width: 10,
                     height: 10,
                     margin: const EdgeInsets.only(left: 8, top: 4),
-                    decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
               ],
             ),
@@ -147,15 +168,19 @@ class StudentNotificationsScreen extends StatelessWidget {
     );
   }
 
-  static (IconData, Color) _style(StudentNotificationType type) {
+  (IconData, Color) _style(
+    BuildContext context,
+    StudentNotificationType type,
+  ) {
+    final colors = Theme.of(context).colorScheme;
     return switch (type) {
       StudentNotificationType.reservationApproved => (Icons.check_circle_rounded, const Color(0xFF22A06B)),
       StudentNotificationType.reservationRejected => (Icons.cancel_rounded, const Color(0xFFDC4C4C)),
-      StudentNotificationType.reservationCancelled => (Icons.event_busy_rounded, _secondary),
+      StudentNotificationType.reservationCancelled => (Icons.event_busy_rounded, colors.onSurfaceVariant),
       StudentNotificationType.reservationRequested => (Icons.hourglass_top_rounded, const Color(0xFFE78A00)),
-      StudentNotificationType.bookCollected => (Icons.menu_book_rounded, _primary),
+      StudentNotificationType.bookCollected => (Icons.menu_book_rounded, colors.primary),
       StudentNotificationType.bookReturned => (Icons.assignment_return_rounded, const Color(0xFF22A06B)),
-      StudentNotificationType.loanRenewed => (Icons.update_rounded, _primary),
+      StudentNotificationType.loanRenewed => (Icons.update_rounded, colors.primary),
     };
   }
 

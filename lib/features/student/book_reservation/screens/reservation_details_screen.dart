@@ -47,7 +47,7 @@ static const String pickupDesk = 'Book Collection Desk';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -83,12 +83,12 @@ static const String pickupDesk = 'Book Collection Desk';
       child: Row(
         children: [
           _buildBackButton(),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Reservation Details',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -106,7 +106,7 @@ static const String pickupDesk = 'Book Collection Desk';
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFFE2E8F0),
@@ -117,9 +117,9 @@ static const String pickupDesk = 'Book Collection Desk';
           Navigator.of(context).maybePop();
         },
         padding: EdgeInsets.zero,
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           size: 19,
         ),
       ),
@@ -131,7 +131,7 @@ static const String pickupDesk = 'Book Collection Desk';
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 8, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -149,24 +149,24 @@ static const String pickupDesk = 'Book Collection Desk';
                 Text(
   _reservation?.itemName ?? 'Book',
                   style: TextStyle(
-                    color: Color(0xFF172033),
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   author,
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   category,
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
@@ -227,11 +227,11 @@ static const String pickupDesk = 'Book Collection Desk';
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Text(
                   'CLEAN',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -311,10 +311,10 @@ static const String pickupDesk = 'Book Collection Desk';
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Reservation Information',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -390,7 +390,7 @@ static const String pickupDesk = 'Book Collection Desk';
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.location_on_outlined,
             color: Color(0xFF64748B),
             size: 21,
@@ -447,18 +447,18 @@ static const String pickupDesk = 'Book Collection Desk';
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.description_outlined,
-                color: Color(0xFF172033),
+                color: Theme.of(context).colorScheme.onSurface,
                 size: 21,
               ),
               SizedBox(width: 8),
               Text(
                 'Notes',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -479,12 +479,12 @@ static const String pickupDesk = 'Book Collection Desk';
                 color: const Color(0xFFB8D3FF),
               ),
             ),
-            child: const Text(
+            child: Text(
               'The book will be held for 3 days from the '
               'reservation date. Please bring your student ID '
               'when collecting the book.',
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 height: 1.45,
               ),
@@ -515,7 +515,7 @@ static const String pickupDesk = 'Book Collection Desk';
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
           disabledBackgroundColor: const Color(0xFFCBD5E1),
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),

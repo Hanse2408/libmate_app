@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../data/student_library_repository.dart';
 import '../widgets/student_bottom_navigation.dart';
 import '../../book_reservation/screens/find_books_screen.dart';
@@ -20,10 +21,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _darkMode = false;
   bool _notificationsEnabled = true;
 
+  Color get _backgroundColor => Theme.of(context).scaffoldBackgroundColor;
+  Color get _cardColor => Theme.of(context).colorScheme.surface;
+  Color get _textColor => Theme.of(context).colorScheme.onSurface;
+  Color get _secondaryTextColor =>
+      Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get _primaryColor => Theme.of(context).colorScheme.primary;
+  Color get _dividerColor => Theme.of(context).dividerColor;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -63,10 +72,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _buildLibMateLogo(),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'LibMate',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: _textColor,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
@@ -77,9 +86,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(
+              Icon(
                 Icons.notifications_none_rounded,
-                color: Color(0xFF172033),
+                color: _textColor,
                 size: 25,
               ),
               Positioned(
@@ -110,8 +119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 34,
             height: 34,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFF172033),
+            decoration: BoxDecoration(
+              color: _textColor,
               shape: BoxShape.circle,
             ),
             child: const Text(
@@ -180,13 +189,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeading() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Profile',
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: _textColor,
             fontSize: 24,
             fontWeight: FontWeight.w800,
           ),
@@ -195,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           'Manage your account and preferences.',
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: _textColor,
             fontSize: 12,
           ),
         ),
@@ -208,7 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(15, 17, 15, 17),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -235,14 +244,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(width: 15),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Nilumi Dakshika',
                   style: TextStyle(
-                    color: Color(0xFF172033),
+                    color: _textColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
@@ -251,7 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   'Student ID: IT23514658',
                   style: TextStyle(
-                    color: Color(0xFF536987),
+                    color: _secondaryTextColor,
                     fontSize: 13,
                   ),
                 ),
@@ -259,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   'it23514658@my.sliit.lk',
                   style: TextStyle(
-                    color: Color(0xFF536987),
+                    color: _secondaryTextColor,
                     fontSize: 13,
                   ),
                 ),
@@ -276,9 +285,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: IconButton(
               onPressed: _editProfile,
               padding: EdgeInsets.zero,
-              icon: const Icon(
+              icon: Icon(
                 Icons.edit_outlined,
-                color: Color(0xFF2563EB),
+                color: _primaryColor,
                 size: 18,
               ),
             ),
@@ -292,7 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -306,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsRow(
             icon: Icons.notifications_none_rounded,
             iconBackground: const Color(0xFFEFF6FF),
-            iconColor: const Color(0xFF2563EB),
+            iconColor: _primaryColor,
             title: 'Notifications',
             subtitle: 'Manage your notification preferences',
             showArrow: true,
@@ -326,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsRow(
             icon: Icons.help_outline_rounded,
             iconBackground: const Color(0xFFEFF6FF),
-            iconColor: const Color(0xFF2563EB),
+            iconColor: _primaryColor,
             title: 'Help & Support',
             subtitle: 'Get help or contact us',
             showArrow: true,
@@ -351,14 +360,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconColor: const Color(0xFFF2B84B),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Dark Mode',
                   style: TextStyle(
-                    color: Color(0xFF172033),
+                    color: _textColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -367,7 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   'Switch between light and dark theme',
                   style: TextStyle(
-                    color: Color(0xFF172033),
+                    color: _textColor,
                     fontSize: 10,
                   ),
                 ),
@@ -380,6 +389,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               setState(() {
                 _darkMode = value;
               });
+              AppThemeController.instance.setDarkMode(value);
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -391,7 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             },
-            activeThumbColor: const Color(0xFF2563EB),
+            activeThumbColor: _primaryColor,
             activeTrackColor: const Color(0xFFBFDBFE),
           ),
         ],
@@ -429,8 +439,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Color(0xFF172033),
+                    style: TextStyle(
+                      color: _textColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -438,8 +448,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 1),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF172033),
+                    style: TextStyle(
+                      color: _textColor,
                       fontSize: 10,
                     ),
                   ),
@@ -454,13 +464,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _notificationsEnabled = value;
                   });
                 },
-                activeThumbColor: const Color(0xFF2563EB),
+                activeThumbColor: _primaryColor,
                 activeTrackColor: const Color(0xFFBFDBFE),
               )
             else if (showArrow)
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFF94A3B8),
+                color: _secondaryTextColor,
                 size: 23,
               ),
           ],
@@ -491,9 +501,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSettingsDivider() {
-    return const Divider(
+    return Divider(
       height: 1,
-      color: Color(0xFFE2E8F0),
+      color: _dividerColor,
     );
   }
 
@@ -505,7 +515,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         vertical: 15,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: const Color(0xFF8DB7FF),
@@ -562,8 +572,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF536987),
+          style: TextStyle(
+            color: _secondaryTextColor,
             fontSize: 11,
           ),
         ),
@@ -571,8 +581,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           value,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF475569),
+          style: TextStyle(
+            color: _secondaryTextColor,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -585,7 +595,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: 1,
       height: 38,
-      color: const Color(0xFFE2E8F0),
+      color: _dividerColor,
     );
   }
 
@@ -608,7 +618,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFE53935),
-          backgroundColor: Colors.white,
+          backgroundColor: _cardColor,
           side: const BorderSide(
             color: Color(0xFFE53935),
             width: 1.2,
@@ -654,7 +664,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _openHelp() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
@@ -675,21 +685,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Help & Support',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: _textColor,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'For help with reservations, account issues, '
                 'or library services, please contact the library.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: _secondaryTextColor,
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -703,7 +713,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: _primaryColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -744,21 +754,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: _cardColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          title: const Text(
+          title:           Text(
             'Log Out?',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: _textColor,
               fontWeight: FontWeight.w700,
             ),
           ),
-          content: const Text(
+          content:           Text(
             'Are you sure you want to log out of LibMate?',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: _secondaryTextColor,
             ),
           ),
           actions: [
@@ -766,10 +776,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext);
               },
-              child: const Text(
+              child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: Color(0xFF2563EB),
+                  color: _primaryColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),

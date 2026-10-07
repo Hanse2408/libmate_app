@@ -57,7 +57,7 @@ void initState() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -93,12 +93,12 @@ void initState() {
       child: Row(
         children: [
           _buildBackButton(),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Modify Reservation',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -116,7 +116,7 @@ void initState() {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFFE2E8F0),
@@ -127,9 +127,9 @@ void initState() {
           Navigator.of(context).maybePop();
         },
         padding: EdgeInsets.zero,
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           size: 19,
         ),
       ),
@@ -141,7 +141,7 @@ void initState() {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 7, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -156,26 +156,26 @@ void initState() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Clean Code',
                   style: TextStyle(
-                    color: Color(0xFF172033),
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Robert C. Martin',
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
-                const Text(
+                Text(
                   'Computer Science',
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
@@ -189,10 +189,10 @@ void initState() {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Available',
                     style: TextStyle(
-                      color: Color(0xFF2563EB),
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -508,7 +508,7 @@ void initState() {
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),
@@ -525,7 +525,7 @@ void initState() {
       child: OutlinedButton(
         onPressed: _discardChanges,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           foregroundColor: const Color(0xFFE53935),
           side: const BorderSide(
             color: Color(0xFFE53935),
@@ -554,14 +554,7 @@ void initState() {
       lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF2563EB),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF172033),
-            ),
-          ),
+          data: Theme.of(context),
           child: child!,
         );
       },
@@ -598,10 +591,10 @@ void initState() {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Select Pickup Location',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -610,21 +603,21 @@ void initState() {
               ..._pickupLocations.map(
                 (location) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.location_on_outlined,
-                    color: Color(0xFF2563EB),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   title: Text(
                     location,
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 15,
                     ),
                   ),
                   trailing: location == _pickupLocation
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Theme.of(context).colorScheme.primary,
                         )
                       : null,
                   onTap: () {
@@ -669,14 +662,14 @@ void initState() {
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
         ),
-        title: const Text(
+        title: Text(
           'Reservation Updated',
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -685,8 +678,8 @@ void initState() {
           'Date: ${_formatDate(_reservationDate)}\n'
           'Pickup: $_pickupLocation\n'
           'Notes: ${_notesController.text}',
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             height: 1.5,
           ),
         ),

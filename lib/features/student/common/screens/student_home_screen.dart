@@ -24,13 +24,13 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   // LibMate colour palette
-  static const Color primaryBlue = Color(0xFF2563EB);
+  Color get primaryBlue => Theme.of(context).colorScheme.primary;
   //static const Color darkBlue = Color(0xFF1E3A8A);
-  static const Color lightBlue = Color(0xFFEFF6FF);
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color cardWhite = Color(0xFFFFFFFF);
-  static const Color textDark = Color(0xFF172033);
-  static const Color secondaryText = Color(0xFF64748B);
+  Color get lightBlue => Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
+  Color get background => Theme.of(context).scaffoldBackgroundColor;
+  Color get cardWhite => Theme.of(context).colorScheme.surface;
+  Color get textDark => Theme.of(context).colorScheme.onSurface;
+  Color get secondaryText => Theme.of(context).colorScheme.onSurfaceVariant;
   static const Color accentGold = Color(0xFFF2B84B);
   static const Color availableGreen = Color(0xFF22A06B);
 
@@ -113,14 +113,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   color: primaryBlue,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.menu_book_rounded,
                   color: Colors.white,
                   size: 23,
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'LibMate',
                 style: TextStyle(
                   color: textDark,
@@ -140,7 +140,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(
+                Icon(
                   Icons.notifications_none_rounded,
                   color: textDark,
                   size: 28,
@@ -152,7 +152,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     child: Container(
                       width: 17,
                       height: 17,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Color(0xFFDC4C4C),
                         shape: BoxShape.circle,
                       ),
@@ -161,7 +161,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           _library.unreadNotificationCount > 9
                               ? '9+'
                               : '${_library.unreadNotificationCount}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -178,14 +178,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         Container(
           width: 38,
           height: 38,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: textDark,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Text(
               _initials,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -201,7 +201,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Good morning,',
           style: TextStyle(
             color: Color(0xFF4B5F80),
@@ -211,7 +211,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         const SizedBox(height: 2),
         Text(
           '$_firstName!',
-          style: const TextStyle(
+          style: TextStyle(
             color: textDark,
             fontSize: 28,
             fontWeight: FontWeight.w800,
@@ -219,7 +219,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'What would you like to do today?',
           style: TextStyle(
             color: secondaryText,
@@ -251,13 +251,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       child: Row(
         children: [
           const SizedBox(width: 14),
-          const Icon(
+          Icon(
             Icons.search_rounded,
             color: secondaryText,
             size: 22,
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Search for books, authors, or topics...',
               overflow: TextOverflow.ellipsis,
@@ -269,7 +269,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           Container(
             margin: const EdgeInsets.only(right: 10),
-            child: const Icon(
+            child: Icon(
               Icons.tune_rounded,
               color: secondaryText,
               size: 22,
@@ -368,7 +368,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const Spacer(),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: textDark,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -377,7 +377,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               color: secondaryText,
               fontSize: 11,
             ),
@@ -390,7 +390,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Widget _buildReservationHeader() {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             'Your Current Reservation',
             style: TextStyle(
@@ -407,7 +407,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: const Text(
+          child: Text(
             'See all',
             style: TextStyle(
               color: primaryBlue,
@@ -430,7 +430,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       return [
         Text(
           _library.isLoading ? 'Loading your reservations…' : 'You have no current reservations.',
-          style: const TextStyle(color: secondaryText, fontSize: 13),
+          style: TextStyle(color: secondaryText, fontSize: 13),
         ),
       ];
     }
@@ -514,7 +514,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: textDark,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -549,7 +549,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(
                       detail,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: secondaryText,
                         fontSize: 12,
                       ),
@@ -590,7 +590,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 color: accentGold,
               ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.notifications_off_outlined,
               color: Color(0xFFE09B00),
               size: 20,

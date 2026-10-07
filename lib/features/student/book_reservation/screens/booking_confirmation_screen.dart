@@ -26,7 +26,7 @@ class BookingConfirmationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -38,11 +38,11 @@ class BookingConfirmationScreen extends StatelessWidget {
                   children: [
                     _buildSuccessIcon(),
                     const SizedBox(height: 24),
-                    _buildSuccessMessage(),
+                    _buildSuccessMessage(context),
                     const SizedBox(height: 24),
-                    _buildReceipt(),
+                    _buildReceipt(context),
                     const SizedBox(height: 20),
-                    _buildPickupInformation(),
+                    _buildPickupInformation(context),
                     const SizedBox(height: 24),
                     _buildViewReservationsButton(context),
                     const SizedBox(height: 12),
@@ -64,12 +64,12 @@ class BookingConfirmationScreen extends StatelessWidget {
       child: Row(
         children: [
           _buildBackButton(context),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Booking Confirmation',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -87,7 +87,7 @@ class BookingConfirmationScreen extends StatelessWidget {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFFE2E8F0),
@@ -98,9 +98,9 @@ class BookingConfirmationScreen extends StatelessWidget {
           Navigator.of(context).maybePop();
         },
         padding: EdgeInsets.zero,
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           size: 19,
         ),
       ),
@@ -229,25 +229,25 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSuccessMessage() {
+  Widget _buildSuccessMessage(BuildContext context) {
     return Column(
       children: [
-        const Text(
+        Text(
           'Reservation Requested!',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 7),
-        const Text(
+        Text(
           'Your request was sent to the library. You can collect\n'
           'the book once a librarian approves it.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Color(0xFF475569),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
             height: 1.45,
           ),
@@ -256,12 +256,12 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReceipt() {
+  Widget _buildReceipt(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: const Color(0xFFF2B84B),
@@ -270,44 +270,49 @@ class BookingConfirmationScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Reservation Receipt',
               style: TextStyle(
-                color: Color(0xFF172033),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
           const SizedBox(height: 10),
-          const Divider(
+          Divider(
             height: 1,
-            color: Color(0xFFE2E8F0),
+            color: Theme.of(context).dividerColor,
           ),
           const SizedBox(height: 5),
           _buildReceiptRow(
+          context: context,
             icon: Icons.menu_book_outlined,
             label: 'Book Title',
             value: bookTitle,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.calendar_today_outlined,
             label: 'Pickup Date',
             value: pickupDate,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.access_time_rounded,
             label: 'Loan Period',
             value: loanPeriod,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.location_on_outlined,
             label: 'Pickup Location',
             value: pickupLocation,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.hourglass_top_rounded,
             label: 'Status',
             value: 'Pending approval',
@@ -319,10 +324,11 @@ class BookingConfirmationScreen extends StatelessWidget {
   }
 
   Widget _buildReceiptRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
-    Color valueColor = const Color(0xFF172033),
+    Color? valueColor,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -332,7 +338,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             width: 28,
             child: Icon(
               icon,
-              color: const Color(0xFF172033),
+              color: Theme.of(context).colorScheme.onSurface,
               size: 18,
             ),
           ),
@@ -340,8 +346,8 @@ class BookingConfirmationScreen extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12.5,
               ),
             ),
@@ -349,7 +355,7 @@ class BookingConfirmationScreen extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: valueColor,
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
@@ -359,7 +365,7 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPickupInformation() {
+  Widget _buildPickupInformation(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
@@ -415,7 +421,7 @@ class BookingConfirmationScreen extends StatelessWidget {
 },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),
@@ -443,8 +449,8 @@ class BookingConfirmationScreen extends StatelessWidget {
           );
         },
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF172033),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
           side: const BorderSide(
             color: Color(0xFFF2B84B),
             width: 1.2,

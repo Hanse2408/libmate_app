@@ -80,7 +80,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -105,12 +105,12 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       child: Row(
         children: [
           _buildBackButton(),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'My Reservations',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
                 ),
@@ -132,9 +132,9 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           Navigator.of(context).maybePop();
         },
         padding: EdgeInsets.zero,
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Color(0xFF17356D),
+          color: Theme.of(context).colorScheme.onSurface,
           size: 21,
         ),
       ),
@@ -203,7 +203,10 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                     ? 'You have no seat bookings yet.'
                     : 'You have no book reservations yet.'),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 15),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 15,
+            ),
           ),
         ),
       );
@@ -264,7 +267,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: const Color(0xFFD6E3F2),
@@ -286,9 +289,9 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
             ],
           ),
           const SizedBox(height: 7),
-          const Divider(
+          Divider(
             height: 1,
-            color: Color(0xFFE6ECF3),
+            color: Theme.of(context).dividerColor,
           ),
           const SizedBox(height: 7),
           Row(
@@ -296,7 +299,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
               Expanded(
                 child: _buildActionButton(
                   label: 'Modify',
-                  backgroundColor: const Color(0xFFEAF3FF),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                   textColor: const Color(0xFF1267D9),
                   onPressed: reservation.isSeat
     ? (reservation.canModify ? () => _openSeatModify(reservation.id) : null)
@@ -474,22 +477,22 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          title: const Text(
+          title:           Text(
             'Cancel Reservation?',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
             'Are you sure you want to cancel your reservation for '
             '${reservation.title}?',
-            style: const TextStyle(
-              color: Color(0xFF64748B),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.4,
             ),
           ),

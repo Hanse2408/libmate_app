@@ -63,7 +63,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     _book = book;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -409,7 +409,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         onPressed: _saving ? null : _confirmReservation,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -519,14 +519,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       lastDate: _today().add(const Duration(days: 30)),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF2563EB),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF172033),
-            ),
-          ),
+          data: Theme.of(context),
           child: child!,
         );
       },
@@ -542,7 +535,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   Future<void> _selectLoanPeriod() async {
     final selectedPeriod = await showModalBottomSheet<int>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
@@ -563,10 +556,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Select Loan Period',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -577,15 +570,15 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     '$period Days',
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 15,
                     ),
                   ),
                   trailing: period == _loanPeriod
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Theme.of(context).colorScheme.primary,
                         )
                       : const Icon(
                           Icons.circle_outlined,
@@ -612,7 +605,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   Future<void> _selectPickupLocation() async {
     final selectedLocation = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
@@ -633,10 +626,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Select Pickup Location',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
@@ -645,21 +638,21 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
               ..._pickupLocations.map(
                 (location) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.location_on_outlined,
-                    color: Color(0xFF2563EB),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   title: Text(
                     location,
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 15,
                     ),
                   ),
                   trailing: location == _pickupLocation
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
-                          color: Color(0xFF2563EB),
+                          color: Theme.of(context).colorScheme.primary,
                         )
                       : null,
                   onTap: () {

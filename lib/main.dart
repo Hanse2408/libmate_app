@@ -20,14 +20,20 @@ class MyApp extends StatelessWidget {
 
   final GoRouter router;
 
+  static final AppThemeController _themeController =
+      AppThemeController.instance;
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'LibMate',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      routerConfig: router,
+    return ListenableBuilder(
+      listenable: _themeController,
+      builder: (context, _) => MaterialApp.router(
+        title: 'LibMate',
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: _themeController.themeMode,
+        routerConfig: router,
+      ),
     );
   }
 }

@@ -121,7 +121,7 @@ void dispose() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.library,
@@ -164,7 +164,7 @@ void dispose() {
             onPressed: () => Navigator.of(context).maybePop(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 22,
               color: Color(0xFF172033),
@@ -206,30 +206,30 @@ void dispose() {
           child: Container(
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFE2E8F0),
+                color: Theme.of(context).dividerColor,
               ),
             ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search books, authors...',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                hintStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 14,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF64748B),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         onPressed: _searchController.clear,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
-                          color: Color(0xFF64748B),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       )
                     : null,
@@ -252,9 +252,9 @@ void dispose() {
           ),
           child: IconButton(
             onPressed: _showFilterDialog,
-            icon: const Icon(
+            icon: Icon(
               Icons.tune_rounded,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               size: 22,
             ),
           ),
@@ -267,10 +267,10 @@ void dispose() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'Categories',
         style: TextStyle(
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
@@ -296,21 +296,21 @@ void dispose() {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF2563EB)
-                      : Colors.white,
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF2563EB)
-                        : const Color(0xFFE2E8F0),
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).dividerColor,
                   ),
                 ),
                 child: Text(
                   category,
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.white
-                        : const Color(0xFF64748B),
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -331,11 +331,11 @@ void dispose() {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Books',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
@@ -343,8 +343,8 @@ void dispose() {
             ),
             Text(
               '${books.length} books',
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
@@ -382,10 +382,10 @@ void dispose() {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFE2E8F0),
+            color: Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
@@ -401,8 +401,8 @@ void dispose() {
                     book.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF172033),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -412,8 +412,8 @@ void dispose() {
                     book.author,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
@@ -559,7 +559,7 @@ void dispose() {
           color: const Color(0xFFE2E8F0),
         ),
       ),
-      child: const Column(
+      child: Column(
         children: [
           Icon(
             Icons.menu_book_outlined,
