@@ -139,7 +139,7 @@ class ReservationRecord {
       requestedAt: (map['requestedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       timeSlot: map['timeSlot'] as String?,
-      note: map['note'] as String?,
+      note: (map['notes'] ?? map['note']) as String?,
       rejectionReason: map['rejectionReason'] as String?,
       pickupLocation: map['pickupLocation'] as String?,
       loanPeriodDays: (map['loanPeriodDays'] as num?)?.toInt(),

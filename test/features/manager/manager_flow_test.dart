@@ -122,6 +122,8 @@ void main() {
     await tester.tap(find.text('Resolve Conflict'));
     await tester.pumpAndSettle();
     _expectManagerLightTheme(tester);
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.text('Current Seat'), findsOneWidget);

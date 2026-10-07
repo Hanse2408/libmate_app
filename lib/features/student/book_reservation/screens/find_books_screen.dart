@@ -1,3 +1,8 @@
+import 'favorite_books_screen.dart';
+import '../../common/widgets/student_palette.dart';
+import 'my_reservations_screen.dart';
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/stored_image.dart';
@@ -29,14 +34,7 @@ class _FindBooksScreenState extends State<FindBooksScreen> {
   static const String ebooksCategory = 'eBooks';
 
   /// "All", the categories of the books in the catalogue, and "eBooks".
-  List<String> get _categories {
-    final categories = {
-      for (final book in widget.library.books)
-        if (book.category != ebooksCategory) book.category,
-    }.toList()
-      ..sort();
-    return ['All', ...categories, ebooksCategory];
-  }
+  List<String> get _categories => widget.library.catalogueCategories;
 
   void _selectCategory(String category) {
     if (category == ebooksCategory) {
@@ -121,7 +119,7 @@ void dispose() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.library,
@@ -138,14 +136,14 @@ void dispose() {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSearchBar(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     _buildCategories(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     _buildBookSection(),
                   ],
                 ),
@@ -157,25 +155,25 @@ void dispose() {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+      padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: const Icon(
+            constraints: BoxConstraints(),
+            icon: Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 22,
-              color: Color(0xFF172033),
+              color: StudentPalette.of(context).text,
             ),
           ),
-          const SizedBox(width: 14),
-          const Expanded(
+          SizedBox(width: 14),
+          Expanded(
             child: Text(
               'Find Books',
               style: TextStyle(
-                color: Color(0xFF172033),
+                color: StudentPalette.of(context).text,
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
               ),
@@ -185,13 +183,15 @@ void dispose() {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: StudentPalette.of(context).blueTint,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF2563EB),
-              size: 23,
+            child: IconButton(
+              tooltip: 'My Favourites',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => FavoriteBooksScreen(library: widget.library),
+              )),
+              icon: Icon(Icons.favorite_rounded, color: StudentPalette.of(context).primary, size: 23),
             ),
           ),
         ],
@@ -206,35 +206,35 @@ void dispose() {
           child: Container(
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: StudentPalette.of(context).card,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFE2E8F0),
+                color: Theme.of(context).dividerColor,
               ),
             ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search books, authors...',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                hintStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 14,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF64748B),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         onPressed: _searchController.clear,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
-                          color: Color(0xFF64748B),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding: EdgeInsets.symmetric(
                   vertical: 15,
                   horizontal: 4,
                 ),
@@ -242,19 +242,19 @@ void dispose() {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Container(
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: const Color(0xFF2563EB),
+            color: StudentPalette.of(context).primary,
             borderRadius: BorderRadius.circular(16),
           ),
           child: IconButton(
             onPressed: _showFilterDialog,
-            icon: const Icon(
+            icon: Icon(
               Icons.tune_rounded,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onPrimary,
               size: 22,
             ),
           ),
@@ -267,21 +267,21 @@ void dispose() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'Categories',
         style: TextStyle(
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
       ),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       SizedBox(
         height: 42,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),        
+        separatorBuilder: (context, index) => SizedBox(width: 10),        
         itemBuilder: (context, index) {
             final category = _categories[index];
             final isSelected = category == _selectedCategory;
@@ -289,28 +289,28 @@ void dispose() {
             return GestureDetector(
               onTap: () => _selectCategory(category),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
+                duration: Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF2563EB)
-                      : Colors.white,
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF2563EB)
-                        : const Color(0xFFE2E8F0),
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).dividerColor,
                   ),
                 ),
                 child: Text(
                   category,
                   style: TextStyle(
                     color: isSelected
-                        ? Colors.white
-                        : const Color(0xFF64748B),
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -331,11 +331,11 @@ void dispose() {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Books',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
@@ -343,24 +343,24 @@ void dispose() {
             ),
             Text(
               '${books.length} books',
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         if (widget.library.isLoading && books.isEmpty)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (books.isEmpty)
           _buildEmptyState()
         else
           ListView.separated(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: books.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 14),
+            separatorBuilder: (_, _) => SizedBox(height: 14),
             itemBuilder: (context, index) {
               return _buildBookCard(books[index]);
             },
@@ -380,19 +380,19 @@ void dispose() {
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFE2E8F0),
+            color: Theme.of(context).dividerColor,
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBookCover(book),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,23 +401,23 @@ void dispose() {
                     book.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF172033),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  SizedBox(height: 5),
                   Text(
                     book.author,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Row(
                     children: [
                       // Long category names are shortened instead of overflowing.
@@ -425,20 +425,20 @@ void dispose() {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
+                            padding: EdgeInsets.symmetric(
                               horizontal: 9,
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                              color: StudentPalette.of(context).blueTint,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               book.category,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF2563EB),
+                              style: TextStyle(
+                                color: StudentPalette.of(context).primary,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -446,7 +446,7 @@ void dispose() {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -455,18 +455,18 @@ void dispose() {
                             height: 7,
                             decoration: BoxDecoration(
                               color: book.available
-                                  ? const Color(0xFF22A06B)
-                                  : const Color(0xFFDC4C4C),
+                                  ? StudentPalette.of(context).success
+                                  : StudentPalette.of(context).error,
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 5),
+                          SizedBox(width: 5),
                           Text(
                             book.available ? 'Available' : 'Unavailable',
                             style: TextStyle(
                               color: book.available
-                                  ? const Color(0xFF22A06B)
-                                  : const Color(0xFFDC4C4C),
+                                  ? StudentPalette.of(context).success
+                                  : StudentPalette.of(context).error,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -510,27 +510,27 @@ void dispose() {
           BoxShadow(
             color: book.color.withValues(alpha: 0.18),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(8),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.menu_book_rounded,
               color: Colors.white,
               size: 28,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               book.title,
               maxLines: 3,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -548,29 +548,29 @@ void dispose() {
   Widget _buildEmptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 40,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: StudentPalette.of(context).border,
         ),
       ),
-      child: const Column(
+      child: Column(
         children: [
           Icon(
             Icons.menu_book_outlined,
-            color: Color(0xFF94A3B8),
+            color: StudentPalette.of(context).muted,
             size: 48,
           ),
           SizedBox(height: 12),
           Text(
             'No books found',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: StudentPalette.of(context).text,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -580,7 +580,7 @@ void dispose() {
             'Try another search or category.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               fontSize: 13,
             ),
           ),
@@ -590,102 +590,37 @@ void dispose() {
   }
 
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 70,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.bookmark_border_rounded,
-                label: 'Reservations',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return StudentBottomNavigation(
+      selectedIndex: 1,
+      onHome: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      onSearch: () {
+        // Already on Search.
+      },
+      onReservations: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: widget.library)));
+      },
+      onProfile: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: widget.library)));
+      },
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 5,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-              size: 23,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   void _showFilterDialog() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: StudentPalette.of(context).card,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,38 +630,38 @@ void dispose() {
                   width: 42,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
+                    color: StudentPalette.of(context).border,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const Text(
+              SizedBox(height: 20),
+              Text(
                 'Filter Books',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: StudentPalette.of(context).text,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               ..._categories.map(
                 (category) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     category,
-                    style: const TextStyle(
-                      color: Color(0xFF172033),
+                    style: TextStyle(
+                      color: StudentPalette.of(context).text,
                     ),
                   ),
                   trailing: category == _selectedCategory
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
-                          color: Color(0xFF2563EB),
+                          color: StudentPalette.of(context).primary,
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.circle_outlined,
-                          color: Color(0xFFCBD5E1),
+                          color: StudentPalette.of(context).border,
                         ),
                   onTap: () {
                     Navigator.pop(context);

@@ -412,12 +412,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pumpStudent(tester, MyReservationsScreen(library: student));
-    expect(find.text('Pending'), findsOneWidget);
+    final statusBadge = find.byKey(ValueKey('reservation-status-${librarian.reservations.single.id}'));
+    expect(tester.widget<Text>(statusBadge).data, 'Pending');
 
     final id = librarian.reservations.single.id;
     await librarian.approveReservation(id);
     await tester.pumpAndSettle();
-    expect(find.text('Ready for Pickup'), findsOneWidget);
+    expect(tester.widget<Text>(statusBadge).data, 'Ready for Pickup');
     expect(
       librarian.reservations.single.status,
       shared.ReservationStatus.approved,

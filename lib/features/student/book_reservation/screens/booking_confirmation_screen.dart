@@ -1,3 +1,8 @@
+import '../../common/widgets/student_palette.dart';
+import 'my_reservations_screen.dart';
+import 'find_books_screen.dart';
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 
 import '../../common/data/student_library_repository.dart';
@@ -26,26 +31,26 @@ class BookingConfirmationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                padding: EdgeInsets.fromLTRB(24, 8, 24, 24),
                 child: Column(
                   children: [
-                    _buildSuccessIcon(),
-                    const SizedBox(height: 24),
-                    _buildSuccessMessage(),
-                    const SizedBox(height: 24),
-                    _buildReceipt(),
-                    const SizedBox(height: 20),
-                    _buildPickupInformation(),
-                    const SizedBox(height: 24),
+                    _buildSuccessIcon(context),
+                    SizedBox(height: 24),
+                    _buildSuccessMessage(context),
+                    SizedBox(height: 24),
+                    _buildReceipt(context),
+                    SizedBox(height: 20),
+                    _buildPickupInformation(context),
+                    SizedBox(height: 24),
                     _buildViewReservationsButton(context),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildBackHomeButton(context),
                   ],
                 ),
@@ -54,29 +59,29 @@ class BookingConfirmationScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
         children: [
           _buildBackButton(context),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Booking Confirmation',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 38),
+          SizedBox(width: 38),
         ],
       ),
     );
@@ -87,10 +92,10 @@ class BookingConfirmationScreen extends StatelessWidget {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: StudentPalette.of(context).border,
         ),
       ),
       child: IconButton(
@@ -98,16 +103,16 @@ class BookingConfirmationScreen extends StatelessWidget {
           Navigator.of(context).maybePop();
         },
         padding: EdgeInsets.zero,
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Color(0xFF172033),
+          color: Theme.of(context).colorScheme.onSurface,
           size: 19,
         ),
       ),
     );
   }
 
-  Widget _buildSuccessIcon() {
+  Widget _buildSuccessIcon(BuildContext context) {
     return SizedBox(
       width: 150,
       height: 145,
@@ -119,7 +124,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             top: 18,
             right: 24,
             child: _buildDecorationCircle(
-              color: const Color(0xFFF2B84B),
+              color: StudentPalette.of(context).gold,
               size: 13,
             ),
           ),
@@ -127,7 +132,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             top: 48,
             left: 8,
             child: _buildDecorationCircle(
-              color: const Color(0xFFE98955),
+              color: StudentPalette.of(context).gold,
               size: 13,
             ),
           ),
@@ -135,7 +140,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             top: 40,
             right: 0,
             child: _buildDecorationCircle(
-              color: const Color(0xFFE98955),
+              color: StudentPalette.of(context).gold,
               size: 13,
             ),
           ),
@@ -143,7 +148,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             bottom: 12,
             left: 35,
             child: _buildDecorationCircle(
-              color: const Color(0xFFF2B84B),
+              color: StudentPalette.of(context).gold,
               size: 9,
             ),
           ),
@@ -159,7 +164,7 @@ class BookingConfirmationScreen extends StatelessWidget {
             bottom: 2,
             left: 67,
             child: _buildDecorationCircle(
-              color: const Color(0xFFF47BA6),
+              color: StudentPalette.of(context).gold,
               size: 8,
             ),
           ),
@@ -174,7 +179,7 @@ class BookingConfirmationScreen extends StatelessWidget {
                 width: 8,
                 height: 25,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF56D9E5),
+                  color: StudentPalette.of(context).gold,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -189,7 +194,7 @@ class BookingConfirmationScreen extends StatelessWidget {
                 width: 8,
                 height: 23,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF47BA6),
+                  color: StudentPalette.of(context).gold,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -200,11 +205,11 @@ class BookingConfirmationScreen extends StatelessWidget {
           Container(
             width: 78,
             height: 78,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Color(0xFF22D39A),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.check_rounded,
               color: Colors.white,
               size: 52,
@@ -229,25 +234,25 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSuccessMessage() {
+  Widget _buildSuccessMessage(BuildContext context) {
     return Column(
       children: [
-        const Text(
+        Text(
           'Reservation Requested!',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Color(0xFF172033),
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 7),
-        const Text(
+        SizedBox(height: 7),
+        Text(
           'Your request was sent to the library. You can collect\n'
           'the book once a librarian approves it.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Color(0xFF475569),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
             height: 1.45,
           ),
@@ -256,62 +261,67 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReceipt() {
+  Widget _buildReceipt(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
       child: Column(
         children: [
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Reservation Receipt',
               style: TextStyle(
-                color: Color(0xFF172033),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          const Divider(
+          SizedBox(height: 10),
+          Divider(
             height: 1,
-            color: Color(0xFFE2E8F0),
+            color: Theme.of(context).dividerColor,
           ),
-          const SizedBox(height: 5),
+          SizedBox(height: 5),
           _buildReceiptRow(
+          context: context,
             icon: Icons.menu_book_outlined,
             label: 'Book Title',
             value: bookTitle,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.calendar_today_outlined,
             label: 'Pickup Date',
             value: pickupDate,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.access_time_rounded,
             label: 'Loan Period',
             value: loanPeriod,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.location_on_outlined,
             label: 'Pickup Location',
             value: pickupLocation,
           ),
           _buildReceiptRow(
+          context: context,
             icon: Icons.hourglass_top_rounded,
             label: 'Status',
             value: 'Pending approval',
-            valueColor: const Color(0xFF2563EB),
+            valueColor: StudentPalette.of(context).primary,
           ),
         ],
       ),
@@ -319,29 +329,30 @@ class BookingConfirmationScreen extends StatelessWidget {
   }
 
   Widget _buildReceiptRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
-    Color valueColor = const Color(0xFF172033),
+    Color? valueColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           SizedBox(
             width: 28,
             child: Icon(
               icon,
-              color: const Color(0xFF172033),
+              color: Theme.of(context).colorScheme.onSurface,
               size: 18,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12.5,
               ),
             ),
@@ -349,7 +360,7 @@ class BookingConfirmationScreen extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: valueColor,
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
@@ -359,35 +370,35 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPickupInformation() {
+  Widget _buildPickupInformation(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 14,
         vertical: 16,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: StudentPalette.of(context).blueTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFB8D3FF),
+          color: StudentPalette.of(context).blueBorder,
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.info_outline_rounded,
-            color: Color(0xFF2563EB),
+            color: StudentPalette.of(context).primary,
             size: 20,
           ),
-          const SizedBox(width: 10),
-          const Expanded(
+          SizedBox(width: 10),
+          Expanded(
             child: Text(
-              'Show this screen or the receipt code at the Floor 1 main '
-              'desk to complete your pickup.',
+              'Show this screen or the receipt code at $pickupLocation '
+              'to complete your pickup.',
               style: TextStyle(
-                color: Color(0xFF475569),
+                color: StudentPalette.of(context).muted,
                 fontSize: 11.5,
                 height: 1.45,
               ),
@@ -414,14 +425,14 @@ class BookingConfirmationScreen extends StatelessWidget {
   );
 },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2563EB),
-          foregroundColor: Colors.white,
+          backgroundColor: StudentPalette.of(context).primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),
           ),
         ),
-        child: const Text(
+        child: Text(
           'View My Reservations',
           style: TextStyle(
             fontSize: 14,
@@ -443,17 +454,17 @@ class BookingConfirmationScreen extends StatelessWidget {
           );
         },
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF172033),
-          side: const BorderSide(
-            color: Color(0xFFF2B84B),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          side: BorderSide(
+            color: StudentPalette.of(context).gold,
             width: 1.2,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),
           ),
         ),
-        child: const Text(
+        child: Text(
           'Back to Home',
           style: TextStyle(
             fontSize: 14,
@@ -464,88 +475,17 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'Reservations',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.account_circle_outlined,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildBottomNavigationBar(BuildContext context) {
+    return StudentBottomNavigation(
+      selectedIndex: 2,
+      onHome: () { Navigator.of(context).popUntil((route) => route.isFirst); },
+      onSearch: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FindBooksScreen(library: library))); },
+      onReservations: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: library)));
+      },
+      onProfile: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: library))); },
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 }
