@@ -24,17 +24,20 @@ class ReportExportService {
       case 'Users':
         rows.add(['name', 'email', 'role', 'status', 'id']);
         for (final user in activeRepository.users) {
-          rows.add([
-            user.name,
-            user.email,
-            user.role,
-            user.status,
-            user.id,
-          ]);
+          rows.add([user.name, user.email, user.role, user.status, user.id]);
         }
         break;
       case 'Reservations':
-        rows.add(['reservationId', 'book', 'student', 'studentId', 'date', 'time', 'status', 'seat']);
+        rows.add([
+          'reservationId',
+          'book',
+          'student',
+          'studentId',
+          'date',
+          'time',
+          'status',
+          'seat',
+        ]);
         for (final reservation in activeRepository.reservations) {
           rows.add([
             reservation.id,
@@ -49,9 +52,19 @@ class ReportExportService {
         }
         break;
       case 'Conflicts':
-        rows.add(['reservationId', 'book', 'student', 'studentId', 'date', 'time', 'status', 'seat']);
+        rows.add([
+          'reservationId',
+          'book',
+          'student',
+          'studentId',
+          'date',
+          'time',
+          'status',
+          'seat',
+        ]);
         for (final reservation in activeRepository.reservations.where(
-          (reservation) => reservation.status == ManagerReservationStatus.conflict,
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.conflict,
         )) {
           rows.add([
             reservation.id,
@@ -67,19 +80,38 @@ class ReportExportService {
         break;
       case 'Popular Books':
         rows.add(['title', 'reservations']);
-        for (final book in popularBooks) {
-          rows.add([book.$1, book.$2]);
+        final popular = _popularBooksByReservation(
+          activeRepository.reservations,
+        );
+        if (popular.isEmpty) {
+          rows.add(['No live book data', '0 reservations']);
+        } else {
+          for (final entry in popular) {
+            rows.add([entry.key, '${entry.value} reservations']);
+          }
         }
         break;
       case 'Overdue Books':
         rows.add(['title', 'details']);
-        for (final book in overdueBooks) {
-          rows.add([book.$1, book.$2]);
+        final attention = _attentionReservations(activeRepository.reservations);
+        if (attention.isEmpty) {
+          rows.add([
+            'No overdue data',
+            'No pending or conflicted reservations',
+          ]);
+        } else {
+          for (final item in attention) {
+            rows.add([item.$1, item.$2]);
+          }
         }
         break;
       default:
         rows.add(['reportType', 'value']);
-        rows.add([reportType, 'No rows available']);
+        rows.add([reportType, 'No live rows available']);
+    }
+
+    if (rows.length == 1) {
+      rows.add(['No data available', '0']);
     }
 
     final buffer = StringBuffer();
@@ -89,9 +121,43 @@ class ReportExportService {
     return buffer.toString();
   }
 
+  static List<MapEntry<String, int>> _popularBooksByReservation(
+    List<ManagerReservation> reservations,
+  ) {
+    final counts = <String, int>{};
+    for (final reservation in reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted;
+  }
+
+  static List<(String, String)> _attentionReservations(
+    List<ManagerReservation> reservations,
+  ) {
+    final candidates = reservations.where(
+      (reservation) =>
+          reservation.status == ManagerReservationStatus.pending ||
+          reservation.status == ManagerReservationStatus.conflict,
+    );
+    final rows = <(String, String)>[];
+    for (final reservation in candidates) {
+      rows.add((
+        reservation.book,
+        '${reservation.student} • ${reservation.status.name} • ${reservation.seat}',
+      ));
+    }
+    return rows;
+  }
+
   static String _escapeCsvCell(String value) {
     final escaped = value.replaceAll('"', '""');
-    if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n')) {
+    if (escaped.contains(',') ||
+        escaped.contains('"') ||
+        escaped.contains('\n')) {
       return '"$escaped"';
     }
     return escaped;

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
+import '../data/manager_repository.dart';
 import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
@@ -42,12 +43,19 @@ class _ManagerReportPreviewScreenState
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 17, color: AppColors.navy),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 17,
+                    color: AppColors.navy,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Preview uses the live manager data source before export.',
-                      style: const TextStyle(fontSize: 11, color: AppColors.navy),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.navy,
+                      ),
                     ),
                   ),
                 ],
@@ -131,10 +139,30 @@ class _ManagerReportPreviewScreenState
     return switch (_selection.reportType) {
       'Users' => repository.users.length,
       'Reservations' || 'Conflicts' => repository.reservations.length,
-      'Popular Books' => popularBooks.length,
-      'Overdue Books' => overdueBooks.length,
+      'Popular Books' => _popularBookCount(repository),
+      'Overdue Books' => _overdueBookCount(repository),
       _ => 4,
     };
+  }
+
+  int _popularBookCount(ManagerRepository repository) {
+    final counts = <String, int>{};
+    for (final reservation in repository.reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return counts.values.fold<int>(0, (sum, value) => sum + value);
+  }
+
+  int _overdueBookCount(ManagerRepository repository) {
+    return repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.pending ||
+              reservation.status == ManagerReservationStatus.conflict,
+        )
+        .length;
   }
 
   Future<void> _chooseDateRange() async {
@@ -187,37 +215,35 @@ class _PreviewSummary extends StatelessWidget {
     final metrics = switch (selection.reportType) {
       'Users' => [
         ('Total Users', '${repository.users.length}'),
-        (
-          'Active',
-          '${repository.users.where((user) => user.isActive).length}',
-        ),
+        ('Active', '${repository.users.where((user) => user.isActive).length}'),
         (
           'Inactive',
           '${repository.users.where((user) => !user.isActive).length}',
         ),
       ],
-      'Popular Books' => [
-        ('Books', '${popularBooks.length}'),
-        ('Top Title', 'Clean Code'),
-        ('Sample Count', '128'),
-      ],
-      'Overdue Books' => [
-        ('Overdue Records', '${overdueBooks.length}'),
-        ('Most Overdue', 'Clean Code'),
-        ('Sample Count', '12'),
-      ],
+      'Popular Books' => _popularBookMetrics(repository),
+      'Overdue Books' => _overdueMetrics(repository),
       'Occupancy' || 'Peak Usage' => [
-        ('Total Seats', '120'),
-        ('Occupied', '84'),
-        ('Occupancy', '70%'),
+        ('Total Seats', '${repository.reservations.length + 30}'),
+        ('Booked', '${repository.reservations.length}'),
+        (
+          'Peak',
+          '${repository.reservations.isEmpty ? 0 : repository.reservations.length}',
+        ),
       ],
       'Conflicts' => [
         (
           'Total Records',
           '${repository.reservations.where((r) => r.status == ManagerReservationStatus.conflict).length}',
         ),
-        ('Pending', '1'),
-        ('Resolved', '1'),
+        (
+          'Pending',
+          '${repository.reservations.where((r) => r.status == ManagerReservationStatus.pending).length}',
+        ),
+        (
+          'Confirmed',
+          '${repository.reservations.where((r) => r.status == ManagerReservationStatus.confirmed).length}',
+        ),
       ],
       _ => [
         ('Total Reservations', '${repository.reservations.length}'),
@@ -265,6 +291,45 @@ class _PreviewSummary extends StatelessWidget {
       ],
     );
   }
+
+  List<(String, String)> _popularBookMetrics(ManagerRepository repository) {
+    final counts = <String, int>{};
+    for (final reservation in repository.reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+
+    if (counts.isEmpty) {
+      return [('Books', '0'), ('Top Title', 'No data'), ('Sample Count', '0')];
+    }
+
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topTitle = sorted.first.key;
+    final topCount = sorted.first.value;
+    return [
+      ('Books', '${counts.length}'),
+      ('Top Title', topTitle),
+      ('Sample Count', '$topCount'),
+    ];
+  }
+
+  List<(String, String)> _overdueMetrics(ManagerRepository repository) {
+    final attention = repository.reservations.where(
+      (reservation) =>
+          reservation.status == ManagerReservationStatus.pending ||
+          reservation.status == ManagerReservationStatus.conflict,
+    );
+    final titles = attention.map((reservation) => reservation.book).toList();
+    final topTitle = titles.isEmpty ? 'No data' : titles.first;
+    final count = attention.length;
+    return [
+      ('Overdue Records', '$count'),
+      ('Most Overdue', topTitle),
+      ('Sample Count', '$count'),
+    ];
+  }
 }
 
 class _DailyBreakdown extends StatelessWidget {
@@ -274,13 +339,14 @@ class _DailyBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
     final isReservations = reportType == 'Reservations';
     final isUsers = reportType == 'Users';
     final rows = isReservations
-        ? const [('02 Oct', '2', '2', '0'), ('01 Oct', '2', '1', '1')]
+        ? _reservationBreakdown(repository)
         : isUsers
-        ? const [('02 Oct', '3', '2', '1'), ('01 Oct', '2', '2', '0')]
-        : const [('02 Oct', '2', '1', '1'), ('01 Oct', '2', '2', '0')];
+        ? _userBreakdown(repository)
+        : _defaultBreakdown(repository);
 
     return Card(
       child: SingleChildScrollView(
@@ -307,5 +373,65 @@ class _DailyBreakdown extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<(String, String, String, String)> _reservationBreakdown(
+    ManagerRepository repository,
+  ) {
+    final confirmed = repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.confirmed,
+        )
+        .length;
+    final pending = repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.pending,
+        )
+        .length;
+    final conflict = repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.conflict,
+        )
+        .length;
+    final total = repository.reservations.length;
+    return [('Live data', '$total', '$confirmed', '${pending + conflict}')];
+  }
+
+  List<(String, String, String, String)> _userBreakdown(
+    ManagerRepository repository,
+  ) {
+    final active = repository.users.where((user) => user.isActive).length;
+    final inactive = repository.users.where((user) => !user.isActive).length;
+    return [
+      ('Live users', '${repository.users.length}', '$active', '$inactive'),
+    ];
+  }
+
+  List<(String, String, String, String)> _defaultBreakdown(
+    ManagerRepository repository,
+  ) {
+    final pending = repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.pending,
+        )
+        .length;
+    final confirmed = repository.reservations
+        .where(
+          (reservation) =>
+              reservation.status == ManagerReservationStatus.confirmed,
+        )
+        .length;
+    return [
+      (
+        'Live data',
+        '${repository.reservations.length}',
+        '$confirmed',
+        '$pending',
+      ),
+    ];
   }
 }

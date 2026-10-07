@@ -6,37 +6,37 @@ import 'package:libmate_app/models/user.dart';
 
 class _TestManagerRepository extends ManagerRepository {
   _TestManagerRepository()
-      : _users = [
-          ManagerUser(
-            id: 'repo-user-1',
-            name: 'Repo Manager',
-            email: 'repo.manager@libmate.com',
-            role: 'manager',
-            isActive: true,
-            createdAt: DateTime(2026, 10, 1),
-          ),
-        ],
-        _reservations = [
-          ManagerReservation(
-            id: 'R-9001',
-            book: 'Repo Book',
-            student: 'Repo Student',
-            studentId: 'S-9001',
-            date: '05 Oct 2026',
-            time: '09:00 - 11:00',
-            status: ManagerReservationStatus.confirmed,
-            seat: 'A09',
-          ),
-        ],
-        _notices = [
-          ManagerNotice(
-            title: 'Repo notice',
-            subtitle: 'Saved from Firebase',
-            time: 'just now',
-            kind: 'info',
-          ),
-        ],
-        _policyValues = [3, 5, 7, 2, 7];
+    : _users = [
+        ManagerUser(
+          id: 'repo-user-1',
+          name: 'Repo Manager',
+          email: 'repo.manager@libmate.com',
+          role: 'manager',
+          isActive: true,
+          createdAt: DateTime(2026, 10, 1),
+        ),
+      ],
+      _reservations = [
+        ManagerReservation(
+          id: 'R-9001',
+          book: 'Repo Book',
+          student: 'Repo Student',
+          studentId: 'S-9001',
+          date: '05 Oct 2026',
+          time: '09:00 - 11:00',
+          status: ManagerReservationStatus.confirmed,
+          seat: 'A09',
+        ),
+      ],
+      _notices = [
+        ManagerNotice(
+          title: 'Repo notice',
+          subtitle: 'Saved from Firebase',
+          time: 'just now',
+          kind: 'info',
+        ),
+      ],
+      _policyValues = [3, 5, 7, 2, 7];
 
   final List<ManagerUser> _users;
   final List<ManagerReservation> _reservations;
@@ -124,21 +124,11 @@ void main() {
       expect(csv, isNot(contains('Neranjala Gunarathne')));
     });
 
-    test('normalizes capitalized role labels before Firestore writes', () {
-      expect(UserRole.fromValue('Manager'), UserRole.manager);
-      expect(UserRole.fromValue('Librarian'), UserRole.librarian);
-      expect(UserRole.fromValue('Student'), UserRole.student);
-    });
-
-    test('repository can delete a user and export a report from current rows', () {
+    test('uses live reservation aggregates for the popular books report', () {
       final repository = _TestManagerRepository();
-      repository.deleteUser('repo-user-1');
-
-      expect(repository.users.any((user) => user.id == 'repo-user-1'), isFalse);
-
       final csv = ReportExportService.generateCsv(
         ManagerReportSelection(
-          reportType: 'Users',
+          reportType: 'Popular Books',
           startDate: DateTime(2026, 10, 1),
           endDate: DateTime(2026, 10, 6),
           format: 'CSV',
@@ -146,8 +136,42 @@ void main() {
         repository: repository,
       );
 
-      expect(csv, contains('name'));
-      expect(csv, isNot(contains('Repo Manager')));
+      expect(csv, contains('title'));
+      expect(csv, contains('Repo Book'));
+      expect(csv, contains('1 reservations'));
+      expect(csv, isNot(contains('Clean Code')));
     });
+
+    test('normalizes capitalized role labels before Firestore writes', () {
+      expect(UserRole.fromValue('Manager'), UserRole.manager);
+      expect(UserRole.fromValue('Librarian'), UserRole.librarian);
+      expect(UserRole.fromValue('Student'), UserRole.student);
+    });
+
+    test(
+      'repository can delete a user and export a report from current rows',
+      () {
+        final repository = _TestManagerRepository();
+        repository.deleteUser('repo-user-1');
+
+        expect(
+          repository.users.any((user) => user.id == 'repo-user-1'),
+          isFalse,
+        );
+
+        final csv = ReportExportService.generateCsv(
+          ManagerReportSelection(
+            reportType: 'Users',
+            startDate: DateTime(2026, 10, 1),
+            endDate: DateTime(2026, 10, 6),
+            format: 'CSV',
+          ),
+          repository: repository,
+        );
+
+        expect(csv, contains('name'));
+        expect(csv, isNot(contains('Repo Manager')));
+      },
+    );
   });
 }
