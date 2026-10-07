@@ -19,7 +19,11 @@ service cloud.firestore {
     }
 
     function role() {
-      return get(profilePath()).data.role;
+      return get(profilePath()).data.get('role', '').lower();
+    }
+
+    function validUserRole(roleName) {
+      return roleName is string && roleName.lower() in ['student', 'librarian', 'manager'];
     }
 
     // Librarians and managers manage the library.
@@ -44,22 +48,36 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
 
-      // Public sign-up creates STUDENT profiles only; librarian and manager
-      // accounts are created by an administrator in the console.
+      // Staff may provision new accounts for students, librarians, and managers.
+      // A regular user may still create their own profile document when it matches
+      // their authenticated UID. The document must carry the same uid and a valid role.
       allow create: if signedIn()
-        && request.auth.uid == uid
+        && (request.auth.uid == uid || isStaff())
         && request.resource.data.uid == uid
-        && request.resource.data.role == 'student'
+        && validUserRole(request.resource.data.role)
+        && request.resource.data.email is string
+        && request.resource.data.name is string
         && !('accountStatus' in request.resource.data);
 
-      // Users may edit their own profile but never their role or status.
-      // Staff may only suspend / reactivate (accountStatus).
+      // A user can update their own basic profile details, but not their UID or role.
+      // Staff can update a user profile, including name/email/role/status, while
+      // keeping the document ID and uid aligned with the Firebase Auth uid.
       allow update: if (signedIn() && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.email is string
+          && validUserRole(request.resource.data.role)
           && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['uid', 'role', 'accountStatus']))
-        || (isStaff() && changedOnly(['accountStatus', 'updatedAt']));
+              .hasAny(['uid', 'role']))
+        || (isStaff()
+          && request.resource.data.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.email is string
+          && validUserRole(request.resource.data.role)
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['name', 'email', 'role', 'isActive', 'accountStatus', 'updatedAt']));
 
-      allow delete: if false;
+      allow delete: if isStaff();
     }
 
     // ---------------- Catalogue ----------------
@@ -238,9 +256,27 @@ service cloud.firestore {
     }
 
     // ---------------- Settings ----------------
+    function validLibrarySettings() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+        'bookReservationLimit',
+        'borrowingLimit',
+        'reservationExpiryDays',
+        'seatBookingHours',
+        'advanceBookingDays',
+        'updatedAt'
+      ])
+        && d.bookReservationLimit is int
+        && d.borrowingLimit is int
+        && d.reservationExpiryDays is int
+        && d.seatBookingHours is int
+        && d.advanceBookingDays is int;
+    }
+
     match /settings/{settingsId} {
       allow read: if signedIn();
-      allow write: if isStaff();
+      allow create, update: if isStaff() && settingsId == 'library' && validLibrarySettings();
+      allow delete: if false;
     }
 
     // Everything else is closed.

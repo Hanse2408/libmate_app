@@ -5,6 +5,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_theme.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerReservationsScreen extends StatefulWidget {
@@ -28,7 +29,8 @@ class _ManagerReservationsScreenState extends State<ManagerReservationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final results = managerReservations.where((reservation) {
+    final repository = ManagerScope.of(context).repository;
+    final results = repository.reservations.where((reservation) {
       final statusMatch =
           _selectedFilter == 0 ||
           reservation.status.name == _filters[_selectedFilter].toLowerCase();

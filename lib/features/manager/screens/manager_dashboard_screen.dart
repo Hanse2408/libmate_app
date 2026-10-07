@@ -5,6 +5,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_theme.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
@@ -94,16 +95,11 @@ class ManagerDashboardScreen extends StatelessWidget {
                 onAction: () => context.go(AppRoutes.managerNotifications),
               ),
               const SizedBox(height: 8),
-              _RecentActivityCard(notices: managerNotices.take(4).toList()),
-              const SizedBox(height: 13),
-              const Center(
-                child: Text(
-                  'Sample data · for interface preview only',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.secondaryText,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final notices = ManagerScope.of(context).repository.notices.take(4).toList();
+                  return _RecentActivityCard(notices: notices);
+                },
               ),
             ],
           ),
@@ -261,7 +257,7 @@ class _RoleSummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final users = ManagerUserStore.instance.users;
+    final users = ManagerScope.of(context).repository.users;
     final students = users.where((user) => user.role == 'Student').length;
     final librarians = users.where((user) => user.role == 'Librarian').length;
     final managers = users.where((user) => user.role == 'Manager').length;

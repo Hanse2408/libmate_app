@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerNotificationsScreen extends StatefulWidget {
@@ -17,9 +17,10 @@ class _ManagerNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
     final notices = _tab == 0
-        ? managerNotices
-        : managerNotices.take(3).toList();
+        ? repository.notices
+        : repository.notices.take(3).toList();
     return ManagerScaffold(
       title: 'Notifications',
       currentIndex: 3,
