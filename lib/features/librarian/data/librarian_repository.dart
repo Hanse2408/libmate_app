@@ -101,6 +101,38 @@ abstract class LibrarianRepository extends ChangeNotifier {
   MemberRecord? memberById(String id) =>
       _firstWhereOrNull(members, (m) => m.id == id);
 
+  /// How the seat map shows [seat]: Maintenance / Occupied as the librarian
+  /// set them; otherwise Reserved (yellow) while a confirmed booking for it
+  /// has not ended yet, else Available. Seat bookings are confirmed as soon
+  /// as a student makes them, so the seat turns yellow straight away (from
+  /// the live `reservations` data) and back to Available after the booking.
+  SeatStatus seatMapStatus(SeatRecord seat, {DateTime? now}) {
+    if (seat.status != SeatStatus.available) return seat.status;
+    return hasUpcomingBooking(seat.id, now: now) ? SeatStatus.reserved : SeatStatus.available;
+  }
+
+  /// All seats with the status the seat map shows (see [seatMapStatus]).
+  List<SeatRecord> get seatsAsShown => [
+    for (final seat in seats) seat.copyWith(status: seatMapStatus(seat)),
+  ];
+
+  /// True if the seat has a confirmed booking whose time has not ended.
+  bool hasUpcomingBooking(String seatId, {DateTime? now}) {
+    final clock = now ?? DateTime.now();
+    final today = DateTime(clock.year, clock.month, clock.day);
+    return reservations.any((r) {
+      if (r.type != ReservationType.seat ||
+          r.itemId != seatId ||
+          r.status != ReservationStatus.approved) {
+        return false;
+      }
+      final day = DateTime(r.date.year, r.date.month, r.date.day);
+      if (day.isAfter(today)) return true;
+      if (day.isBefore(today)) return false;
+      return (r.endHour ?? 24) > clock.hour; // today: until its end hour
+    });
+  }
+
   /// The approved booking holding a seat (today or later), if any.
   ReservationRecord? activeReservationForSeat(String seatId) {
     final today = _today();

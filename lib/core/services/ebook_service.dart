@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/book.dart';
@@ -117,6 +118,92 @@ abstract class EbookDownloader {
     required String fileName,
     void Function(double progress)? onProgress,
   });
+}
+
+/// Why an e-book PDF could not be opened in the reader; [message] is shown
+/// to the student. [statusCode] is the HTTP status when the host answered.
+class EbookReadException implements Exception {
+  const EbookReadException(this.message, {this.statusCode});
+
+  final String message;
+  final int? statusCode;
+
+  @override
+  String toString() => message;
+}
+
+/// Loads an e-book PDF from its stored Cloudinary URL into memory for the
+/// in-app reader. Nothing is saved on the device.
+///
+/// The PDF viewer's own web loader does not check the HTTP status, so a
+/// refused request (e.g. Cloudinary answering 401 "deny or ACL failure"
+/// when the account does not allow PDF delivery) only showed up as a vague
+/// load error. Loading here reports the real reason.
+class EbookPdfLoader {
+  EbookPdfLoader({
+    http.Client? client,
+    this.timeout = const Duration(minutes: 2),
+  }) : _client = client ?? http.Client();
+
+  final http.Client _client;
+  final Duration timeout;
+
+  Future<Uint8List> load(
+    Uri uri, {
+    void Function(int received, int? total)? onProgress,
+  }) async {
+    final http.StreamedResponse response;
+    try {
+      response = await _client.send(http.Request('GET', uri)).timeout(timeout);
+    } on TimeoutException {
+      throw const EbookReadException(
+        'The e-book took too long to load. Check your internet connection and try again.',
+      );
+    } catch (_) {
+      throw const EbookReadException(
+        'Could not reach the e-book file. Check your internet connection and try again.',
+      );
+    }
+
+    final status = response.statusCode;
+    if (status < 200 || status >= 300) {
+      final cloudinaryError = response.headers['x-cld-error'] ?? '';
+      throw EbookReadException(switch (status) {
+        401 || 403 when cloudinaryError.contains('deny') =>
+          'The library\'s file host refused to deliver this PDF (HTTP $status). '
+              'Please tell the library: PDF delivery must be allowed in the Cloudinary settings.',
+        404 || 410 =>
+          'This e-book\'s PDF file was not found (HTTP $status). Please tell the library.',
+        _ =>
+          'The e-book could not be loaded (HTTP $status). Please try again later.',
+      }, statusCode: status);
+    }
+
+    final total = response.contentLength;
+    final builder = BytesBuilder(copy: false);
+    try {
+      await for (final chunk in response.stream.timeout(timeout)) {
+        builder.add(chunk);
+        onProgress?.call(builder.length, total);
+      }
+    } catch (_) {
+      throw const EbookReadException(
+        'The e-book stopped loading. Check your internet connection and try again.',
+      );
+    }
+    final bytes = builder.takeBytes();
+    // Every PDF starts with "%PDF".
+    if (bytes.length < 4 ||
+        bytes[0] != 0x25 ||
+        bytes[1] != 0x50 ||
+        bytes[2] != 0x44 ||
+        bytes[3] != 0x46) {
+      throw const EbookReadException(
+        'The e-book link did not return a PDF file. Please tell the library.',
+      );
+    }
+    return bytes;
+  }
 }
 
 /// Stores e-book PDFs. An interface so tests can use a fake.

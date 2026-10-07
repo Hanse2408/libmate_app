@@ -13,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
     : _authRepository = authRepository ?? AuthRepository(),
       _userRepository = userRepository ?? UserRepository() {
     _authStateSubscription = _authRepository.authStateChanges.listen((user) {
+      _isAuthResolved = true;
       _user = user;
       if (user == null) {
         _profile = null;
@@ -29,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
   late final StreamSubscription<User?> _authStateSubscription;
 
   User? _user;
+  bool _isAuthResolved = false;
   AppUser? _profile;
   bool _isLoading = false;
   bool _isProfileLoading = false;
@@ -42,6 +44,10 @@ class AuthProvider extends ChangeNotifier {
   bool get isProfileLoading => _isProfileLoading;
   String? get errorMessage => _errorMessage;
   bool get isSignedIn => _user != null;
+
+  /// True once Firebase has reported the initial sign-in state (on web the
+  /// saved session is restored asynchronously after start-up).
+  bool get isAuthResolved => _isAuthResolved;
 
   Future<bool> signIn({
     required String email,

@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:libmate_app/app/theme/app_theme.dart';
 import 'package:libmate_app/core/services/ebook_service.dart';
 import 'package:libmate_app/core/services/cloudinary_upload_service.dart';
 import 'package:libmate_app/features/student/book_reservation/screens/find_books_screen.dart';
 import 'package:libmate_app/features/student/common/data/student_library_repository.dart';
 import 'package:libmate_app/features/student/ebooks/providers/student_ebook_provider.dart';
 import 'package:libmate_app/features/student/ebooks/screens/ebook_details_screen.dart';
+import 'package:libmate_app/features/student/ebooks/screens/ebook_reader_screen.dart';
 import 'package:libmate_app/features/student/ebooks/screens/ebooks_screen.dart';
 import 'package:libmate_app/repositories/ebook_repository.dart';
 
@@ -41,15 +46,8 @@ class _FakeDownloader implements EbookDownloader {
   }
 }
 
-class _FakeLauncher extends PdfLauncher {
-  final List<String> opened = [];
-
-  @override
-  Future<bool> open(String url) async {
-    opened.add(url);
-    return true;
-  }
-}
+/// The start of a real PDF file (what Cloudinary returns for a PDF).
+final _pdfBytes = Uint8List.fromList('%PDF-1.4\n%test\n'.codeUnits);
 
 /// An `ebooks` document as the Librarian side saves it.
 Map<String, dynamic> _ebookDoc({
@@ -90,10 +88,24 @@ void main() {
     downloader = _FakeDownloader();
   });
 
+  /// URLs the reader fetched, and how the "file host" answers.
+  final requested = <Uri>[];
+  late http.Response Function(Uri url) host;
+  setUp(() {
+    requested.clear();
+    host = (_) => http.Response.bytes(_pdfBytes, 200);
+  });
+
   StudentEbookProvider newProvider() => StudentEbookProvider(
     EbookRepository(
       service: EbookService(firestore: db, files: _NoFiles()),
       downloader: downloader,
+      pdfLoader: EbookPdfLoader(
+        client: MockClient((request) async {
+          requested.add(request.url);
+          return host(request.url);
+        }),
+      ),
     ),
   );
 
@@ -183,82 +195,92 @@ void main() {
       provider.dispose();
     });
 
-    test('download saves the PDF from its HTTPS URL; one at a time', () async {
-      await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
+    test('Read Online uses the saved Cloudinary pdfUrl, nothing else', () async {
+      await db.collection('ebooks').doc('E1').set({
+        ..._ebookDoc(id: 'E1'),
+        'pdfUrl': 'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
+      });
+      await db.collection('ebooks').doc('E2').set(_ebookDoc(id: 'E2', withPdf: false));
+      await db.collection('ebooks').doc('E3').set({..._ebookDoc(id: 'E3'), 'pdfUrl': 'ebooks/E3/1.pdf'});
       final provider = newProvider();
       await settle();
-      final ebook = provider.ebooks.single;
 
-      downloader.gate = Completer<void>();
-      final first = provider.download(ebook);
-      expect(provider.downloadingId, 'E1');
-      final second = await provider.download(ebook);
-      expect(second.success, isFalse);
-      expect(second.message, contains('already in progress'));
-
-      downloader.gate!.complete();
-      final result = await first;
-      expect(result.success, isTrue);
-      expect(result.saved!.location, 'Download/LibMate/Clean Code.pdf');
-      expect(downloader.calls.single, (
-        'https://storage.test/ebooks/E1/1.pdf',
-        'Clean Code.pdf',
-      ));
-      expect(provider.downloadingId, isNull);
+      expect(
+        provider.readOnlineUri(provider.ebookById('E1')!).toString(),
+        'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
+      );
+      expect(provider.readOnlineUri(provider.ebookById('E2')!), isNull); // no PDF
+      expect(provider.readOnlineUri(provider.ebookById('E3')!), isNull); // not a web link
+      expect(downloader.calls, isEmpty); // reading never downloads a file
       provider.dispose();
     });
 
-    test('a failed download is reported, not shown as success', () async {
-      await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
-      final provider = newProvider();
-      await settle();
-      downloader
-        ..failWith = 'Could not reach the server.'
-        ..canOpenInBrowser = true;
+    group('PDF loader', () {
+      final url = Uri.parse('https://res.cloudinary.com/demo/image/upload/v1/clean.pdf');
+      EbookPdfLoader loader(http.Response response) =>
+          EbookPdfLoader(client: MockClient((_) async => response));
 
-      final result = await provider.download(provider.ebooks.single);
-      expect(result.success, isFalse);
-      expect(result.message, 'Could not reach the server.');
-      expect(result.canOpenInBrowser, isTrue);
-      expect(provider.downloadingId, isNull);
-      provider.dispose();
-    });
+      test('returns the PDF bytes, with progress', () async {
+        final progress = <int>[];
+        final bytes = await loader(
+          http.Response.bytes(_pdfBytes, 200, headers: {'content-length': '${_pdfBytes.length}'}),
+        ).load(url, onProgress: (received, _) => progress.add(received));
+        expect(bytes, _pdfBytes);
+        expect(progress.last, _pdfBytes.length);
+      });
 
-    test('an e-book without a PDF is not downloaded', () async {
-      await db
-          .collection('ebooks')
-          .doc('E1')
-          .set(_ebookDoc(id: 'E1', withPdf: false));
-      final provider = newProvider();
-      await settle();
-      final result = await provider.download(provider.ebooks.single);
-      expect(result.success, isFalse);
-      expect(result.message, contains('No PDF'));
-      expect(downloader.calls, isEmpty);
-      provider.dispose();
+      test('Cloudinary refusing PDF delivery is reported as such', () async {
+        final error = await loader(
+          http.Response('{}', 401, headers: {'x-cld-error': 'deny or ACL failure'}),
+        ).load(url).then<Object?>((_) => null, onError: (Object e) => e);
+        expect(error, isA<EbookReadException>());
+        expect((error! as EbookReadException).statusCode, 401);
+        expect(error.toString(), contains('PDF delivery must be allowed'));
+      });
+
+      test('a missing file and a non-PDF answer are reported', () async {
+        Future<String> failure(http.Response r) =>
+            loader(r).load(url).then((_) => '', onError: (Object e) => e.toString());
+        expect(await failure(http.Response('', 404)), contains('not found (HTTP 404)'));
+        expect(await failure(http.Response('<html>', 200)), contains('did not return a PDF'));
+      });
     });
   });
 
   group('screens', () {
-    late _FakeLauncher launcher;
+    late List<String> rendered;
+    final realViewer = EbookReaderScreen.pdfViewBuilder;
 
     setUp(() {
-      launcher = _FakeLauncher();
-      PdfLauncher.instance = launcher;
+      rendered = [];
+      // Stands in for the PDF engine (pdfrx) and reports the page count.
+      EbookReaderScreen.pdfViewBuilder = (context, bytes, sourceName, callbacks) {
+        expect(bytes, _pdfBytes);
+        rendered.add(sourceName);
+        WidgetsBinding.instance.addPostFrameCallback((_) => callbacks.onReady(464));
+        return const Center(child: Text('PDF pages'));
+      };
     });
 
-    tearDown(() => PdfLauncher.instance = const PdfLauncher());
+    tearDown(() => EbookReaderScreen.pdfViewBuilder = realViewer);
+
+    /// Lets the PDF request (real async) finish, then redraws.
+    Future<void> loadPdf(WidgetTester tester) async {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pumpAndSettle();
+    }
 
     Future<StudentLibraryRepository> pump(
       WidgetTester tester,
-      Widget Function(StudentLibraryRepository) screen,
-    ) async {
+      Widget Function(StudentLibraryRepository) screen, {
+      ThemeData? theme,
+    }) async {
       tester.view.physicalSize = const Size(440, 1400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final library = newLibrary();
       addTearDown(library.dispose);
-      await tester.pumpWidget(MaterialApp(home: screen(library)));
+      await tester.pumpWidget(MaterialApp(theme: theme, home: screen(library)));
       await tester.pumpAndSettle();
       return library;
     }
@@ -316,7 +338,7 @@ void main() {
       },
     );
 
-    testWidgets('list -> details -> Download PDF completes with a message', (
+    testWidgets('list -> details -> Read Online opens the PDF in the app', (
       tester,
     ) async {
       await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
@@ -332,30 +354,29 @@ void main() {
       expect(find.text('2008'), findsOneWidget);
       expect(find.text('464'), findsOneWidget);
       expect(find.text('clean-code.pdf · 2.3 MB'), findsOneWidget);
+      // No manual download in the Student flow.
+      expect(find.text('Download PDF'), findsNothing);
+      expect(find.text('Open in browser'), findsNothing);
 
-      downloader.gate = Completer<void>();
-      await tester.ensureVisible(find.text('Download PDF'));
-      await tester.tap(find.text('Download PDF'));
-      await tester.pump();
-      expect(find.text('Downloading… 50%'), findsOneWidget);
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(button.onPressed, isNull); // no second download while running
-      expect(find.textContaining('Download complete'), findsNothing);
-
-      downloader.gate!.complete();
+      await tester.ensureVisible(find.text('Read Online'));
+      await tester.tap(find.text('Read Online'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Download complete: Download/LibMate/Clean Code.pdf'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Saved to Download/LibMate/Clean Code.pdf'),
-        findsOneWidget,
-      );
-      expect(downloader.calls, hasLength(1));
+      await loadPdf(tester);
+      expect(find.text('PDF pages'), findsOneWidget);
+      expect(find.text('Page 1 of 464'), findsOneWidget);
+      expect(find.byTooltip('Zoom in'), findsOneWidget);
+      expect(find.byTooltip('Zoom out'), findsOneWidget);
+      // The existing (stored) PDF link is what is read; nothing is saved.
+      expect(requested.single.toString(), 'https://storage.test/ebooks/E1/1.pdf');
+      expect(rendered.toSet().single, 'https://storage.test/ebooks/E1/1.pdf');
+      expect(downloader.calls, isEmpty);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('E-book Details'), findsOneWidget);
     });
 
-    testWidgets('a missing PDF disables the download and explains why', (
+    testWidgets('a missing PDF disables Read Online and explains why', (
       tester,
     ) async {
       await db
@@ -375,35 +396,69 @@ void main() {
       final button = tester.widget<FilledButton>(find.byType(FilledButton));
       expect(button.onPressed, isNull);
       expect(find.text('PDF not available'), findsOneWidget);
+      expect(find.text('Read Online'), findsNothing);
     });
 
-    testWidgets(
-      'a failed download shows the reason and offers Open in browser',
-      (tester) async {
-        await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
-        downloader
-          ..failWith =
-              'This device does not allow LibMate to save into Downloads.'
-          ..canOpenInBrowser = true;
-        await pump(
-          tester,
-          (library) => EbookDetailsScreen(library: library, ebookId: 'E1'),
-        );
+    testWidgets('a PDF that cannot load shows an error and Try again', (
+      tester,
+    ) async {
+      await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
+      // What Cloudinary answers when the account does not allow PDF delivery.
+      host = (_) => http.Response(
+        '{"error":{"message":"deny or ACL failure"}}',
+        401,
+        headers: {'x-cld-error': 'deny or ACL failure'},
+      );
+      await pump(
+        tester,
+        (library) => EbookReaderScreen(library: library, ebookId: 'E1'),
+      );
+      await loadPdf(tester);
+      expect(find.textContaining('refused to deliver this PDF (HTTP 401)'), findsOneWidget);
+      expect(find.text('PDF pages'), findsNothing);
+      expect(find.byTooltip('Zoom in'), findsNothing);
 
-        await tester.ensureVisible(find.text('Download PDF'));
-        await tester.tap(find.text('Download PDF'));
-        await tester.pumpAndSettle();
-        expect(find.textContaining('Download complete'), findsNothing);
-        expect(
-          find.byKey(const ValueKey('ebook-download-result')),
-          findsOneWidget,
-        );
-        await tester.ensureVisible(find.text('Open in browser'));
-        await tester.tap(find.text('Open in browser'));
-        await tester.pumpAndSettle();
-        expect(launcher.opened.single, 'https://storage.test/ebooks/E1/1.pdf');
-      },
-    );
+      host = (_) => http.Response.bytes(_pdfBytes, 200);
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      await loadPdf(tester);
+      expect(find.text('PDF pages'), findsOneWidget);
+      expect(requested, hasLength(2));
+      expect(requested.last, requested.first); // the same link, loaded again
+    });
+
+    testWidgets('loading state shows progress', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: EbookReaderLoading(progress: 0.4))),
+      );
+      expect(find.text('Opening the e-book… 40%'), findsOneWidget);
+    });
+
+    for (final (name, screen) in [
+      ('list', (StudentLibraryRepository l) => EbooksScreen(library: l)),
+      ('details', (StudentLibraryRepository l) => EbookDetailsScreen(library: l, ebookId: 'E1')),
+      ('reader', (StudentLibraryRepository l) => EbookReaderScreen(library: l, ebookId: 'E1')),
+    ]) {
+      testWidgets('the $name screen stays light when the device is dark', (tester) async {
+        await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
+        await pump(tester, screen, theme: AppTheme.dark);
+        final light = AppTheme.light;
+        final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+        expect(scaffold.backgroundColor, light.scaffoldBackgroundColor);
+        final context = tester.element(find.byType(Scaffold).first);
+        expect(Theme.of(context).brightness, Brightness.light);
+        expect(Theme.of(context).colorScheme.surface, light.colorScheme.surface);
+      });
+    }
+
+    testWidgets('the reader of a removed e-book says so', (tester) async {
+      await pump(
+        tester,
+        (library) => EbookReaderScreen(library: library, ebookId: 'missing'),
+      );
+      expect(find.text('This e-book is no longer available.'), findsOneWidget);
+      expect(requested, isEmpty);
+    });
 
     testWidgets('a removed e-book shows a message instead of details', (
       tester,

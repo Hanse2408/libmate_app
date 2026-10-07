@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -17,15 +18,19 @@ class EbookRepository {
   EbookRepository({
     required this._service,
     this._downloader,
+    EbookPdfLoader? pdfLoader,
     this.librarianUid = '',
     this.uploadTimeout = const Duration(minutes: 3),
     this.writeTimeout = const Duration(seconds: 30),
-  });
+  }) : _pdfLoader = pdfLoader ?? EbookPdfLoader();
 
   final EbookService _service;
 
   /// Saves PDFs on the device (Student side); null on the Librarian side.
   final EbookDownloader? _downloader;
+
+  /// Loads PDFs into memory for the in-app reader (Student side).
+  final EbookPdfLoader _pdfLoader;
   final String librarianUid;
 
   /// Longest wait for a PDF upload (PDFs can be up to 25 MB).
@@ -39,6 +44,13 @@ class EbookRepository {
   /// Published e-books only (Student side).
   Stream<List<EbookRecord>> watchPublishedEbooks() =>
       _service.watchPublishedEbooks();
+
+  /// The e-book's PDF bytes for reading in the app, from its stored
+  /// Cloudinary `pdfUrl`. Throws EbookReadException with the reason.
+  Future<Uint8List> loadPdfForReading(
+    Uri pdfUri, {
+    void Function(int received, int? total)? onProgress,
+  }) => _pdfLoader.load(pdfUri, onProgress: onProgress);
 
   /// Downloads the e-book's PDF to the device. Completes only when the file
   /// is saved; otherwise throws EbookDownloadException with the reason.
