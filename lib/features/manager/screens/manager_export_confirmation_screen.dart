@@ -159,10 +159,17 @@ class _ManagerExportConfirmationScreenState
     final repository = ManagerScope.of(context).repository;
     return switch (selection.reportType) {
       'Users' => repository.users.length,
-      'Reservations' || 'Conflicts' => repository.reservations.length,
-      'Popular Books' => popularBooks.length,
-      'Overdue Books' => overdueBooks.length,
-      _ => 4,
+      'Reservations' => repository.reservations.length,
+      'Conflicts' => repository.reservations
+          .where((reservation) => reservation.status == ManagerReservationStatus.conflict)
+          .length,
+      'Popular Books' => repository.reservations.length,
+      'Overdue Books' => repository.reservations
+          .where((reservation) =>
+              reservation.status == ManagerReservationStatus.pending ||
+              reservation.status == ManagerReservationStatus.conflict)
+          .length,
+      _ => 0,
     };
   }
 
