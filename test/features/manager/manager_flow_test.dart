@@ -8,7 +8,10 @@ import 'package:libmate_app/app/routes/app_router.dart';
 import 'package:libmate_app/app/routes/app_routes.dart';
 import 'package:libmate_app/app/theme/app_theme.dart';
 import 'package:libmate_app/features/auth/providers/auth_provider.dart';
+import 'package:libmate_app/features/manager/data/manager_mock_data.dart';
 import 'package:libmate_app/features/manager/data/manager_repository.dart';
+import 'package:libmate_app/features/manager/providers/manager_scope.dart';
+import 'package:libmate_app/features/manager/screens/manager_users_screen.dart';
 import 'package:libmate_app/models/user.dart';
 import 'package:libmate_app/repositories/auth_repository.dart';
 import 'package:libmate_app/repositories/user_repository.dart';
@@ -66,6 +69,32 @@ class _FakeUserRepository implements UserRepository {
     email: 'manager@libmate.com',
     role: UserRole.manager,
   );
+}
+
+class _LoadingManagerRepository extends ManagerRepository {
+  @override
+  List<ManagerUser> get users => const [];
+
+  @override
+  List<ManagerReservation> get reservations => const [];
+
+  @override
+  List<ManagerNotice> get notices => const [];
+
+  @override
+  List<int> get policyValues => const [3, 5, 7, 2, 7];
+
+  @override
+  bool get isLoading => true;
+
+  @override
+  void replaceUsers(List<ManagerUser> users) {}
+
+  @override
+  void replaceReservations(List<ManagerReservation> reservations) {}
+
+  @override
+  void replacePolicyValues(List<int> values) {}
 }
 
 String _path(GoRouter router) =>
@@ -170,6 +199,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(factoryCalls, 1);
+  });
+
+  testWidgets('manager user screen shows a loading state while the live data is still loading', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final authRepository = _FakeAuthRepository();
+    final authProvider = AuthProvider(
+      authRepository: authRepository,
+      userRepository: _FakeUserRepository(),
+    );
+
+    final loadingRepository = _LoadingManagerRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManagerScope(
+          repository: loadingRepository,
+          authProvider: authProvider,
+          child: const ManagerUsersScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('Loading users...'), findsOneWidget);
   });
 
   testWidgets('manager can create, edit and deactivate a user locally', (
