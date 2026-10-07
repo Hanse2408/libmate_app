@@ -15,6 +15,7 @@ class StudentBookCover extends StatelessWidget {
     this.imageUrl,
     this.color = const Color(0xFF102D4D),
     this.radius = 8,
+    this.fit = BoxFit.cover,
   });
 
   final String title;
@@ -24,6 +25,7 @@ class StudentBookCover extends StatelessWidget {
   final String? imageUrl;
   final Color color;
   final double radius;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +40,7 @@ class StudentBookCover extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: StoredImage(url: imageUrl, fallback: _generated()),
+      child: StoredImage(url: imageUrl, fallback: _generated(), fit: fit),
     );
   }
 
@@ -64,7 +66,8 @@ class StudentBookCover extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                Flexible(
+                  child: Text(
                   title.toUpperCase(),
                   textAlign: TextAlign.center,
                   maxLines: 4,
@@ -75,6 +78,7 @@ class StudentBookCover extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     height: 1.1,
+                  ),
                   ),
                 ),
                 SizedBox(height: height * 0.08),

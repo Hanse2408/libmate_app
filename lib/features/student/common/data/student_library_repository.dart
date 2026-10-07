@@ -82,6 +82,18 @@ class StudentLibraryRepository extends ChangeNotifier {
     );
   }
 
+  Set<String> _favoriteBookIds = {};
+  Set<String> _favoriteEbookIds = {};
+
+  bool isFavorite(String id, {bool ebook = false}) =>
+      (ebook ? _favoriteEbookIds : _favoriteBookIds).contains(id);
+
+  List<String> get catalogueCategories {
+    final categories = _books.map((book) => book.category)
+        .where((category) => category != 'eBooks').toSet().toList()..sort();
+    return ['All', ...categories, 'eBooks'];
+  }
+
   bool _disposed = false;
   List<StudentNotification> _notifications = const [];
 
@@ -142,6 +154,13 @@ class StudentLibraryRepository extends ChangeNotifier {
   // ---------------- Live data ----------------
 
   void _listen() {
+    _waiting.add('favourites');
+    _subscriptions.add(_col(FirestoreCollections.users).doc(student.uid).snapshots().listen((snapshot) {
+      final data = snapshot.data() ?? const <String, dynamic>{};
+      _favoriteBookIds = Set<String>.from(data['favoriteBookIds'] as List? ?? const []);
+      _favoriteEbookIds = Set<String>.from(data['favoriteEbookIds'] as List? ?? const []);
+      _received('favourites');
+    }, onError: (Object error) => _failed('favourites', error)));
     _watch(_col(FirestoreCollections.books), 'books', (docs) {
       _books = [
         for (final d in docs) BookRecord.fromMap(d.id, d.data()),
@@ -383,6 +402,16 @@ class StudentLibraryRepository extends ChangeNotifier {
     );
   }
 
+  /// Atomic per-user favourites: separate IDs for physical and digital books.
+  Future<ActionResult> setFavorite(String id, {required bool favorite, bool ebook = false}) {
+    return _run(() async {
+      await _col(FirestoreCollections.users).doc(student.uid).update({
+        ebook ? 'favoriteEbookIds' : 'favoriteBookIds':
+            favorite ? FieldValue.arrayUnion([id]) : FieldValue.arrayRemove([id]),
+      });
+      return null;
+    });
+  }
   // ---------------- Actions ----------------
 
   /// Sends a book reservation request (status pending until a librarian
@@ -475,7 +504,7 @@ class StudentLibraryRepository extends ChangeNotifier {
     required DateTime pickupDate,
     required String pickupLocation,
     required int loanPeriodDays,
-    required String notes,
+    String? notes,
   }) {
     return _run(() async {
       await _db.runTransaction((tx) async {
@@ -502,15 +531,18 @@ class StudentLibraryRepository extends ChangeNotifier {
           );
         }
 
-        if (!reservation.isActive) {
-          throw const ActionRefused('This reservation is no longer active.');
+        if (reservation.status == ReservationStatus.approved) {
+          throw const ActionRefused('Approved book reservations cannot be modified.');
+        }
+        if (!reservation.isPending) {
+          throw const ActionRefused('Only pending book reservations can be modified.');
         }
 
         tx.update(ref, {
           'date': Timestamp.fromDate(pickupDate),
           'pickupLocation': pickupLocation,
           'loanPeriodDays': loanPeriodDays,
-          'notes': notes.trim(),
+          if (notes != null) 'notes': notes.trim(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
@@ -782,8 +814,7 @@ class StudentLibraryRepository extends ChangeNotifier {
         if (reservation.type == ReservationType.book &&
             reservation.status == ReservationStatus.approved) {
           throw const ActionRefused(
-            'A copy is already set aside for you. Please ask the librarian '
-            'at the desk to cancel this reservation.',
+            'Approved book reservations cannot be cancelled.',
           );
         }
 

@@ -37,6 +37,8 @@ static ThemeData get dark => _theme(
       secondary: const Color(0xFFF2B84B),
       surface: card,
       onSurface: text,
+      onSurfaceVariant: secondaryText,
+      onPrimary: Colors.white,
       error: const Color(0xFFDC4C4C),
     );
 
@@ -45,6 +47,9 @@ static ThemeData get dark => _theme(
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
       canvasColor: background,
+      dividerColor: brightness == Brightness.dark
+          ? const Color(0xFF334155)
+          : const Color(0xFFE2E8F0),
       cardTheme: CardThemeData(color: card),
       dividerTheme: DividerThemeData(
         color: brightness == Brightness.dark

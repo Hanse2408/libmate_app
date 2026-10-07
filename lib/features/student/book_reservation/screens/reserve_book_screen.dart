@@ -1,3 +1,9 @@
+import '../../common/widgets/student_palette.dart';
+import '../../../../core/constants/book_pickup_locations.dart';
+import 'my_reservations_screen.dart';
+import 'find_books_screen.dart';
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../models/book.dart';
@@ -38,22 +44,18 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     return DateTime(now.year, now.month, now.day);
   }
 
-  String _pickupLocation = 'Main Desk (Floor 1)';
+  String _pickupLocation = BookPickupLocations.defaultLocation;
 
   final List<int> _loanPeriods = [7, 14, 21, 30];
 
-  final List<String> _pickupLocations = [
-    'Main Desk (Floor 1)',
-    'Main Desk (Floor 2)',
-    'Library Counter',
-  ];
+  final List<String> _pickupLocations = BookPickupLocations.all;
 
   @override
   Widget build(BuildContext context) {
     final book = widget.library.bookById(widget.bookId);
 
     if (book == null) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Text('This book is no longer in the catalogue.'),
         ),
@@ -70,25 +72,25 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                padding: EdgeInsets.fromLTRB(24, 8, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildBookCard(),
-                    const SizedBox(height: 22),
-                    const Text(
+                    SizedBox(height: 22),
+                    Text(
                       'Reservation Details',
                       style: TextStyle(
-                        color: Color(0xFF172033),
+                        color: StudentPalette.of(context).text,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildReservationDetails(),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     _buildWarning(),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     _buildConfirmButton(),
                   ],
                 ),
@@ -103,7 +105,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
         children: [
           _buildCircleButton(
@@ -112,19 +114,19 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
               Navigator.of(context).maybePop();
             },
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
                 'Reserve Book',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: StudentPalette.of(context).text,
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 38),
+          SizedBox(width: 38),
         ],
       ),
     );
@@ -138,10 +140,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: StudentPalette.of(context).border,
         ),
       ),
       child: IconButton(
@@ -149,7 +151,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         padding: EdgeInsets.zero,
         icon: Icon(
           icon,
-          color: const Color(0xFF172033),
+          color: StudentPalette.of(context).text,
           size: 19,
         ),
       ),
@@ -159,72 +161,72 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   Widget _buildBookCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
       child: Row(
         children: [
           _buildBookCover(),
-          const SizedBox(width: 20),
+          SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   _book.title,
-                  style: const TextStyle(
-                    color: Color(0xFF172033),
+                  style: TextStyle(
+                    color: StudentPalette.of(context).text,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text(
                   _book.author,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
+                  style: TextStyle(
+                    color: StudentPalette.of(context).muted,
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: StudentPalette.of(context).blueTint,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     _book.category,
-                    style: const TextStyle(
-                      color: Color(0xFF2563EB),
+                    style: TextStyle(
+                      color: StudentPalette.of(context).primary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDF7EB),
+                    color: StudentPalette.of(context).successTint,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${_book.availableCopies} of ${_book.totalCopies} available',
-                    style: const TextStyle(
-                      color: Color(0xFF22A06B),
+                    style: TextStyle(
+                      color: StudentPalette.of(context).success,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -252,10 +254,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
@@ -299,7 +301,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
+            padding: EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 17,
             ),
@@ -307,26 +309,26 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
               children: [
                 Icon(
                   icon,
-                  color: const Color(0xFF172033),
+                  color: StudentPalette.of(context).text,
                   size: 23,
                 ),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
+                        style: TextStyle(
+                          color: StudentPalette.of(context).muted,
                           fontSize: 13,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: 3),
                       Text(
                         value,
-                        style: const TextStyle(
-                          color: Color(0xFF475569),
+                        style: TextStyle(
+                          color: StudentPalette.of(context).muted,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -334,19 +336,19 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
+                  color: StudentPalette.of(context).muted,
                   size: 24,
                 ),
               ],
             ),
           ),
           if (showDivider)
-            const Divider(
+            Divider(
               height: 1,
               thickness: 1,
-              color: Color(0xFFE2E8F0),
+              color: StudentPalette.of(context).border,
             ),
         ],
       ),
@@ -356,15 +358,15 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   Widget _buildWarning() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 18,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4C7),
+        color: StudentPalette.of(context).goldTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFF2D56B),
+          color: StudentPalette.of(context).goldBorder,
         ),
       ),
       child: Row(
@@ -373,24 +375,24 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFFFF8DE),
+              color: StudentPalette.of(context).goldTint,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.priority_high_rounded,
-              color: Color(0xFFFF9800),
+              color: StudentPalette.of(context).gold,
               size: 23,
             ),
           ),
-          const SizedBox(width: 14),
-          const Expanded(
+          SizedBox(width: 14),
+          Expanded(
             child: Text(
               'Reserved books must be picked up within 48 '
               'hours of your pickup date, otherwise your '
               'reservation will be cancelled.',
               style: TextStyle(
-                color: Color(0xFF8A4B08),
+                color: StudentPalette.of(context).goldText,
                 fontSize: 12.5,
                 height: 1.45,
               ),
@@ -408,7 +410,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       child: ElevatedButton(
         onPressed: _saving ? null : _confirmReservation,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2563EB),
+          backgroundColor: StudentPalette.of(context).primary,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -417,7 +419,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         ),
         child: Text(
           _saving ? 'Sending request…' : 'Confirm Reservation',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -427,96 +429,31 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'Reservations',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.account_circle_outlined,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return StudentBottomNavigation(
+      selectedIndex: 1,
+      onHome: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      onSearch: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FindBooksScreen(library: widget.library)));
+      },
+      onReservations: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: widget.library)));
+      },
+      onProfile: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: widget.library)));
+      },
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Future<void> _selectPickupDate() async {
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: _pickupDate,
       firstDate: _today(),
-      lastDate: _today().add(const Duration(days: 30)),
+      lastDate: _today().add(Duration(days: 30)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context),
@@ -536,14 +473,14 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     final selectedPeriod = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -551,11 +488,11 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
+                  color: StudentPalette.of(context).border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               Text(
                 'Select Loan Period',
                 style: TextStyle(
@@ -564,7 +501,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               ..._loanPeriods.map(
                 (period) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -580,9 +517,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                           Icons.check_circle_rounded,
                           color: Theme.of(context).colorScheme.primary,
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.circle_outlined,
-                          color: Color(0xFFCBD5E1),
+                          color: StudentPalette.of(context).border,
                         ),
                   onTap: () {
                     Navigator.pop(context, period);
@@ -606,14 +543,14 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     final selectedLocation = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -621,11 +558,11 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
+                  color: StudentPalette.of(context).border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               Text(
                 'Select Pickup Location',
                 style: TextStyle(
@@ -634,7 +571,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               ..._pickupLocations.map(
                 (location) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -710,7 +647,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Reservation was created, but its ID could not be found.',
             ),

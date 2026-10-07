@@ -1,3 +1,12 @@
+import '../../common/widgets/student_palette.dart';
+import '../../../../core/constants/book_pickup_locations.dart';
+import '../widgets/reservation_notice.dart';
+import '../../../../models/book.dart';
+import '../../common/widgets/student_book_cover.dart';
+import 'my_reservations_screen.dart' show MyReservationsScreen;
+import 'find_books_screen.dart';
+import '../../common/screens/profile_screen.dart';
+import '../../common/widgets/student_bottom_navigation.dart';
 import 'package:flutter/material.dart';
 import '../../common/data/student_library_repository.dart';
 import '../../../../models/reservation.dart';
@@ -29,6 +38,22 @@ class _ReservationDetailsScreenState
     return null;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    widget.library.addListener(_refreshReservation);
+  }
+
+  void _refreshReservation() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.library.removeListener(_refreshReservation);
+    super.dispose();
+  }
+
   String _formatDate(DateTime date) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -40,8 +65,15 @@ class _ReservationDetailsScreenState
   bool _cancelled = false;
   bool _cancelling = false;
 
-  static const String author = 'Robert C. Martin';
-static const String category = 'Computer Science';
+  BookRecord? get _book {
+    final reservation = _reservation;
+    return reservation == null ? null : widget.library.bookById(reservation.itemId);
+  }
+
+  String get author => _book?.author.trim().isNotEmpty == true
+      ? _book!.author : 'Author unavailable';
+  String get category => _book?.category.trim().isNotEmpty == true
+      ? _book!.category : 'Category unavailable';
 static const String pickupDesk = 'Book Collection Desk';
 
   @override
@@ -54,17 +86,17 @@ static const String pickupDesk = 'Book Collection Desk';
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
                 child: Column(
                   children: [
                     _buildBookCard(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildReservationInformation(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildNotes(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildModifyButton(),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildCancelButton(),
                   ],
                 ),
@@ -79,7 +111,7 @@ static const String pickupDesk = 'Book Collection Desk';
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
         children: [
           _buildBackButton(),
@@ -95,7 +127,7 @@ static const String pickupDesk = 'Book Collection Desk';
               ),
             ),
           ),
-          const SizedBox(width: 38),
+          SizedBox(width: 38),
         ],
       ),
     );
@@ -109,7 +141,7 @@ static const String pickupDesk = 'Book Collection Desk';
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: StudentPalette.of(context).border,
         ),
       ),
       child: IconButton(
@@ -129,32 +161,32 @@ static const String pickupDesk = 'Book Collection Desk';
   Widget _buildBookCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 8, 16, 16),
+      padding: EdgeInsets.fromLTRB(24, 8, 16, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
       child: Row(
         children: [
           _buildBookCover(),
-          const SizedBox(width: 26),
+          SizedBox(width: 26),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-  _reservation?.itemName ?? 'Book',
+  _book?.title ?? _reservation?.itemName ?? 'Book',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   author,
                   style: TextStyle(
@@ -162,7 +194,7 @@ static const String pickupDesk = 'Book Collection Desk';
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   category,
                   style: TextStyle(
@@ -170,19 +202,22 @@ static const String pickupDesk = 'Book Collection Desk';
                     fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
+                SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     _buildSmallBadge(
                       label: 'Book',
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      textColor: const Color(0xFF2563EB),
+                      backgroundColor: StudentPalette.of(context).blueTint,
+                      textColor: StudentPalette.of(context).primary,
                     ),
-                    const SizedBox(width: 8),
                     _buildSmallBadge(
-                      label: 'Available',
-                      backgroundColor: const Color(0xFFE4F5EF),
-                      textColor: const Color(0xFF22A06B),
+                      label: _book?.stock.label ?? 'Book unavailable',
+                      backgroundColor: _book?.isAvailable == true
+                          ? StudentPalette.of(context).successTint : StudentPalette.of(context).errorTint,
+                      textColor: _book?.isAvailable == true
+                          ? StudentPalette.of(context).success : StudentPalette.of(context).error,
                     ),
                   ],
                 ),
@@ -195,89 +230,22 @@ static const String pickupDesk = 'Book Collection Desk';
   }
 
   Widget _buildBookCover() {
-    return Container(
+    return StudentBookCover(
+      title: _book?.title ?? _reservation?.itemName ?? 'Book',
+      author: _book?.author ?? '',
+      imageUrl: _book?.coverAsset,
       width: 92,
       height: 126,
-      decoration: BoxDecoration(
-        color: const Color(0xFF102D4D),
-        borderRadius: BorderRadius.circular(7),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 7,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(7),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF52718F),
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'CLEAN',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.surface,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  'CODE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 7),
-                Text(
-                  'A Handbook of Agile\nSoftware Craftsmanship',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFD6E4F0),
-                    fontSize: 5,
-                    height: 1.3,
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'ROBERT C. MARTIN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      radius: 7,
     );
   }
-
   Widget _buildSmallBadge({
     required String label,
     required Color backgroundColor,
     required Color textColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 5,
       ),
@@ -299,12 +267,12 @@ static const String pickupDesk = 'Book Collection Desk';
   Widget _buildReservationInformation() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
@@ -319,7 +287,7 @@ static const String pickupDesk = 'Book Collection Desk';
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           _buildInformationRow(
             icon: Icons.bookmark_border_rounded,
             label: 'Reservation ID',
@@ -334,6 +302,14 @@ static const String pickupDesk = 'Book Collection Desk';
     : _formatDate(_reservation!.date),
           ),
           _buildInformationDivider(),
+          _buildInformationRow(
+            icon: Icons.schedule_outlined,
+            label: 'Loan Period',
+            value: _reservation?.loanPeriodDays == null
+                ? '-'
+                : '${_reservation!.loanPeriodDays} Days',
+          ),
+          _buildInformationDivider(),
           _buildLocationRow(),
         ],
       ),
@@ -346,28 +322,28 @@ static const String pickupDesk = 'Book Collection Desk';
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Icon(
             icon,
-            color: const Color(0xFF64748B),
+            color: StudentPalette.of(context).muted,
             size: 21,
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: StudentPalette.of(context).muted,
                 fontSize: 14,
               ),
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF172033),
+            style: TextStyle(
+              color: StudentPalette.of(context).text,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -378,29 +354,29 @@ static const String pickupDesk = 'Book Collection Desk';
   }
 
   Widget _buildInformationDivider() {
-    return const Divider(
+    return Divider(
       height: 1,
-      color: Color(0xFFE2E8F0),
+      color: StudentPalette.of(context).border,
     );
   }
 
   Widget _buildLocationRow() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.location_on_outlined,
-            color: Color(0xFF64748B),
+            color: StudentPalette.of(context).muted,
             size: 21,
           ),
-          const SizedBox(width: 14),
-          const Expanded(
+          SizedBox(width: 14),
+          Expanded(
             child: Text(
               'Pickup Location',
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: StudentPalette.of(context).muted,
                 fontSize: 14,
               ),
             ),
@@ -412,7 +388,7 @@ static const String pickupDesk = 'Book Collection Desk';
                 _reservation?.pickupLocation ?? '-',
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: StudentPalette.of(context).text,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -421,7 +397,7 @@ static const String pickupDesk = 'Book Collection Desk';
               Text(
                 pickupDesk,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: StudentPalette.of(context).muted,
                   fontSize: 12,
                 ),
               ),
@@ -435,12 +411,12 @@ static const String pickupDesk = 'Book Collection Desk';
   Widget _buildNotes() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+      padding: EdgeInsets.fromLTRB(20, 6, 20, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF8DB7FF),
+          color: StudentPalette.of(context).blueBorder,
           width: 1.2,
         ),
       ),
@@ -465,18 +441,18 @@ static const String pickupDesk = 'Book Collection Desk';
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
+            padding: EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: StudentPalette.of(context).blueTint,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: const Color(0xFFB8D3FF),
+                color: StudentPalette.of(context).blueBorder,
               ),
             ),
             child: Text(
@@ -501,11 +477,11 @@ static const String pickupDesk = 'Book Collection Desk';
       height: 48,
       child: ElevatedButton.icon(
         onPressed: _cancelled ? null : _modifyReservation,
-        icon: const Icon(
+        icon: Icon(
           Icons.edit_outlined,
           size: 19,
         ),
-        label: const Text(
+        label: Text(
           'Modify Reservation',
           style: TextStyle(
             fontSize: 15,
@@ -513,8 +489,8 @@ static const String pickupDesk = 'Book Collection Desk';
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2563EB),
-          disabledBackgroundColor: const Color(0xFFCBD5E1),
+          backgroundColor: StudentPalette.of(context).primary,
+          disabledBackgroundColor: StudentPalette.of(context).border,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -531,7 +507,7 @@ static const String pickupDesk = 'Book Collection Desk';
       height: 48,
       child: OutlinedButton.icon(
         onPressed: _cancelled || _cancelling ? null : _showCancelDialog,
-        icon: const Icon(
+        icon: Icon(
           Icons.delete_outline_rounded,
           size: 19,
         ),
@@ -541,19 +517,19 @@ static const String pickupDesk = 'Book Collection Desk';
               : _cancelled
                   ? 'Reservation Cancelled'
                   : 'Cancel Reservation',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFE53935),
-          disabledForegroundColor: const Color(0xFF94A3B8),
-          backgroundColor: Colors.white,
+          foregroundColor: StudentPalette.of(context).error,
+          disabledForegroundColor: StudentPalette.of(context).muted,
+          backgroundColor: StudentPalette.of(context).card,
           side: BorderSide(
             color: _cancelled
-                ? const Color(0xFFCBD5E1)
-                : const Color(0xFFE53935),
+                ? StudentPalette.of(context).border
+                : StudentPalette.of(context).error,
             width: 1.3,
           ),
           shape: RoundedRectangleBorder(
@@ -564,36 +540,165 @@ static const String pickupDesk = 'Book Collection Desk';
     );
   }
 
-  void _modifyReservation() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Modify Reservation will be connected next.',
+  Future<void> _modifyReservation() async {
+    final reservation = _reservation;
+    if (reservation == null || !reservation.isPending) {
+      showReservationNotice(context, message: reservation?.status == ReservationStatus.approved
+          ? 'Approved book reservations cannot be modified.'
+          : 'Only pending book reservations can be modified.');
+      return;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastDate = today.add(Duration(days: 30));
+    var pickupDate = reservation.date;
+    var loanPeriod = reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
+    var location = reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
+    final periods = {7, 14, 21, 30, loanPeriod}.toList()..sort();
+    final locations = BookPickupLocations.including(location);
+    var saving = false;
+    String? error;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => PopScope(
+          canPop: !saving,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Text('Modify Reservation'),
+            content: SizedBox(
+              width: 360,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: Icon(Icons.calendar_today_outlined),
+                      label: Text('Pickup date: ${_formatDate(pickupDate)}'),
+                      onPressed: saving ? null : () async {
+                        final initialDate = pickupDate.isBefore(today)
+                            ? today
+                            : pickupDate.isAfter(lastDate) ? lastDate : pickupDate;
+                        final selected = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: initialDate,
+                          firstDate: today,
+                          lastDate: lastDate,
+                        );
+                        if (selected != null && dialogContext.mounted) {
+                          updateDialog(() => pickupDate = selected);
+                        }
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      initialValue: loanPeriod,
+                      decoration: InputDecoration(
+                        labelText: 'Loan period',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [for (final days in periods)
+                        DropdownMenuItem(value: days, child: Text('$days Days'))],
+                      onChanged: saving ? null : (value) {
+                        if (value != null) updateDialog(() => loanPeriod = value);
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: location,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Pickup location',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [for (final item in locations)
+                        DropdownMenuItem(value: item, child: Text(item))],
+                      onChanged: saving ? null : (value) {
+                        if (value != null) updateDialog(() => location = value);
+                      },
+                    ),
+                    if (error != null) ...[
+                      SizedBox(height: 12),
+                      Text(error!, style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                child: Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: saving ? null : () async {
+                  if (pickupDate.isBefore(today)) {
+                    updateDialog(() => error = 'Choose today or a future pickup date.');
+                    return;
+                  }
+                  final latest = _reservation;
+                  if (latest == null || !latest.isPending) {
+                    updateDialog(() => error = 'Only pending book reservations can be modified. Approved reservations cannot be modified.');
+                    return;
+                  }
+                  updateDialog(() { saving = true; error = null; });
+                  final result = await widget.library.updateBookReservation(
+                    reservationId: reservation.id,
+                    pickupDate: pickupDate,
+                    pickupLocation: location,
+                    loanPeriodDays: loanPeriod,
+                  );
+                  if (!dialogContext.mounted) return;
+                  if (!result.success) {
+                    updateDialog(() {
+                      saving = false;
+                      error = result.message ?? 'Unable to update reservation. Please try again.';
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialogContext);
+                  if (!mounted) return;
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Reservation updated.')),
+                  );
+                },
+                child: Text(saving ? 'Saving...' : 'OK'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
   void _showCancelDialog() {
+    if (_reservation?.status == ReservationStatus.approved) {
+      showReservationNotice(context, message: 'Approved book reservations cannot be cancelled.');
+      return;
+    }
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: StudentPalette.of(context).card,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          title: const Text(
+          title: Text(
             'Cancel Reservation?',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: StudentPalette.of(context).text,
               fontWeight: FontWeight.w700,
             ),
           ),
-          content: const Text(
+          content: Text(
             'Are you sure you want to cancel this book reservation?',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               height: 1.4,
             ),
           ),
@@ -602,10 +707,10 @@ static const String pickupDesk = 'Book Collection Desk';
               onPressed: () {
                 Navigator.pop(dialogContext);
               },
-              child: const Text(
+              child: Text(
                 'Keep Reservation',
                 style: TextStyle(
-                  color: Color(0xFF2563EB),
+                  color: StudentPalette.of(context).primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -637,10 +742,10 @@ static const String pickupDesk = 'Book Collection Desk';
                   ),
                 );
               },
-              child: const Text(
+              child: Text(
                 'Cancel Reservation',
                 style: TextStyle(
-                  color: Color(0xFFE53935),
+                  color: StudentPalette.of(context).error,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -652,87 +757,16 @@ static const String pickupDesk = 'Book Collection Desk';
   }
 
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE2E8F0),
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home_outlined,
-                label: 'Home',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                selected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Reservations',
-                selected: true,
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline_rounded,
-                label: 'Profile',
-                selected: false,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return StudentBottomNavigation(
+      selectedIndex: 2,
+      onHome: () { Navigator.of(context).popUntil((route) => route.isFirst); },
+      onSearch: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FindBooksScreen(library: widget.library))); },
+      onReservations: () {
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: widget.library)));
+      },
+      onProfile: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: widget.library))); },
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool selected,
-  }) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 23,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF94A3B8),
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 }

@@ -1,3 +1,4 @@
+import '../../common/widgets/favorite_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../models/ebook.dart';
@@ -56,7 +57,15 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
             final ebook = _provider.ebookById(widget.ebookId);
             return Column(
               children: [
-                const EbookPageHeader(title: 'E-book Details'),
+                Row(
+                  children: [
+                    const Expanded(child: EbookPageHeader(title: 'E-book Details')),
+                    if (ebook != null) Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: FavoriteButton(library: widget.library, itemId: widget.ebookId, ebook: true),
+                    ),
+                  ],
+                ),
                 Expanded(
                   child: ebook == null
                       ? Center(

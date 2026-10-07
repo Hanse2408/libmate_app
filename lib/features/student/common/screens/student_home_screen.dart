@@ -1,3 +1,7 @@
+import '../widgets/student_palette.dart';
+import '../../book_reservation/screens/reservation_details_screen.dart';
+import '../../seat_booking/screens/seat_reservation_details_screen.dart';
+import '../widgets/student_bottom_navigation.dart';
 /*import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';*/
@@ -75,22 +79,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       backgroundColor: background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+          padding: EdgeInsets.fromLTRB(24, 18, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTopBar(),
-              const SizedBox(height: 26),
+              SizedBox(height: 26),
               _buildGreeting(),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               _buildSearchBar(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               _buildActionCards(),
-              const SizedBox(height: 26),
+              SizedBox(height: 26),
               _buildReservationHeader(),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               ..._buildCurrentReservations(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               _buildReminderCard(),
             ],
           ),
@@ -119,7 +123,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   size: 23,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'LibMate',
                 style: TextStyle(
@@ -136,7 +140,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           message: 'Notifications',
           child: InkWell(
             onTap: () => _open(StudentNotificationsScreen(library: _library)),
-            customBorder: const CircleBorder(),
+            customBorder: CircleBorder(),
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -153,7 +157,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       width: 17,
                       height: 17,
                       decoration: BoxDecoration(
-                        color: Color(0xFFDC4C4C),
+                        color: StudentPalette.of(context).error,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -174,12 +178,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Container(
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: textDark,
+            color: primaryBlue,
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -204,11 +208,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         Text(
           'Good morning,',
           style: TextStyle(
-            color: Color(0xFF4B5F80),
+            color: StudentPalette.of(context).muted,
             fontSize: 15,
           ),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           '$_firstName!',
           style: TextStyle(
@@ -218,7 +222,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             height: 1.1,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           'What would you like to do today?',
           style: TextStyle(
@@ -244,31 +248,31 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         color: cardWhite,
         borderRadius: BorderRadius.circular(13),
         border: Border.all(
-          color: const Color(0xFF8BB4FF),
+          color: StudentPalette.of(context).blueBorder,
           width: 1,
         ),
       ),
       child: Row(
         children: [
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Icon(
             Icons.search_rounded,
             color: secondaryText,
             size: 22,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               'Search for books, authors, or topics...',
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Color(0xFF94A3B8),
+                color: StudentPalette.of(context).muted,
                 fontSize: 14,
               ),
             ),
           ),
           Container(
-            margin: const EdgeInsets.only(right: 10),
+            margin: EdgeInsets.only(right: 10),
             child: Icon(
               Icons.tune_rounded,
               color: secondaryText,
@@ -291,19 +295,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             icon: Icons.menu_book_rounded,
             iconBackground: primaryBlue,
             backgroundColor: lightBlue,
-            borderColor: const Color(0xFFB5D2FF),
+            borderColor: StudentPalette.of(context).blueBorder,
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: _buildActionCard(
             onTap: _openSeatBooking,
             title: 'Book a Seat',
             subtitle: 'Reserve your study space',
             icon: Icons.event_seat_rounded,
-            iconBackground: Color(0xFFFFA500),
-            backgroundColor: const Color(0xFFFFF1C7),
-            borderColor: const Color(0xFFFFD65C),
+            iconBackground: StudentPalette.of(context).gold,
+            backgroundColor: StudentPalette.of(context).goldTint,
+            borderColor: StudentPalette.of(context).goldBorder,
           ),
         ),
       ],
@@ -342,8 +346,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     required Color borderColor,
   }) {
     return Container(
-      height: 111,
-      padding: const EdgeInsets.all(14),
+      constraints: const BoxConstraints(minHeight: 130),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(16),
@@ -365,7 +369,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               size: 21,
             ),
           ),
-          const Spacer(),
+          SizedBox(height: 12),
           Text(
             title,
             style: TextStyle(
@@ -374,7 +378,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             subtitle,
             style: TextStyle(
@@ -437,9 +441,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return [
       if (seat != null)
         _buildReservationCard(
+          onTap: () => _open(SeatReservationDetailsScreen(library: _library, reservation: seat)),
           icon: Icons.event_seat_rounded,
-          iconColor: const Color(0xFFFFA500),
-          iconBackground: const Color(0xFFFFF4D8),
+          iconColor: StudentPalette.of(context).gold,
+          iconBackground: StudentPalette.of(context).goldTint,
           title: 'Reading Room Seat',
           status: seat.isPending ? 'Pending' : 'Confirmed',
           details: [
@@ -447,9 +452,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             seat.itemName,
           ],
         ),
-      if (seat != null && book != null) const SizedBox(height: 12),
+      if (seat != null && book != null) SizedBox(height: 12),
       if (book != null)
         _buildReservationCard(
+          onTap: () => _open(ReservationDetailsScreen(library: _library, reservationId: book.id)),
           icon: Icons.menu_book_rounded,
           iconColor: primaryBlue,
           iconBackground: lightBlue,
@@ -472,6 +478,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildReservationCard({
+    required VoidCallback onTap,
     required IconData icon,
     required Color iconColor,
     required Color iconBackground,
@@ -479,13 +486,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     required String status,
     required List<String> details,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(15),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: cardWhite,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF9CC0FF),
+          color: StudentPalette.of(context).blueBorder,
         ),
       ),
       child: Row(
@@ -504,7 +514,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               size: 23,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,19 +532,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 9,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD1FAE5),
+                        color: StudentPalette.of(context).successTint,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         status,
                         style: TextStyle(
                           color: status == 'Pending'
-                              ? const Color(0xFFE78A00)
+                              ? StudentPalette.of(context).gold
                               : availableGreen,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -543,10 +553,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 ...details.map(
                   (detail) => Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
+                    padding: EdgeInsets.only(bottom: 2),
                     child: Text(
                       detail,
                       style: TextStyle(
@@ -561,21 +571,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildReminderCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 15,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1C7),
+        color: StudentPalette.of(context).goldTint,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFFFD65C),
+          color: StudentPalette.of(context).goldBorder,
         ),
       ),
       child: Row(
@@ -584,7 +595,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFE8A3),
+              color: StudentPalette.of(context).goldTint,
               shape: BoxShape.circle,
               border: Border.all(
                 color: accentGold,
@@ -592,16 +603,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
             child: Icon(
               Icons.notifications_off_outlined,
-              color: Color(0xFFE09B00),
+              color: StudentPalette.of(context).gold,
               size: 20,
             ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          SizedBox(width: 12),
+          Expanded(
             child: Text(
               'A quieter tomorrow starts with you. Always remember to check-out of your seat.',
               style: TextStyle(
-                color: Color(0xFF8A4B08),
+                color: StudentPalette.of(context).goldText,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -614,48 +625,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _selectedNavIndex,
-      // The other tabs open on top of Home, so Home stays selected.
-      onTap: (index) {
-        switch (index) {
-          case 1:
-            _openFindBooks();
-          case 2:
-            _openReservations();
-          case 3:
-            _open(ProfileScreen(library: _library));
-        }
-      },
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: cardWhite,
-      selectedItemColor: primaryBlue,
-      unselectedItemColor: const Color(0xFF94A8C4),
-      selectedFontSize: 11,
-      unselectedFontSize: 11,
-      elevation: 8,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.manage_search_outlined),
-          activeIcon: Icon(Icons.manage_search_rounded),
-          label: 'Search',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_month_outlined),
-          activeIcon: Icon(Icons.calendar_month_rounded),
-          label: 'Reservations',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline_rounded),
-          activeIcon: Icon(Icons.person_rounded),
-          label: 'Profile',
-        ),
-      ],
+    return StudentBottomNavigation(
+      selectedIndex: _selectedNavIndex,
+      onHome: () {},
+      onSearch: _openFindBooks,
+      onReservations: _openReservations,
+      onProfile: () => _open(ProfileScreen(library: _library)),
     );
   }
 }

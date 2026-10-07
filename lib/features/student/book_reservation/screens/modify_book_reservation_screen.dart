@@ -1,3 +1,9 @@
+import '../../common/widgets/student_palette.dart';
+import '../../../../core/constants/book_pickup_locations.dart';
+import '../widgets/reservation_notice.dart';
+import '../../../../models/book.dart';
+import '../../../../models/reservation.dart' as shared;
+import '../../common/widgets/student_book_cover.dart';
 import 'package:flutter/material.dart';
 import '../../common/screens/profile_screen.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
@@ -23,17 +29,26 @@ class _ModifyBookReservationScreenState
     extends State<ModifyBookReservationScreen> {
 late DateTime _reservationDate;
 late String _pickupLocation;
+late int _loanPeriodDays;
 
-  final TextEditingController _notesController = TextEditingController(
-    text: 'Will collect in the afternoon around 3:00 PM.\nPlease hold.',
-  );
+  final TextEditingController _notesController = TextEditingController();
 
-  final List<String> _pickupLocations = [
-    'Main Library, 3rd Floor',
-    'Main Library, 2nd Floor',
-    'Main Desk, Floor 1',
-    'Library Collection Desk',
-  ];
+  shared.ReservationRecord? get _reservation {
+    for (final reservation in widget.library.myReservations) {
+      if (reservation.id == widget.reservationId) return reservation;
+    }
+    return null;
+  }
+
+  BookRecord? get _book {
+    final reservation = _reservation;
+    return reservation == null ? null : widget.library.bookById(reservation.itemId);
+  }
+
+  void _refreshBookData() {
+    if (mounted) setState(() {});
+  }
+  List<String> get _pickupLocations => BookPickupLocations.including(_pickupLocation);
 
   @override
 void initState() {
@@ -43,13 +58,17 @@ void initState() {
     (r) => r.id == widget.reservationId,
   );
 
+  _notesController.text = reservation.note ?? '';
+  widget.library.addListener(_refreshBookData);
   _reservationDate = reservation.date;
+  _loanPeriodDays = reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
   _pickupLocation =
-      reservation.pickupLocation ?? 'Main Library, 3rd Floor';
+      reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
 }
 
   @override
   void dispose() {
+    widget.library.removeListener(_refreshBookData);
     _notesController.dispose();
     super.dispose();
   }
@@ -64,17 +83,17 @@ void initState() {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
                 child: Column(
                   children: [
                     _buildBookCard(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildChangeSchedule(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildImportantNotice(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     _buildConfirmButton(),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildDiscardButton(),
                   ],
                 ),
@@ -89,7 +108,7 @@ void initState() {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
       child: Row(
         children: [
           _buildBackButton(),
@@ -105,7 +124,7 @@ void initState() {
               ),
             ),
           ),
-          const SizedBox(width: 38),
+          SizedBox(width: 38),
         ],
       ),
     );
@@ -119,7 +138,7 @@ void initState() {
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: StudentPalette.of(context).border,
         ),
       ),
       child: IconButton(
@@ -139,58 +158,58 @@ void initState() {
   Widget _buildBookCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 7, 16, 14),
+      padding: EdgeInsets.fromLTRB(24, 7, 16, 14),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFF2B84B),
+          color: StudentPalette.of(context).gold,
           width: 1.2,
         ),
       ),
       child: Row(
         children: [
           _buildBookCover(),
-          const SizedBox(width: 26),
+          SizedBox(width: 26),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Clean Code',
+                  _book?.title ?? _reservation?.itemName ?? 'Book',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
-                  'Robert C. Martin',
+                  _book?.author.trim().isNotEmpty == true ? _book!.author : 'Author unavailable',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
                 Text(
-                  'Computer Science',
+                  _book?.category.trim().isNotEmpty == true ? _book!.category : 'Category unavailable',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: StudentPalette.of(context).blueTint,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Available',
+                    _book?.stock.label ?? 'Book unavailable',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontSize: 11,
@@ -207,137 +226,81 @@ void initState() {
   }
 
   Widget _buildBookCover() {
-    return Container(
+    return StudentBookCover(
+      title: _book?.title ?? _reservation?.itemName ?? 'Book',
+      author: _book?.author ?? '',
+      imageUrl: _book?.coverAsset,
       width: 92,
       height: 126,
-      decoration: BoxDecoration(
-        color: const Color(0xFF102D4D),
-        borderRadius: BorderRadius.circular(7),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 7,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(7),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF52718F),
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-          const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'CLEAN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  'CODE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 7),
-                Text(
-                  'A Handbook of Agile\nSoftware Craftsmanship',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFD6E4F0),
-                    fontSize: 5,
-                    height: 1.3,
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'ROBERT C. MARTIN',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      radius: 7,
     );
   }
-
   Widget _buildChangeSchedule() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 17, 16, 10),
+      padding: EdgeInsets.fromLTRB(16, 17, 16, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: StudentPalette.of(context).card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF8DB7FF),
+          color: StudentPalette.of(context).blueBorder,
           width: 1.2,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Change Schedule',
             style: TextStyle(
-              color: Color(0xFF172033),
+              color: StudentPalette.of(context).text,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
-          const Text(
+          SizedBox(height: 14),
+          Text(
             'Reservation Date',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           _buildDateField(),
-          const SizedBox(height: 14),
-          const Text(
+          SizedBox(height: 14),
+          Text(
             'Pickup Location',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           _buildLocationField(),
-          const SizedBox(height: 14),
-          const Text(
+          SizedBox(height: 14),
+          Text(
+            'Loan Period',
+            style: TextStyle(
+              color: StudentPalette.of(context).muted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 6),
+          _buildLoanPeriodField(),
+          SizedBox(height: 14),
+          Text(
             'Additional Notes',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           _buildNotesField(),
         ],
       ),
@@ -350,34 +313,34 @@ void initState() {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         height: 43,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: StudentPalette.of(context).field,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: const Color(0xFFD9E2EE),
+            color: StudentPalette.of(context).border,
           ),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_outlined,
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               size: 20,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 _formatDate(_reservationDate),
-                style: const TextStyle(
-                  color: Color(0xFF172033),
+                style: TextStyle(
+                  color: StudentPalette.of(context).text,
                   fontSize: 14,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               size: 23,
             ),
           ],
@@ -392,34 +355,34 @@ void initState() {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         height: 43,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: StudentPalette.of(context).field,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: const Color(0xFFD9E2EE),
+            color: StudentPalette.of(context).border,
           ),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.location_on_outlined,
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               size: 20,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 _pickupLocation,
-                style: const TextStyle(
-                  color: Color(0xFF172033),
+                style: TextStyle(
+                  color: StudentPalette.of(context).text,
                   fontSize: 14,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF64748B),
+              color: StudentPalette.of(context).muted,
               size: 23,
             ),
           ],
@@ -428,35 +391,61 @@ void initState() {
     );
   }
 
+  Widget _buildLoanPeriodField() {
+    final periods = {7, 14, 21, 30, _loanPeriodDays}.toList()..sort();
+    return DropdownButtonFormField<int>(
+      initialValue: _loanPeriodDays,
+      isExpanded: true,
+      style: TextStyle(color: StudentPalette.of(context).text, fontSize: 14),
+      decoration: InputDecoration(
+        prefixIcon: Icon(Icons.schedule_outlined, color: StudentPalette.of(context).muted),
+        filled: true,
+        fillColor: StudentPalette.of(context).field,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: StudentPalette.of(context).border),
+        ),
+      ),
+      items: [
+        for (final days in periods)
+          DropdownMenuItem(value: days, child: Text('$days Days')),
+      ],
+      onChanged: (value) {
+        if (value != null) setState(() => _loanPeriodDays = value);
+      },
+    );
+  }
   Widget _buildNotesField() {
     return TextField(
       controller: _notesController,
       maxLines: 3,
-      style: const TextStyle(
-        color: Color(0xFF172033),
+      style: TextStyle(
+        color: StudentPalette.of(context).text,
         fontSize: 13,
         height: 1.4,
       ),
       decoration: InputDecoration(
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.all(12),
+        fillColor: StudentPalette.of(context).field,
+        contentPadding: EdgeInsets.all(12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFFD9E2EE),
+          borderSide: BorderSide(
+            color: StudentPalette.of(context).border,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFFD9E2EE),
+          borderSide: BorderSide(
+            color: StudentPalette.of(context).border,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFF2563EB),
+          borderSide: BorderSide(
+            color: StudentPalette.of(context).primary,
           ),
         ),
       ),
@@ -466,22 +455,22 @@ void initState() {
   Widget _buildImportantNotice() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 11,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: StudentPalette.of(context).blueTint,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: const Color(0xFFB8D3FF),
+          color: StudentPalette.of(context).blueBorder,
         ),
       ),
-      child: const Text(
+      child: Text(
         'Important: Holds are limited to 3 days maximum from the '
         'selected pickup date.',
         style: TextStyle(
-          color: Color(0xFF64748B),
+          color: StudentPalette.of(context).muted,
           fontSize: 12,
           height: 1.45,
         ),
@@ -495,11 +484,11 @@ void initState() {
       height: 47,
       child: ElevatedButton.icon(
         onPressed: _confirmUpdate,
-        icon: const Icon(
+        icon: Icon(
           Icons.check_rounded,
           size: 19,
         ),
-        label: const Text(
+        label: Text(
           'Confirm & Update',
           style: TextStyle(
             fontSize: 15,
@@ -507,7 +496,7 @@ void initState() {
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2563EB),
+          backgroundColor: StudentPalette.of(context).primary,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -526,16 +515,16 @@ void initState() {
         onPressed: _discardChanges,
         style: OutlinedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.surface,
-          foregroundColor: const Color(0xFFE53935),
-          side: const BorderSide(
-            color: Color(0xFFE53935),
+          foregroundColor: StudentPalette.of(context).error,
+          side: BorderSide(
+            color: StudentPalette.of(context).error,
             width: 1.3,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(11),
           ),
         ),
-        child: const Text(
+        child: Text(
           'Discard Changes',
           style: TextStyle(
             fontSize: 15,
@@ -570,15 +559,15 @@ void initState() {
   Future<void> _selectPickupLocation() async {
     final selectedLocation = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: StudentPalette.of(context).card,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -586,11 +575,11 @@ void initState() {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
+                  color: StudentPalette.of(context).border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               Text(
                 'Select Pickup Location',
                 style: TextStyle(
@@ -599,7 +588,7 @@ void initState() {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               ..._pickupLocations.map(
                 (location) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -639,11 +628,15 @@ void initState() {
   }
 
   Future<void> _confirmUpdate() async {
+  if (_reservation?.status == shared.ReservationStatus.approved) {
+    showReservationNotice(context, message: 'Approved book reservations cannot be modified.');
+    return;
+  }
   final result = await widget.library.updateBookReservation(
     reservationId: widget.reservationId,
     pickupDate: _reservationDate,
     pickupLocation: _pickupLocation,
-    loanPeriodDays: widget.library.settings.loanPeriodDays,
+    loanPeriodDays: _loanPeriodDays,
     notes: _notesController.text,
   );
 
@@ -689,10 +682,10 @@ void initState() {
               Navigator.pop(dialogContext);
               Navigator.pop(context);
             },
-            child: const Text(
+            child: Text(
               'OK',
               style: TextStyle(
-                color: Color(0xFF2563EB),
+                color: StudentPalette.of(context).primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
