@@ -3,6 +3,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libmate_app/features/librarian/data/librarian_firestore_repository.dart';
 import 'package:libmate_app/features/librarian/models/member_record.dart';
+import 'package:libmate_app/features/librarian/providers/librarian_dashboard_summary.dart';
 import 'package:libmate_app/features/student/common/data/student_library_repository.dart';
 import 'package:libmate_app/models/book.dart';
 import 'package:libmate_app/models/reservation.dart';
@@ -425,6 +426,98 @@ void main() {
         expect(student.notifications, isEmpty);
       },
     );
+
+    test(
+      'a booked seat shows as Reserved for the librarian at once, from Firestore',
+      () async {
+        final seat = await addSeat('A01');
+        final free = await addSeat('A02');
+        expect(librarian.seatMapStatus(seat), SeatStatus.available);
+
+        final result = await student.bookSeat(
+          seat: seat,
+          date: tomorrow(),
+          startHour: 10,
+          endHour: 12,
+        );
+        expect(result.success, isTrue, reason: result.message);
+        await settle();
+
+        // No librarian action: the live `reservations` stream marks it.
+        expect(librarian.seatMapStatus(librarian.seatById(seat.id)!), SeatStatus.reserved);
+        expect(librarian.seatMapStatus(librarian.seatById(free.id)!), SeatStatus.available);
+        final summary = LibrarianDashboardSummary.fromRepository(librarian);
+        expect(summary.reservedSeats, 1);
+        expect(summary.availableSeats, 1);
+        // The seat document itself is untouched (students cannot write seats).
+        expect((await db.collection('seats').doc(seat.id).get()).data()!['status'], 'available');
+
+        // A fresh librarian session (refresh) sees the same thing.
+        final reopened = librarianRepo(db, storage);
+        await settle();
+        expect(reopened.seatMapStatus(reopened.seatById(seat.id)!), SeatStatus.reserved);
+        reopened.dispose();
+
+        // Cancelling frees it again.
+        await student.cancelReservation(student.myReservations.single.id);
+        await settle();
+        expect(librarian.seatMapStatus(librarian.seatById(seat.id)!), SeatStatus.available);
+      },
+    );
+
+    test('Reserved follows the booking time; Maintenance keeps priority', () async {
+      final seat = await addSeat('A01');
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      await db.collection('reservations').add({
+        'type': 'seat',
+        'itemId': seat.id,
+        'itemTitle': 'Seat A01',
+        'studentUid': studentUid,
+        'studentName': 'Nethmi Perera',
+        'status': 'approved',
+        'date': Timestamp.fromDate(today),
+        'timeSlot': '09:00 - 11:00',
+        'requestedAt': Timestamp.fromDate(now),
+      });
+      await settle();
+      final saved = librarian.seatById(seat.id)!;
+      DateTime at(int hour) => today.add(Duration(hours: hour));
+
+      expect(librarian.seatMapStatus(saved, now: at(10)), SeatStatus.reserved);
+      expect(librarian.seatMapStatus(saved, now: at(11)), SeatStatus.available); // ended
+      expect(
+        librarian.seatMapStatus(saved, now: at(10).add(const Duration(days: 1))),
+        SeatStatus.available, // yesterday's booking
+      );
+      expect(
+        librarian.seatMapStatus(saved.copyWith(status: SeatStatus.maintenance), now: at(10)),
+        SeatStatus.maintenance,
+      );
+    });
+
+    test('book reservations still wait for librarian approval', () async {
+      await librarian.addBook(
+        title: 'Refactoring',
+        author: 'Martin Fowler',
+        isbn: '9780134757599',
+        category: 'Software Engineering',
+        language: 'English',
+        shelfLocation: 'SE-1',
+        totalCopies: 2,
+      );
+      await settle();
+      final result = await student.reserveBook(
+        book: student.books.single,
+        pickupDate: tomorrow(),
+        loanPeriodDays: 14,
+        pickupLocation: 'Main Desk',
+      );
+      expect(result.success, isTrue, reason: result.message);
+      await settle();
+      expect(librarian.reservations.single.status, ReservationStatus.pending);
+      expect(librarian.books.single.availableCopies, 2); // not taken yet
+    });
 
     test('a student cannot hold two seats at the same time', () async {
       final seat = await addSeat('A01');

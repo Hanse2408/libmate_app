@@ -74,7 +74,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Interface Design'), findsNothing);
       expect(find.text('Digital Design'), findsOneWidget);
-      await tester.tap(find.text('Read / Download'));
+      await tester.tap(find.text('Read Online'));
       await tester.pumpAndSettle();
       expect(find.byType(EbookDetailsScreen), findsOneWidget);
       await tester.tap(find.byTooltip('Remove from favourites'));

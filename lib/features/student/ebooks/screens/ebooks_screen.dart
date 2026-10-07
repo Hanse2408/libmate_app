@@ -10,7 +10,11 @@ import 'ebook_details_screen.dart';
 /// from the shared `ebooks` collection, with search by title, author or
 /// category. Shows an empty state while none have been published.
 class EbooksScreen extends StatefulWidget {
-  const EbooksScreen({super.key, required this.library, this.initialQuery = ''});
+  const EbooksScreen({
+    super.key,
+    required this.library,
+    this.initialQuery = '',
+  });
 
   final StudentLibraryRepository library;
 
@@ -22,7 +26,9 @@ class EbooksScreen extends StatefulWidget {
 }
 
 class _EbooksScreenState extends State<EbooksScreen> {
-  late final TextEditingController _search = TextEditingController(text: widget.initialQuery);
+  late final TextEditingController _search = TextEditingController(
+    text: widget.initialQuery,
+  );
 
   @override
   void initState() {
@@ -41,81 +47,98 @@ class _EbooksScreenState extends State<EbooksScreen> {
     final provider = widget.library.ebooks;
     final c = EbookColors.of(context);
 
-    return Scaffold(
-      backgroundColor: c.background,
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: provider,
-          builder: (context, _) {
-            final results = provider.visibleEbooks;
-            return Column(
-              children: [
-                const EbookPageHeader(title: 'E-books', subtitle: 'Your library, wherever you are.'),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    children: [
-                      _SearchBar(controller: _search, onChanged: provider.search),
-                      const SizedBox(height: 22),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Available e-books',
-                              style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          if (!provider.isLoading && provider.loadError == null)
-                            Text(
-                              '${results.length} e-book${results.length == 1 ? '' : 's'}',
-                              style: TextStyle(color: c.muted, fontSize: 13),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      if (provider.isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (provider.loadError != null)
-                        _Message(
-                          icon: Icons.cloud_off_rounded,
-                          title: 'E-books could not be loaded',
-                          message: provider.loadError!,
-                          isError: true,
-                        )
-                      else if (provider.ebooks.isEmpty)
-                        const _Message(
-                          icon: Icons.menu_book_outlined,
-                          title: 'No e-books available yet',
-                          message: 'E-books added by the library will appear here.',
-                        )
-                      else if (results.isEmpty)
-                        _Message(
-                          icon: Icons.search_off_rounded,
-                          title: 'No e-books found',
-                          message: 'Nothing matches "${provider.query.trim()}". Try a title, author or category.',
-                        )
-                      else
-                        for (final ebook in results) ...[
-                          _EbookCard(
-                            key: ValueKey('student-ebook-${ebook.id}'),
-                            ebook: ebook,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => EbookDetailsScreen(library: widget.library, ebookId: ebook.id),
+    return StudentEbookTheme(
+      child: Scaffold(
+        backgroundColor: c.background,
+        body: SafeArea(
+          child: ListenableBuilder(
+            listenable: provider,
+            builder: (context, _) {
+              final results = provider.visibleEbooks;
+              return Column(
+                children: [
+                  const EbookPageHeader(
+                    title: 'E-books',
+                    subtitle: 'Your library, wherever you are.',
+                  ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      children: [
+                        _SearchBar(
+                          controller: _search,
+                          onChanged: provider.search,
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Available e-books',
+                                style: TextStyle(
+                                  color: c.text,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-                    ],
+                            if (!provider.isLoading &&
+                                provider.loadError == null)
+                              Text(
+                                '${results.length} e-book${results.length == 1 ? '' : 's'}',
+                                style: TextStyle(color: c.muted, fontSize: 13),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        if (provider.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (provider.loadError != null)
+                          _Message(
+                            icon: Icons.cloud_off_rounded,
+                            title: 'E-books could not be loaded',
+                            message: provider.loadError!,
+                            isError: true,
+                          )
+                        else if (provider.ebooks.isEmpty)
+                          const _Message(
+                            icon: Icons.menu_book_outlined,
+                            title: 'No e-books available yet',
+                            message: 'E-books added by the library will appear here.',
+                          )
+                        else if (results.isEmpty)
+                          _Message(
+                            icon: Icons.search_off_rounded,
+                            title: 'No e-books found',
+                            message:
+                                'Nothing matches "${provider.query.trim()}". Try a title, author or category.',
+                          )
+                        else
+                          for (final ebook in results) ...[
+                            _EbookCard(
+                              key: ValueKey('student-ebook-${ebook.id}'),
+                              ebook: ebook,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => EbookDetailsScreen(
+                                    library: widget.library,
+                                    ebookId: ebook.id,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -159,7 +182,9 @@ class _SearchBar extends StatelessWidget {
           fillColor: c.surface,
           border: border,
           enabledBorder: border,
-          focusedBorder: border.copyWith(borderSide: BorderSide(color: c.primary, width: 1.5)),
+          focusedBorder: border.copyWith(
+            borderSide: BorderSide(color: c.primary, width: 1.5),
+          ),
         ),
       ),
     );
@@ -208,7 +233,11 @@ class _EbookCard extends StatelessWidget {
                       ebook.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: c.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -233,7 +262,11 @@ class _EbookCard extends StatelessWidget {
                         const EbookBadge(),
                         Text(
                           ebook.category,
-                          style: TextStyle(color: c.primary, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: c.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -241,14 +274,18 @@ class _EbookCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          ebook.hasPdf ? Icons.picture_as_pdf_outlined : Icons.block_rounded,
+                          ebook.hasPdf
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.block_rounded,
                           size: 15,
                           color: ebook.hasPdf ? c.success : c.error,
                         ),
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
-                            ebook.hasPdf ? 'PDF${size.isEmpty ? '' : ' · $size'}' : 'PDF unavailable',
+                            ebook.hasPdf
+                                ? 'PDF${size.isEmpty ? '' : ' · $size'}'
+                                : 'PDF unavailable',
                             style: TextStyle(
                               color: ebook.hasPdf ? c.success : c.error,
                               fontSize: 12,
@@ -271,7 +308,12 @@ class _EbookCard extends StatelessWidget {
 
 /// Empty / no-results / error box in the Student card style.
 class _Message extends StatelessWidget {
-  const _Message({required this.icon, required this.title, required this.message, this.isError = false});
+  const _Message({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.isError = false,
+  });
 
   final IconData icon;
   final String title;
@@ -298,9 +340,21 @@ class _Message extends StatelessWidget {
             child: Icon(icon, color: isError ? c.error : c.primary, size: 32),
           ),
           const SizedBox(height: 14),
-          Text(title, textAlign: TextAlign.center, style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: c.text,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text(message, textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: c.muted, fontSize: 13, height: 1.4),
+          ),
         ],
       ),
     );

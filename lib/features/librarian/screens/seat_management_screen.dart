@@ -50,12 +50,16 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
     return ListenableBuilder(
       listenable: repository,
       builder: (context, _) {
-        final seats = repository.seats;
+        // Seats as the map shows them: booked seats are Reserved (yellow).
+        final seats = repository.seatsAsShown;
         int count(SeatStatus status) => seats.where((s) => s.status == status).length;
         final rooms = seats.map((s) => s.readingRoom).toSet().toList()..sort();
-        final selected = _selectedSeatId == null
+        final selectedSeat = _selectedSeatId == null
             ? null
             : repository.seatById(_selectedSeatId!);
+        final selected = selectedSeat?.copyWith(
+          status: repository.seatMapStatus(selectedSeat),
+        );
 
         final maps = [
           for (final room in rooms)
@@ -78,7 +82,8 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
             : SeatDetailsPanel(
                 seat: selected,
                 reservation: repository.activeReservationForSeat(selected.id),
-                onUpdateStatus: () => _changeStatus(repository, selected),
+                // The status sheet changes the seat's own (stored) status.
+                onUpdateStatus: () => _changeStatus(repository, selectedSeat!),
                 onEdit: () => context.go(LibrarianRoutes.editSeat(selected.id)),
               );
 
@@ -148,7 +153,7 @@ class _SeatManagementScreenState extends State<SeatManagementScreen> {
   }
 
   /// Bottom sheet to change a seat's status. "Reserved" is not offered
-  /// because seats become reserved by approving a reservation.
+  /// because a seat shows as reserved while a student's booking is active.
   Future<void> _changeStatus(
     LibrarianRepository repository,
     SeatRecord seat,

@@ -484,6 +484,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       ),
       child: Text(
         reservation.status,
+        key: ValueKey('reservation-status-${reservation.id}'),
         textAlign: TextAlign.center,
         style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700),
       ),

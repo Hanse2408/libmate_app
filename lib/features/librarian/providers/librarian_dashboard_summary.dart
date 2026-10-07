@@ -39,8 +39,13 @@ class LibrarianDashboardSummary {
       ..sort((a, b) => (a.timeSlot ?? '').compareTo(b.timeSlot ?? ''));
     final pending = repository.reservations.where((r) => r.isPending);
 
+    // Booked seats count as Reserved, as on the seat map.
+    final shownSeats = [
+      for (final seat in repository.seats)
+        seat.copyWith(status: repository.seatMapStatus(seat, now: now)),
+    ];
     int seatsWith(SeatStatus status) =>
-        repository.seats.where((seat) => seat.status == status).length;
+        shownSeats.where((seat) => seat.status == status).length;
 
     return LibrarianDashboardSummary(
       pendingCount: pending.length,

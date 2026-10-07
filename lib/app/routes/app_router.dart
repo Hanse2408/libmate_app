@@ -7,6 +7,8 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/librarian/data/librarian_repository.dart';
 import '../../features/manager/screens/manager_dashboard_screen.dart';
+import '../../features/onboarding/screens/get_started_screen.dart';
+import '../../features/splash/screens/splash_screen.dart';
 import '../../features/manager/screens/manager_reservation_screens.dart';
 import '../../features/manager/screens/manager_reading_room_screen.dart';
 import '../../features/manager/screens/manager_reports_screen.dart';
@@ -22,6 +24,7 @@ import '../../features/manager/data/manager_mock_data.dart';
 import '../../features/student/common/data/student_library_repository.dart';
 import '../../features/student/common/screens/student_home_screen.dart';
 import '../../models/user.dart';
+import '../startup/app_startup.dart';
 import 'app_routes.dart';
 import 'librarian_routes.dart';
 
@@ -29,19 +32,37 @@ import 'librarian_routes.dart';
 ///
 /// Librarian and Student screens read the same Firestore data. Tests can pass
 /// [createLibrarianRepository] / [createStudentLibrary] to use other data.
+///
+/// With [startup] (the app passes one), every route waits on the splash
+/// until start-up is done (see AppStartup); the normal redirects follow.
 class AppRouter {
   AppRouter(
     AuthProvider authProvider, {
+    AppStartup? startup,
     LibrarianRepository Function()? createLibrarianRepository,
     StudentLibraryRepository Function()? createStudentLibrary,
   }) : router = GoRouter(
         initialLocation: AppRoutes.splash,
-        refreshListenable: authProvider,
-        redirect: (context, state) => _redirect(authProvider, state),
+        refreshListenable: startup == null
+            ? authProvider
+            : Listenable.merge([authProvider, startup]),
+        redirect: (context, state) {
+          if (startup != null && !startup.isReady) {
+            return state.matchedLocation == AppRoutes.splash
+                ? null
+                : AppRoutes.splash;
+          }
+          return _redirect(authProvider, state, withStartup: startup != null);
+        },
         routes: [
           GoRoute(
             path: AppRoutes.splash,
-            builder: (context, state) => const _AuthResolvingScreen(),
+            // Continues the splash shown while Firebase starts (no replay).
+            builder: (context, state) => const SplashScreen(animate: false),
+          ),
+          GoRoute(
+            path: AppRoutes.getStarted,
+            builder: (context, state) => const GetStartedScreen(),
           ),
           GoRoute(
             path: AppRoutes.login,
@@ -194,12 +215,21 @@ class AppRouter {
     );
   }
 
-  static String? _redirect(AuthProvider authProvider, GoRouterState state) {
+  static String? _redirect(
+    AuthProvider authProvider,
+    GoRouterState state, {
+    bool withStartup = false,
+  }) {
     final location = state.matchedLocation;
     final loggedIn = authProvider.user != null;
 
     if (!loggedIn) {
-      return location == AppRoutes.login ||
+      // App start-up: Splash -> Get Started -> (button) Login.
+      if (withStartup && location == AppRoutes.splash) {
+        return AppRoutes.getStarted;
+      }
+      return location == AppRoutes.getStarted ||
+              location == AppRoutes.login ||
               location == AppRoutes.roleSelection ||
               location == AppRoutes.signup
           ? null
@@ -227,14 +257,5 @@ class AppRouter {
     final isInOwnArea =
         location == destination || location.startsWith('$destination/');
     return isInOwnArea ? null : destination;
-  }
-}
-
-class _AuthResolvingScreen extends StatelessWidget {
-  const _AuthResolvingScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

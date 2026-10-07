@@ -256,7 +256,7 @@ void main() {
     expect((await db.collection('books').get()).docs, isEmpty);
   });
 
-  testWidgets('a seat added with a photo can be booked by a student', (
+  testWidgets('a seat added without a photo can be booked by a student', (
     tester,
   ) async {
     final router = await pumpLibrarian(
@@ -268,20 +268,17 @@ void main() {
     await _type(tester, 'SEAT NUMBER', 'D09');
     await _type(tester, 'ROW / ZONE', 'Row D');
     await tapVisible(tester, find.text('Quiet Zone'));
-    await tapVisible(tester, find.text('Choose Image'));
+    // Add New Seat has no photo upload.
+    expect(find.text('Seat Photo'), findsNothing);
+    expect(find.text('Choose Image'), findsNothing);
     await tapVisible(tester, find.text('Save Seat'));
     expect(router.currentPath, LibrarianRoutes.seats);
     expect(find.text('Seat D09 added to Reading Room A.'), findsOneWidget);
     final seatDoc = (await db.collection('seats').get()).docs.single;
-    final photoUrl = seatDoc.data()['imageUrl'] as String;
-    expect(
-      photoUrl,
-      startsWith(
-        'https://res.cloudinary.com/test/image/upload/seat_images/test-',
-      ),
-    );
+    expect(seatDoc.data()['imageUrl'], isNull);
+    expect(storage.files, isEmpty); // nothing uploaded
 
-    // Student: the new seat is on the booking screen with its photo.
+    // Student: the new seat is on the booking screen.
     final student = studentRepo(db);
     addTearDown(student.dispose);
     await _pumpStudent(tester, SeatBookingScreen(library: student));
@@ -292,7 +289,6 @@ void main() {
     await tester.tap(find.byKey(ValueKey('seat-${seatDoc.id}')));
     await tester.pumpAndSettle();
     expect(find.text('Seat D09'), findsOneWidget);
-    expect(_networkImage(photoUrl), findsOneWidget);
 
     await tester.tap(find.text('Book Seat'));
     await tester.pumpAndSettle();
@@ -416,12 +412,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pumpStudent(tester, MyReservationsScreen(library: student));
-    expect(find.text('Pending'), findsOneWidget);
+    final statusBadge = find.byKey(ValueKey('reservation-status-${librarian.reservations.single.id}'));
+    expect(tester.widget<Text>(statusBadge).data, 'Pending');
 
     final id = librarian.reservations.single.id;
     await librarian.approveReservation(id);
     await tester.pumpAndSettle();
-    expect(find.text('Ready for Pickup'), findsOneWidget);
+    expect(tester.widget<Text>(statusBadge).data, 'Ready for Pickup');
     expect(
       librarian.reservations.single.status,
       shared.ReservationStatus.approved,

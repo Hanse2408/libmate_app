@@ -61,7 +61,11 @@ class LibrarianReport {
     final reservations = repository.reservations
         .where((r) => inPeriod(r.requestedAt))
         .toList();
-    final seats = repository.seats;
+    // Booked seats count as Reserved, as on the seat map.
+    final seats = [
+      for (final seat in repository.seats)
+        seat.copyWith(status: repository.seatMapStatus(seat, now: clock)),
+    ];
 
     int loansWith(BorrowingStatus status) =>
         loans.where((l) => l.status == status).length;

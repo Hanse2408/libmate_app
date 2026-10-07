@@ -1,15 +1,33 @@
 import 'package:flutter/material.dart';
 
-/// Colours for the Student e-book screens, taken from the app's central
-/// Theme / ColorScheme (LibMate blue, surfaces, text), so the screens follow
-/// light and dark themes without hardcoded black / white.
+import '../../../../app/theme/app_theme.dart';
+
+/// The Student side has no dark mode, so the e-book screens always use the
+/// Student light theme ([AppTheme.light]), even when the device (and so
+/// the app's `ThemeMode.system`) is dark.
+final ThemeData _studentLight = AppTheme.light;
+
+/// Wraps a Student e-book screen in the Student light theme, so stock
+/// widgets (text fields, spinners, buttons) are light too.
+class StudentEbookTheme extends StatelessWidget {
+  const StudentEbookTheme({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      Theme(data: _studentLight, child: child);
+}
+
+/// Colours for the Student e-book screens, from the Student light theme
+/// (LibMate blue, surfaces, text).
 class EbookColors {
   const EbookColors._(this._scheme, this.background);
 
-  factory EbookColors.of(BuildContext context) {
-    final theme = Theme.of(context);
-    return EbookColors._(theme.colorScheme, theme.scaffoldBackgroundColor);
-  }
+  factory EbookColors.of(BuildContext context) => EbookColors._(
+    _studentLight.colorScheme,
+    _studentLight.scaffoldBackgroundColor,
+  );
 
   final ColorScheme _scheme;
   final Color background;
@@ -51,7 +69,11 @@ class EbookPageHeader extends StatelessWidget {
                 dimension: 44,
                 child: Tooltip(
                   message: 'Back',
-                  child: Icon(Icons.chevron_left_rounded, color: c.text, size: 28),
+                  child: Icon(
+                    Icons.chevron_left_rounded,
+                    color: c.text,
+                    size: 28,
+                  ),
                 ),
               ),
             ),
@@ -63,11 +85,19 @@ class EbookPageHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(color: c.text, fontSize: 28, fontWeight: FontWeight.w800, height: 1.1),
+                  style: TextStyle(
+                    color: c.text,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(subtitle!, style: TextStyle(color: c.muted, fontSize: 15)),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(color: c.muted, fontSize: 15),
+                  ),
                 ],
               ],
             ),
@@ -87,13 +117,23 @@ class EbookBadge extends StatelessWidget {
     final c = EbookColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(color: c.tint, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: c.tint,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.tablet_mac_rounded, size: 14, color: c.primary),
           const SizedBox(width: 4),
-          Text('E-book', style: TextStyle(color: c.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+          Text(
+            'E-book',
+            style: TextStyle(
+              color: c.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

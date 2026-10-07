@@ -119,7 +119,7 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                                     Text(item.ebook ? 'eBooks · ${item.category}' : item.category, style: TextStyle(color: colors.primary, fontSize: 12)),
                                     const SizedBox(height: 10),
                                     if (item.ebook)
-                                      FilledButton.tonal(onPressed: openDetails, child: const Text('Read / Download'))
+                                      FilledButton.tonal(onPressed: openDetails, child: const Text('Read Online'))
                                     else ...[
                                       FilledButton(
                                         onPressed: item.blocker == null ? () => _open(ReserveBookScreen(library: library, bookId: item.id)) : null,
