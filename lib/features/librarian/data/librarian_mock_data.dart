@@ -176,16 +176,52 @@ class LibrarianMockData {
   static List<ReservationRecord> reservations() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final membersById = {for (final member in members()) member.id: member};
+    final seatsById = {for (final seat in seats()) seat.id: seat};
     Duration days(int n) => Duration(days: n);
 
+    ReservationRecord reservation({
+      required String id,
+      required ReservationType type,
+      required ReservationStatus status,
+      required String studentId,
+      required String itemId,
+      required String itemName,
+      required DateTime requestedAt,
+      required DateTime date,
+      String? timeSlot,
+      String? note,
+      String? rejectionReason,
+    }) {
+      final member = membersById[studentId];
+      final seat = seatsById[itemId];
+      final resolvedName = member?.name ?? 'Student';
+      final resolvedEmail = member?.email ?? 'student@library.local';
+      final resolvedItemName = seat != null ? 'Seat ${seat.seatNumber}' : itemName;
+
+      return ReservationRecord(
+        id: id,
+        type: type,
+        status: status,
+        studentId: studentId,
+        studentName: resolvedName,
+        studentEmail: resolvedEmail,
+        itemId: itemId,
+        itemName: resolvedItemName,
+        requestedAt: requestedAt,
+        date: date,
+        timeSlot: timeSlot,
+        note: note,
+        rejectionReason: rejectionReason,
+      );
+    }
+
     return [
-      ReservationRecord(
+      reservation(
         id: 'RSV-1001',
         type: ReservationType.book,
         status: ReservationStatus.pending,
         studentId: 'IT23004512',
-        studentName: 'Nethmi Perera',
-        studentEmail: 'nethmi.p@gmail.com',
         itemId: 'B001',
         itemName: 'Clean Code',
         requestedAt: now.subtract(const Duration(minutes: 25)),
@@ -193,13 +229,11 @@ class LibrarianMockData {
         timeSlot: '10:00',
         note: 'Needed for the SE group assignment.',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1002',
         type: ReservationType.seat,
         status: ReservationStatus.pending,
         studentId: 'IT23007789',
-        studentName: 'Kavindu Silva',
-        studentEmail: 'kavindu.s@gmail.com',
         itemId: 'S001',
         itemName: 'Seat A01',
         requestedAt: now.subtract(const Duration(hours: 1)),
@@ -207,52 +241,44 @@ class LibrarianMockData {
         timeSlot: '13:00 - 15:00',
         note: 'Requested a quiet-zone seat for exam preparation.',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1003',
         type: ReservationType.book,
         status: ReservationStatus.pending,
         studentId: 'IT23003341',
-        studentName: 'Sachini Fernando',
-        studentEmail: 'sachini.f@gmail.com',
         itemId: 'B004',
         itemName: 'Human-Computer Interaction',
         requestedAt: now.subtract(const Duration(hours: 3)),
         date: today.add(days(2)),
         timeSlot: '14:30',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1004',
         type: ReservationType.seat,
         status: ReservationStatus.approved,
         studentId: 'IT23817194',
-        studentName: 'Tharindu Jayasinghe',
-        studentEmail: 'tharindu.j@gmail.com',
         itemId: 'S005',
         itemName: 'Seat A05',
         requestedAt: now.subtract(const Duration(hours: 5)),
         date: today,
         timeSlot: '10:00 - 14:00',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1005',
         type: ReservationType.book,
         status: ReservationStatus.approved,
         studentId: 'IT23001178',
-        studentName: 'Ishara Wickramasinghe',
-        studentEmail: 'ishara.w@gmail.com',
         itemId: 'B003',
         itemName: 'Database System Concepts',
         requestedAt: now.subtract(days(1)),
         date: today,
         timeSlot: '10:30',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1006',
         type: ReservationType.seat,
         status: ReservationStatus.pending,
         studentId: 'IT23006654',
-        studentName: 'Dilshan Rathnayake',
-        studentEmail: 'dilshan.r@gmail.com',
         itemId: 'S016',
         itemName: 'Seat C04',
         requestedAt: now.subtract(const Duration(minutes: 10)),
@@ -260,13 +286,11 @@ class LibrarianMockData {
         timeSlot: '10:00 - 12:00',
         note: 'Needs a desk with a power outlet for a laptop.',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1007',
         type: ReservationType.book,
         status: ReservationStatus.rejected,
         studentId: 'IT23002267',
-        studentName: 'Hiruni Bandara',
-        studentEmail: 'hiruni.b@gmail.com',
         itemId: 'B002',
         itemName: 'Introduction to Algorithms',
         requestedAt: now.subtract(days(2)),
@@ -274,26 +298,22 @@ class LibrarianMockData {
         timeSlot: '09:00',
         rejectionReason: 'No copies available on the requested date.',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1008',
         type: ReservationType.seat,
         status: ReservationStatus.completed,
         studentId: 'IT23008831',
-        studentName: 'Pasan Gunawardena',
-        studentEmail: 'pasan.g@gmail.com',
         itemId: 'S008',
         itemName: 'Seat B02',
         requestedAt: now.subtract(days(3)),
         date: today.subtract(days(1)),
         timeSlot: '14:00 - 16:00',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1009',
         type: ReservationType.book,
         status: ReservationStatus.cancelled,
         studentId: 'IT23005590',
-        studentName: 'Ruwani Dissanayake',
-        studentEmail: 'ruwani.d@gmail.com',
         itemId: 'B006',
         itemName: 'Design Patterns',
         requestedAt: now.subtract(days(4)),
@@ -301,13 +321,11 @@ class LibrarianMockData {
         timeSlot: '11:00',
       ),
       // Cannot be approved: no copies of this book are available.
-      ReservationRecord(
+      reservation(
         id: 'RSV-1010',
         type: ReservationType.book,
         status: ReservationStatus.pending,
         studentId: 'IT23826854',
-        studentName: 'Janith Gunasekara',
-        studentEmail: 'janith.s@gmail.com',
         itemId: 'B002',
         itemName: 'Introduction to Algorithms',
         requestedAt: now.subtract(const Duration(minutes: 15)),
@@ -316,13 +334,11 @@ class LibrarianMockData {
         note: 'Requested for course project reference.',
       ),
       // Cannot be approved: the seat is under maintenance.
-      ReservationRecord(
+      reservation(
         id: 'RSV-1011',
         type: ReservationType.seat,
         status: ReservationStatus.pending,
         studentId: 'IT23865894',
-        studentName: 'Nimali Perera',
-        studentEmail: 'nimali.p@gmail.com',
         itemId: 'S011',
         itemName: 'Seat B05',
         requestedAt: now.subtract(const Duration(hours: 2)),
@@ -330,26 +346,22 @@ class LibrarianMockData {
         timeSlot: '15:00 - 17:00',
         note: 'Requested a group-study seat for exam preparation.',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1012',
         type: ReservationType.seat,
         status: ReservationStatus.approved,
         studentId: 'IT23010045',
-        studentName: 'Hansi Wijesinghe',
-        studentEmail: 'hansi.w@gmail.com',
         itemId: 'S007',
         itemName: 'Seat B01',
         requestedAt: now.subtract(const Duration(hours: 4)),
         date: today,
         timeSlot: '14:00 - 16:00',
       ),
-      ReservationRecord(
+      reservation(
         id: 'RSV-1013',
         type: ReservationType.seat,
         status: ReservationStatus.approved,
         studentId: 'IT23011237',
-        studentName: 'Ruwan Darshana',
-        studentEmail: 'ruwan.d@gmail.com',
         itemId: 'S012',
         itemName: 'Seat B06',
         requestedAt: now.subtract(const Duration(hours: 6)),
