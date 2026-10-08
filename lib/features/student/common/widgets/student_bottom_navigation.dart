@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'student_palette.dart';
 
 class StudentBottomNavigation extends StatelessWidget {
   const StudentBottomNavigation({
@@ -21,9 +22,11 @@ class StudentBottomNavigation extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.primary.withValues(alpha: .05),
+          blurRadius: 20, offset: const Offset(0, -4))],
         border: Border(
           top: BorderSide(
-            color: Theme.of(context).dividerColor,
+            color: StudentPalette.of(context).blueBorder,
           ),
         ),
       ),
@@ -75,10 +78,15 @@ class StudentBottomNavigation extends StatelessWidget {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return Expanded(child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: selected ? StudentPalette.of(context).blueTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
         padding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 4,
@@ -94,7 +102,9 @@ class StudentBottomNavigation extends StatelessWidget {
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 3),
-            Text(
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
               label,
               style: TextStyle(
                 color: selected
@@ -104,10 +114,10 @@ class StudentBottomNavigation extends StatelessWidget {
                 fontWeight:
                     selected ? FontWeight.w700 : FontWeight.w500,
               ),
-            ),
+            )),
           ],
         ),
       ),
-    );
+    ));
   }
 }

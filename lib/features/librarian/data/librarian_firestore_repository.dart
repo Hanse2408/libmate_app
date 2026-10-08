@@ -764,6 +764,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           type: StudentNotificationType.bookReturned,
           title: 'Book Returned',
           message: 'Thank you for returning "${loan.bookTitle}".',
+          reservationId: loanSnap.data()!['reservationId'] as String?,
           itemId: loan.bookId,
         );
         if (bookSnap.exists) {
@@ -818,6 +819,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           type: StudentNotificationType.loanRenewed,
           title: 'Loan Renewed',
           message: '"${loan.bookTitle}" is now due on ${_day(newDue)}.',
+          reservationId: snap.data()!['reservationId'] as String?,
           itemId: loan.bookId,
         );
         tx.set(
@@ -1111,6 +1113,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     required String title,
     required String message,
     ReservationRecord? reservation,
+    String? reservationId,
     String? itemId,
   }) {
     if (recipientUid.isEmpty) return;
@@ -1121,7 +1124,7 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         type: type,
         title: title,
         message: message,
-        reservationId: reservation?.id,
+        reservationId: reservation?.id ?? reservationId,
         itemId: reservation?.itemId ?? itemId,
       ),
     );

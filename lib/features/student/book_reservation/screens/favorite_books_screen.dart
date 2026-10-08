@@ -84,7 +84,7 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                     ? Center(child: Padding(
                         padding: const EdgeInsets.all(28),
                         child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.favorite_border_rounded, size: 52, color: colors.primary),
+                          Icon(Icons.favorite_border_rounded, size: 52, color: colors.favorite),
                           const SizedBox(height: 14),
                           Text(library.loadError ?? ebooks.loadError ?? (items.isEmpty
                             ? 'Your favourites belong here. Tap a book\'s heart to save it.'
@@ -102,6 +102,9 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                             : BookDetailsScreen(library: library, bookId: item.id));
                           return Material(
                             color: colors.card,
+                            elevation: 2,
+                            shadowColor: colors.primary.withValues(alpha: .12),
+                            surfaceTintColor: Colors.transparent,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: colors.border)),
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(

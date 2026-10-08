@@ -181,7 +181,8 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       child: Container(
         decoration: selected
             ? BoxDecoration(
-                color: StudentPalette.of(context).blueBorder,
+                gradient: StudentPalette.of(context).actionGradient,
+                boxShadow: StudentPalette.of(context).actionShadow,
                 borderRadius: BorderRadius.circular(13),
               )
             : null,
@@ -189,7 +190,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? StudentPalette.of(context).primary : StudentPalette.of(context).primary,
+            color: selected ? Colors.white : StudentPalette.of(context).muted,
             fontSize: 16,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
           ),
@@ -350,6 +351,8 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: StudentPalette.of(context).border,
@@ -373,7 +376,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           SizedBox(height: 7),
           Divider(
             height: 1,
-            color: Theme.of(context).dividerColor,
+            color: StudentPalette.of(context).border,
           ),
           SizedBox(height: 7),
           Row(

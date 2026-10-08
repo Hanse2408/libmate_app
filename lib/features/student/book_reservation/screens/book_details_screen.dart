@@ -1,5 +1,6 @@
 import '../../common/widgets/favorite_button.dart';
 import '../../common/widgets/student_palette.dart';
+import '../widgets/book_availability_alert.dart';
 import 'my_reservations_screen.dart';
 import 'find_books_screen.dart';
 import '../../common/screens/profile_screen.dart';
@@ -107,6 +108,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     _buildDescription(),
                     SizedBox(height: 26),
                     _buildReserveButton(),
+                    if (!available || widget.library.isWatchingAvailability(widget.bookId)) ...[
+                      const SizedBox(height: 18),
+                      BookAvailabilityAlert(library: widget.library, bookId: widget.bookId),
+                    ],
                   ],
                 ),
               ),
@@ -279,6 +284,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: StudentPalette.of(context).gold,

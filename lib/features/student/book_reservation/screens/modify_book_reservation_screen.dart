@@ -161,9 +161,11 @@ void initState() {
       padding: EdgeInsets.fromLTRB(24, 7, 16, 14),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -241,6 +243,8 @@ void initState() {
       padding: EdgeInsets.fromLTRB(16, 17, 16, 10),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: StudentPalette.of(context).blueBorder,
