@@ -25,6 +25,14 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
         for (var number = 1; number <= 12; number++)
           '$row${number.toString().padLeft(2, '0')}',
     ];
+    final reservedSeats = {'A03', 'A10', 'B04', 'B10'};
+    final conflictSeats = {'B12'};
+    final selectedSeat = 'B08';
+    final availableCount = 9;
+    final reservedCount = 3;
+    final occupiedCount = 5;
+    final occupancyRate = (reservedCount + occupiedCount) / (availableCount + reservedCount + occupiedCount);
+
     return ManagerScaffold(
       title: 'Reading Room Monitoring',
       currentIndex: 2,
@@ -48,28 +56,32 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                 padding: const EdgeInsets.all(13),
                 child: Row(
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 105,
                       height: 105,
-                      child: _OccupancyDonut(),
+                      child: _OccupancyDonut(
+                        percent: (occupancyRate * 100).round(),
+                        value: occupancyRate,
+                        summaryText: '${reservedCount + occupiedCount} / ${availableCount + reservedCount + occupiedCount}',
+                      ),
                     ),
                     const SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         children: [
-                          const _OccupancyLegend(
+                          _OccupancyLegend(
                             label: 'Available',
-                            value: '36',
+                            value: availableCount.toString(),
                             color: AppColors.success,
                           ),
                           _OccupancyLegend(
                             label: 'Reserved',
-                            value: '84',
+                            value: reservedCount.toString(),
                             color: primary,
                           ),
-                          const _OccupancyLegend(
-                            label: 'Conflict',
-                            value: '2',
+                          _OccupancyLegend(
+                            label: 'Occupied',
+                            value: occupiedCount.toString(),
                             color: AppColors.error,
                           ),
                         ],
@@ -97,11 +109,11 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                   ),
                   itemBuilder: (context, index) {
                     final seat = seats[index];
-                    final state = seat == 'B08'
+                    final state = seat == selectedSeat
                         ? ManagerSeatState.selected
-                        : seat == 'B12'
+                        : conflictSeats.contains(seat)
                         ? ManagerSeatState.conflict
-                        : {'A03', 'A10', 'B04', 'B10'}.contains(seat)
+                        : reservedSeats.contains(seat)
                         ? ManagerSeatState.reserved
                         : ManagerSeatState.available;
                     return SeatChip(label: seat, state: state);
@@ -115,7 +127,7 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
               children: [
                 _SeatStatusLegend(color: AppColors.success, label: 'Available'),
                 _SeatStatusLegend(color: primary, label: 'Reserved'),
-                _SeatStatusLegend(color: AppColors.error, label: 'Conflict'),
+                _SeatStatusLegend(color: AppColors.error, label: 'Occupied'),
               ],
             ),
           ],
@@ -126,19 +138,28 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
 }
 
 class _OccupancyDonut extends StatelessWidget {
-  const _OccupancyDonut();
+  const _OccupancyDonut({
+    required this.percent,
+    required this.value,
+    required this.summaryText,
+  });
+
+  final int percent;
+  final double value;
+  final String summaryText;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
     painter: _DonutPainter(
       track: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
       progress: Theme.of(context).colorScheme.primary,
+      value: value,
     ),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          '70%',
+          '$percent%',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
         ),
         Text(
@@ -146,7 +167,7 @@ class _OccupancyDonut extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 8),
         ),
         Text(
-          '84 / 120',
+          summaryText,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 8),
         ),
       ],
@@ -155,10 +176,15 @@ class _OccupancyDonut extends StatelessWidget {
 }
 
 class _DonutPainter extends CustomPainter {
-  const _DonutPainter({required this.track, required this.progress});
+  const _DonutPainter({
+    required this.track,
+    required this.progress,
+    required this.value,
+  });
 
   final Color track;
   final Color progress;
+  final double value;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -172,12 +198,14 @@ class _DonutPainter extends CustomPainter {
     stroke.color = track;
     canvas.drawArc(rect, 0, math.pi * 2, false, stroke);
     stroke.color = progress;
-    canvas.drawArc(rect, -math.pi / 2, math.pi * 1.4, false, stroke);
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * value.clamp(0.0, 1.0), false, stroke);
   }
 
   @override
   bool shouldRepaint(covariant _DonutPainter oldDelegate) =>
-      oldDelegate.track != track || oldDelegate.progress != progress;
+      oldDelegate.track != track ||
+      oldDelegate.progress != progress ||
+      oldDelegate.value != value;
 }
 
 class _OccupancyLegend extends StatelessWidget {
