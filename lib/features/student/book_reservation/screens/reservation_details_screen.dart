@@ -1,6 +1,7 @@
 import '../../common/widgets/student_palette.dart';
 import '../../../../core/constants/book_pickup_locations.dart';
 import '../widgets/reservation_notice.dart';
+import '../widgets/reservation_progress_card.dart';
 import '../../../../models/book.dart';
 import '../../common/widgets/student_book_cover.dart';
 import 'my_reservations_screen.dart' show MyReservationsScreen;
@@ -90,6 +91,13 @@ static const String pickupDesk = 'Book Collection Desk';
                 child: Column(
                   children: [
                     _buildBookCard(),
+                    if (_reservation != null && _reservation!.type == ReservationType.book) ...[
+                      const SizedBox(height: 16),
+                      ReservationProgressCard(
+                        reservation: _reservation!,
+                        loan: widget.library.loanProgressForReservation(widget.reservationId),
+                      ),
+                    ],
                     SizedBox(height: 16),
                     _buildReservationInformation(),
                     SizedBox(height: 16),
@@ -164,9 +172,11 @@ static const String pickupDesk = 'Book Collection Desk';
       padding: EdgeInsets.fromLTRB(24, 8, 16, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -270,9 +280,11 @@ static const String pickupDesk = 'Book Collection Desk';
       padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -414,6 +426,8 @@ static const String pickupDesk = 'Book Collection Desk';
       padding: EdgeInsets.fromLTRB(20, 6, 20, 20),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: StudentPalette.of(context).blueBorder,

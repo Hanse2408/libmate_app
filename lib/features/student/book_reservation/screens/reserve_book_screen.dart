@@ -164,9 +164,11 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -255,9 +257,11 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),

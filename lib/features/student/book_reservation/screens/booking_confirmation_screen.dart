@@ -267,9 +267,11 @@ class BookingConfirmationScreen extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -289,7 +291,7 @@ class BookingConfirmationScreen extends StatelessWidget {
           SizedBox(height: 10),
           Divider(
             height: 1,
-            color: Theme.of(context).dividerColor,
+            color: StudentPalette.of(context).border,
           ),
           SizedBox(height: 5),
           _buildReceiptRow(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/libmate_logo.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
@@ -297,21 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       shrinkWrap: true,
                       children: [
-                        Center(
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.menu_book_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                        ),
+                        const Center(child: LibMateLogo(size: 54)),
                         const SizedBox(height: 7),
                         Text(
                           'LibMate',

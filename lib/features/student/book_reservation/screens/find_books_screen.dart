@@ -191,7 +191,7 @@ void dispose() {
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => FavoriteBooksScreen(library: widget.library),
               )),
-              icon: Icon(Icons.favorite_rounded, color: StudentPalette.of(context).primary, size: 23),
+              icon: Icon(Icons.favorite_rounded, color: StudentPalette.of(context).favorite, size: 23),
             ),
           ),
         ],
@@ -207,9 +207,11 @@ void dispose() {
             height: 52,
             decoration: BoxDecoration(
               color: StudentPalette.of(context).card,
+              gradient: StudentPalette.of(context).cardGradient,
+              boxShadow: StudentPalette.of(context).cardShadow,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Theme.of(context).dividerColor,
+                color: StudentPalette.of(context).border,
               ),
             ),
             child: TextField(
@@ -248,6 +250,8 @@ void dispose() {
           height: 52,
           decoration: BoxDecoration(
             color: StudentPalette.of(context).primary,
+            gradient: StudentPalette.of(context).actionGradient,
+            boxShadow: StudentPalette.of(context).actionShadow,
             borderRadius: BorderRadius.circular(16),
           ),
           child: IconButton(
@@ -298,6 +302,7 @@ void dispose() {
                   color: isSelected
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.surface,
+                  gradient: isSelected ? StudentPalette.of(context).actionGradient : null,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
@@ -383,9 +388,11 @@ void dispose() {
         padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
+          gradient: StudentPalette.of(context).cardGradient,
+          boxShadow: StudentPalette.of(context).cardShadow,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Theme.of(context).dividerColor,
+            color: StudentPalette.of(context).border,
           ),
         ),
         child: Row(
@@ -554,6 +561,8 @@ void dispose() {
       ),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).card,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: StudentPalette.of(context).border,

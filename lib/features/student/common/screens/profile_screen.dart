@@ -1,4 +1,8 @@
 import '../widgets/student_palette.dart';
+import '../../../../core/widgets/libmate_logo.dart';
+import '../widgets/edit_profile_dialog.dart';
+import '../widgets/student_avatar.dart';
+import '../widgets/student_notification_button.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../data/student_library_repository.dart';
@@ -32,7 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ListenableBuilder(listenable: widget.library, builder: (context, _) => Scaffold(
       backgroundColor: _backgroundColor,
       body: SafeArea(
         child: Column(
@@ -61,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
-    );
+    ));
   }
 
   Widget _buildTopHeader() {
@@ -84,110 +88,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           Spacer(),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Icon(
-                Icons.notifications_none_rounded,
-                color: _textColor,
-                size: 25,
-              ),
-              Positioned(
-                right: -5,
-                top: -7,
-                child: Container(
-                  width: 17,
-                  height: 17,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: StudentPalette.of(context).error,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          StudentNotificationButton(library: widget.library, color: _textColor),
           SizedBox(width: 16),
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _primaryColor,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              'ND',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          StudentAvatar(name: widget.library.student.name, photoUrl: widget.library.student.photoUrl, size: 34),
         ],
       ),
     );
   }
 
-  Widget _buildLibMateLogo() {
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 1,
-            top: 5,
-            child: Container(
-              width: 12,
-              height: 21,
-              decoration: BoxDecoration(
-                color: StudentPalette.of(context).primary,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(2),
-                  bottomLeft: Radius.circular(2),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 1,
-            top: 5,
-            child: Container(
-              width: 12,
-              height: 21,
-              decoration: BoxDecoration(
-                color: StudentPalette.of(context).primary,
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(2),
-                  bottomRight: Radius.circular(2),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 14,
-            top: 5,
-            child: Container(
-              width: 2,
-              height: 21,
-              color: StudentPalette.of(context).gold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildLibMateLogo() => const LibMateLogo(size: 36);
 
   Widget _buildProfileHeading() {
     return Column(
@@ -219,38 +128,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: EdgeInsets.fromLTRB(15, 17, 15, 17),
       decoration: BoxDecoration(
         color: _cardColor,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: StudentPalette.of(context).primary,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              'S',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          StudentAvatar(name: widget.library.student.name, photoUrl: widget.library.student.photoUrl, size: 52),
           SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Nilumi Dakshika',
+                  widget.library.student.name,
                   style: TextStyle(
                     color: _textColor,
                     fontSize: 18,
@@ -259,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Student ID: IT23514658',
+                  'Student ID: ${widget.library.student.studentId}',
                   style: TextStyle(
                     color: _secondaryTextColor,
                     fontSize: 13,
@@ -267,12 +162,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'it23514658@my.sliit.lk',
+                  widget.library.student.email,
                   style: TextStyle(
                     color: _secondaryTextColor,
                     fontSize: 13,
                   ),
                 ),
+                if (widget.library.student.phone.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(widget.library.student.phone,
+                    style: TextStyle(color: _secondaryTextColor, fontSize: 13)),
+                ],
               ],
             ),
           ),
@@ -284,6 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
+              tooltip: 'Edit profile',
               onPressed: _editProfile,
               padding: EdgeInsets.zero,
               icon: Icon(
@@ -303,9 +204,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: _cardColor,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: StudentPalette.of(context).gold,
+          color: StudentPalette.of(context).goldBorder,
           width: 1.2,
         ),
       ),
@@ -517,6 +420,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       decoration: BoxDecoration(
         color: _cardColor,
+        gradient: StudentPalette.of(context).cardGradient,
+        boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: StudentPalette.of(context).blueBorder,
@@ -632,14 +537,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _editProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Edit Profile will be connected later.',
-        ),
-      ),
-    );
+  Future<void> _editProfile() async {
+    await showDialog<bool>(context: context, barrierDismissible: false,
+      builder: (_) => EditProfileDialog(library: widget.library));
   }
 
   void _openNotifications() {

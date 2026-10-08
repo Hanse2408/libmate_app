@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../book_reservation/screens/reserve_book_screen.dart';
+import '../../book_reservation/screens/book_details_screen.dart';
+import '../../book_reservation/screens/reservation_details_screen.dart';
+import '../../book_reservation/screens/my_reservations_screen.dart';
+import '../../seat_booking/screens/seat_reservation_details_screen.dart';
+import '../../../../models/reservation.dart';
+import '../../book_reservation/widgets/reservation_notice.dart';
 
 import '../../../../models/action_result.dart';
 import '../../../../models/notification.dart';
@@ -6,10 +13,18 @@ import '../../common/data/student_library_repository.dart';
 
 /// The signed-in student's notifications (live from Firestore): reservation
 /// requests, approvals, rejections, cancellations and loan updates.
-class StudentNotificationsScreen extends StatelessWidget {
+class StudentNotificationsScreen extends StatefulWidget {
   const StudentNotificationsScreen({super.key, required this.library});
 
   final StudentLibraryRepository library;
+
+  @override
+  State<StudentNotificationsScreen> createState() => _StudentNotificationsScreenState();
+}
+
+class _StudentNotificationsScreenState extends State<StudentNotificationsScreen> {
+  StudentLibraryRepository get library => widget.library;
+  bool _opening = false;
 
   /// Runs a Firestore action and shows its error, if it fails.
   Future<void> _run(BuildContext context, Future<ActionResult> Function() action) async {
@@ -18,6 +33,43 @@ class StudentNotificationsScreen extends StatelessWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(result.message!)));
+  }
+
+  Future<void> _openNotification(StudentNotification notification) async {
+    if (_opening) return;
+    _opening = true;
+    try {
+      Widget destination = MyReservationsScreen(library: library);
+      final reservation = library.myReservations
+          .where((r) => r.id == notification.reservationId).firstOrNull;
+      final book = library.bookById(notification.itemId ?? '');
+      if (notification.type == StudentNotificationType.bookAvailable) {
+        if (book == null) {
+          await showReservationNotice(context, title: 'Book unavailable',
+            message: 'This book is no longer in the catalogue, or is still loading.');
+          return;
+        }
+        destination = book.isAvailable
+            ? ReserveBookScreen(library: library, bookId: book.id)
+            : BookDetailsScreen(library: library, bookId: book.id);
+      } else if (reservation != null) {
+        destination = reservation.type == ReservationType.seat
+            ? SeatReservationDetailsScreen(library: library, reservation: reservation)
+            : ReservationDetailsScreen(library: library, reservationId: reservation.id);
+      } else if (book != null) {
+        destination = BookDetailsScreen(library: library, bookId: book.id);
+      }
+      final result = await library.dismissNotification(notification.id);
+      if (!mounted) return;
+      if (!result.success) {
+        await showReservationNotice(context, title: 'Could not open notification',
+          message: result.message ?? 'Please try again.');
+        return;
+      }
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => destination));
+    } finally {
+      _opening = false;
+    }
   }
 
   @override
@@ -98,7 +150,7 @@ class StudentNotificationsScreen extends StatelessWidget {
         final n = notifications[index];
         final (icon, color) = _style(context, n.type);
         return InkWell(
-          onTap: n.isRead ? null : () => _run(context, () => library.markNotificationRead(n.id)),
+          onTap: () => _openNotification(n),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -174,6 +226,7 @@ class StudentNotificationsScreen extends StatelessWidget {
   ) {
     final colors = Theme.of(context).colorScheme;
     return switch (type) {
+      StudentNotificationType.bookAvailable => (Icons.notifications_active_rounded, colors.primary),
       StudentNotificationType.reservationApproved => (Icons.check_circle_rounded, const Color(0xFF22A06B)),
       StudentNotificationType.reservationRejected => (Icons.cancel_rounded, const Color(0xFFDC4C4C)),
       StudentNotificationType.reservationCancelled => (Icons.event_busy_rounded, colors.onSurfaceVariant),

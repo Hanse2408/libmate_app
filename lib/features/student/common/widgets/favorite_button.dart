@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'student_palette.dart';
 import '../data/student_library_repository.dart';
 import '../../book_reservation/widgets/reservation_notice.dart';
 
@@ -18,10 +19,10 @@ class _FavoriteButtonState extends State<FavoriteButton> {
     listenable: widget.library,
     builder: (context, _) {
       final selected = widget.library.isFavorite(widget.itemId, ebook: widget.ebook);
-      final colors = Theme.of(context).colorScheme;
+      final pink = StudentPalette.of(context).favorite;
       return IconButton(
         tooltip: selected ? 'Remove from favourites' : 'Add to favourites',
-        style: IconButton.styleFrom(backgroundColor: colors.primary.withValues(alpha: 0.10)),
+        style: IconButton.styleFrom(backgroundColor: pink.withValues(alpha: 0.10)),
         onPressed: _saving ? null : () async {
           setState(() => _saving = true);
           final result = await widget.library.setFavorite(widget.itemId, favorite: !selected, ebook: widget.ebook);
@@ -32,8 +33,8 @@ class _FavoriteButtonState extends State<FavoriteButton> {
           }
         },
         icon: _saving
-            ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-            : Icon(selected ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: colors.primary),
+            ? SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: pink))
+            : Icon(selected ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: pink),
       );
     },
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/libmate_logo.dart';
 
 const _authBlue = Color(0xFF2563EB);
 const _authText = Color(0xFF172033);
@@ -62,7 +63,7 @@ class AuthBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.menu_book_rounded, size: 54, color: _authBlue),
+        const LibMateLogo(size: 64),
         const SizedBox(height: 9),
         const Text(
           'LibMate',
@@ -74,7 +75,7 @@ class AuthBrandHeader extends StatelessWidget {
         ),
         const SizedBox(height: 3),
         const Text(
-          'LEARN • RESERVE • BELONG',
+          'LEARN \u2022 RESERVE \u2022 BELONG',
           style: TextStyle(
             color: _authBlue,
             fontSize: 12,
