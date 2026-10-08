@@ -142,36 +142,18 @@ void main() {
     router.go(AppRoutes.managerReservations);
     await tester.pumpAndSettle();
     _expectManagerLightTheme(tester);
-    final conflictReservation = find.ancestor(
-      of: find.text('RES-1023').first,
-      matching: find.byType(InkWell),
-    );
-    await tester.ensureVisible(conflictReservation);
-    await tester.tap(conflictReservation.hitTestable().first);
-    await tester.pumpAndSettle();
-    expect(find.text('Book Information'), findsOneWidget);
-    _expectManagerLightTheme(tester);
-
-    await tester.tap(find.text('Resolve Conflict'));
-    await tester.pumpAndSettle();
-    _expectManagerLightTheme(tester);
-    await tester.ensureVisible(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Current Seat'), findsOneWidget);
-    _expectManagerLightTheme(tester);
-
-    await tester.tap(find.text('Confirm Reassignment'));
-    await tester.pumpAndSettle();
-    expect(find.text('Conflict Resolved'), findsOneWidget);
-    expect(find.text('A08'), findsOneWidget);
-    _expectManagerLightTheme(tester);
-
-    await tester.tap(find.text('Back to Reservations'));
-    await tester.pumpAndSettle();
-    expect(_path(router), AppRoutes.managerReservations);
-    expect(find.text('RES-1024'), findsOneWidget);
+    expect(find.text('Reservation Monitoring'), findsOneWidget);
+    for (final path in [AppRoutes.managerConflict, AppRoutes.managerReassignSeat, AppRoutes.managerResolved]) {
+      router.go(path);
+      await tester.pumpAndSettle();
+      _expectManagerLightTheme(tester);
+      expect(find.text('Confirm Reassignment'), findsNothing);
+      expect(find.text('Conflict Resolved'), findsNothing);
+      expect(find.text('Reservation cancelled (demo)'), findsNothing);
+      await tester.tap(find.text('Back to Reservations'));
+      await tester.pumpAndSettle();
+      expect(_path(router), AppRoutes.managerReservations);
+    }
   });
 
   testWidgets('manager routes reuse a single repository instance', (tester) async {

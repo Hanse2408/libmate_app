@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../../../core/constants/firestore_collections.dart';
 import '../../../models/action_result.dart';
 import '../../../models/user.dart';
+import '../../../models/seat.dart';
 import 'manager_mock_data.dart';
 import 'manager_repository.dart';
 
@@ -16,10 +17,57 @@ class ManagerFirestoreRepository extends ManagerRepository {
     this.managerUid = '',
     Future<FirebaseApp> Function()? createSecondaryApp,
     FirebaseAuth Function(FirebaseApp)? secondaryAuthFor,
+    DateTime Function()? now,
   }) : _db = firestore,
        _createSecondaryApp = createSecondaryApp ?? _initializeSecondaryApp,
-       _secondaryAuthFor = secondaryAuthFor ?? _authForApp {
+       _secondaryAuthFor = secondaryAuthFor ?? _authForApp,
+       _now = now ?? DateTime.now {
     _listen();
+    _monitorTimer = Timer.periodic(const Duration(minutes: 1), (_) => notifyListeners());
+  }
+
+  final DateTime Function() _now;
+  Timer? _monitorTimer;
+  List<SeatRecord> _seats = const [];
+  List<Map<String, dynamic>> _seatSlots = const [];
+  bool _reservationsLoading = true;
+  bool _seatInventoryLoading = true;
+  bool _seatSlotsLoading = true;
+  String? _reservationsError;
+  String? _seatInventoryError;
+  String? _seatSlotsError;
+
+  @override
+  DateTime get monitoringTime => _now();
+  @override
+  List<SeatRecord> get seats => _seats;
+  @override
+  bool get reservationsLoading => _reservationsLoading;
+  @override
+  String? get reservationsError => _reservationsError;
+  @override
+  bool get seatsLoading => _seatInventoryLoading || _seatSlotsLoading || _reservationsLoading;
+  @override
+  String? get seatsError => _seatInventoryError ?? _seatSlotsError ?? _reservationsError;
+
+  @override
+  SeatStatus seatStatus(SeatRecord seat, {DateTime? at}) {
+    final status = super.seatStatus(seat, at: at);
+    if (status != SeatStatus.available) return status;
+    final now = at ?? monitoringTime;
+    for (final slot in _seatSlots) {
+      final date = (slot['date'] as Timestamp?)?.toDate();
+      if (slot['seatId'] != seat.id || date == null ||
+          date.year != now.year || date.month != now.month || date.day != now.day ||
+          slot['hour'] != now.hour) {
+        continue;
+      }
+      final reservation = findReservationById(slot['reservationId'] as String? ?? '');
+      if (reservation == null || reservation.status == ManagerReservationStatus.confirmed) {
+        return SeatStatus.reserved;
+      }
+    }
+    return SeatStatus.available;
   }
 
   final FirebaseFirestore _db;
@@ -211,33 +259,6 @@ class ManagerFirestoreRepository extends ManagerRepository {
   }
 
   @override
-  void resolveConflict(String reservationId, {required String newSeat}) {
-    final next = List<ManagerReservation>.from(_reservations);
-    final index = next.indexWhere((reservation) => reservation.id == reservationId);
-    if (index == -1) {
-      throw StateError('Reservation not found.');
-    }
-    final reservation = next[index];
-    next[index] = ManagerReservation(
-      id: reservation.id,
-      book: reservation.book,
-      student: reservation.student,
-      studentId: reservation.studentId,
-      date: reservation.date,
-      time: reservation.time,
-      status: ManagerReservationStatus.confirmed,
-      seat: newSeat,
-    );
-    replaceReservations(next);
-    _db.collection(FirestoreCollections.reservations).doc(reservationId).update({
-      'status': 'approved',
-      'seat': newSeat,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    notifyListeners();
-  }
-
-  @override
   void updatePolicyValue(int index, int value) {
     final current = List<int>.from(_policyValues);
     if (index < 0 || index >= current.length) {
@@ -263,6 +284,8 @@ class ManagerFirestoreRepository extends ManagerRepository {
   void _listen() {
     _watchUsers();
     _watchReservations();
+    _watchSeats();
+    _watchSeatSlots();
     _watchNotifications();
     _watchSettings();
   }
@@ -287,16 +310,77 @@ class ManagerFirestoreRepository extends ManagerRepository {
   void _watchReservations() {
     _subscriptions.add(
       _db.collection(FirestoreCollections.reservations).snapshots().listen((snapshot) {
-        _reservations = [
-          for (final doc in snapshot.docs)
-            _reservationFromDoc(doc.id, doc.data()),
-        ]..sort((a, b) => a.student.compareTo(b.student));
+        try {
+          _reservations = [
+            for (final doc in snapshot.docs) ManagerReservation.fromMap(doc.id, doc.data()),
+          ]..sort((a, b) {
+            final first = a.requestedAt ?? a.bookingDate;
+            final second = b.requestedAt ?? b.bookingDate;
+            if (first == null && second == null) return a.id.compareTo(b.id);
+            if (first == null) return 1;
+            if (second == null) return -1;
+            final order = second.compareTo(first);
+            return order == 0 ? a.id.compareTo(b.id) : order;
+          });
+          _reservationsError = null;
+        } catch (_) {
+          _reservationsError = 'Unable to read reservation data.';
+        }
+        _reservationsLoading = false;
         notifyListeners();
       }, onError: (Object error) {
-        _loadError = 'Unable to load reservations from Firebase.';
+        _reservationsError = 'Unable to load reservations from Firebase.';
+        _reservationsLoading = false;
         notifyListeners();
       }),
     );
+  }
+
+  void _watchSeats() {
+    _subscriptions.add(_db.collection(FirestoreCollections.seats).snapshots().listen((snapshot) {
+      try {
+        _seats = [
+          for (final doc in snapshot.docs) SeatRecord.fromMap(doc.id, doc.data()),
+        ]..sort((a, b) {
+          final room = a.readingRoom.compareTo(b.readingRoom);
+          return room == 0 ? a.seatNumber.compareTo(b.seatNumber) : room;
+        });
+        _seatInventoryError = null;
+      } catch (_) {
+        _seatInventoryError = 'Unable to read seat data.';
+      }
+      _seatInventoryLoading = false;
+      notifyListeners();
+    }, onError: (Object error) {
+      _seatInventoryError = 'Unable to load seats from Firebase.';
+      _seatInventoryLoading = false;
+      notifyListeners();
+    }));
+  }
+
+  void _watchSeatSlots() {
+    _subscriptions.add(_db.collection(FirestoreCollections.seatSlots).snapshots().listen((snapshot) {
+      try {
+        final slots = [for (final doc in snapshot.docs) doc.data()];
+        for (final slot in slots) {
+          if (slot['seatId'] is! String || slot['date'] is! Timestamp ||
+              slot['hour'] is! int || (slot['hour'] as int) < 0 || (slot['hour'] as int) > 23 ||
+              (slot['reservationId'] != null && slot['reservationId'] is! String)) {
+            throw const FormatException('Invalid seat slot');
+          }
+        }
+        _seatSlots = slots;
+        _seatSlotsError = null;
+      } catch (_) {
+        _seatSlotsError = 'Unable to read seat availability data.';
+      }
+      _seatSlotsLoading = false;
+      notifyListeners();
+    }, onError: (Object error) {
+      _seatSlotsError = 'Unable to load seat availability from Firebase.';
+      _seatSlotsLoading = false;
+      notifyListeners();
+    }));
   }
 
   void _watchNotifications() {
@@ -363,33 +447,6 @@ class ManagerFirestoreRepository extends ManagerRepository {
     );
   }
 
-  ManagerReservation _reservationFromDoc(String id, Map<String, dynamic> data) {
-    final statusValue = (data['status'] as String?) ?? 'approved';
-    final reservationStatus = switch (statusValue.toLowerCase()) {
-      'conflict' => ManagerReservationStatus.conflict,
-      'pending' => ManagerReservationStatus.pending,
-      'cancelled' => ManagerReservationStatus.cancelled,
-      _ => ManagerReservationStatus.confirmed,
-    };
-    final dateValue = (data['date'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final startHour = (data['startHour'] as num?)?.toInt() ?? 9;
-    final endHour = (data['endHour'] as num?)?.toInt() ?? 12;
-    final title = (data['bookTitle'] as String?) ?? 'Library Resource';
-    final studentName = (data['studentName'] as String?) ?? 'Student';
-    final studentId = (data['studentId'] as String?) ?? 'N/A';
-    final seat = (data['seat'] as String?) ?? (data['seatNumber'] as String?) ?? 'N/A';
-    return ManagerReservation(
-      id: id,
-      book: title,
-      student: studentName,
-      studentId: studentId,
-      date: _formatDate(dateValue),
-      time: '$startHour:00 - ${endHour}00',
-      status: reservationStatus,
-      seat: seat,
-    );
-  }
-
   ManagerNotice _noticeFromDoc(Map<String, dynamic> data) {
     return ManagerNotice(
       title: (data['title'] as String?) ?? 'System update',
@@ -399,26 +456,9 @@ class ManagerFirestoreRepository extends ManagerRepository {
     );
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')} ${_month(date.month)} ${date.year}';
-
-  String _month(int month) => const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month - 1];
-
   @override
   void dispose() {
+    _monitorTimer?.cancel();
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }

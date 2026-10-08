@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../models/reservation.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../models/user.dart';
 import '../data/manager_mock_data.dart';
@@ -300,7 +301,7 @@ class ReservationListCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.menu_book_outlined,
+                  reservation.type == ReservationType.seat ? Icons.event_seat_outlined : Icons.menu_book_outlined,
                   color: Theme.of(context).colorScheme.primary,
                   size: 20,
                 ),
@@ -316,18 +317,18 @@ class ReservationListCard extends StatelessWidget {
                           ?.copyWith(fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                     Text(
-                      reservation.book,
+                      reservation.book.isEmpty ? 'Not available' : '${reservation.typeLabel}: ${reservation.book}',
                       style: const TextStyle(fontSize: 11),
                     ),
                     Text(
-                      reservation.student,
+                      reservation.student.isEmpty ? 'Not available' : reservation.student,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(fontSize: 10),
                     ),
                     Text(
-                      '${reservation.date} · ${reservation.time}',
+                      '${reservation.date} ? ${reservation.time.isEmpty ? 'Not available' : reservation.time}',
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(fontSize: 9),
                     ),
@@ -337,7 +338,7 @@ class ReservationListCard extends StatelessWidget {
               const SizedBox(width: 4),
               Column(
                 children: [
-                  StatusBadge(text: _capitalize(status), type: status),
+                  StatusBadge(text: reservation.statusLabel, type: status),
                   const SizedBox(height: 6),
                   Icon(
                     Icons.chevron_right,
@@ -353,8 +354,6 @@ class ReservationListCard extends StatelessWidget {
     );
   }
 
-  String _capitalize(String value) =>
-      '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
 class NotificationTile extends StatelessWidget {

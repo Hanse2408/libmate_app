@@ -3,35 +3,62 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_colors.dart';
-import '../data/manager_mock_data.dart';
+import '../../../models/seat.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerReadingRoomScreen extends StatefulWidget {
   const ManagerReadingRoomScreen({super.key});
-
   @override
   State<ManagerReadingRoomScreen> createState() =>
       _ManagerReadingRoomScreenState();
 }
 
 class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
-  String _floor = 'Floor 1';
+  String _room = 'All rooms';
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    if (repository.seatsError != null ||
+        repository.seatsLoading ||
+        repository.seats.isEmpty) {
+      return ManagerScaffold(
+        title: 'Reading Room Monitoring',
+        currentIndex: 2,
+        body: Center(
+          child: repository.seatsError != null
+              ? Text(repository.seatsError!)
+              : repository.seatsLoading
+              ? const CircularProgressIndicator()
+              : const Text('No seat data available'),
+        ),
+      );
+    }
+    final rooms =
+        repository.seats
+            .map((s) => s.readingRoom)
+            .where((r) => r.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final room = rooms.contains(_room) ? _room : 'All rooms';
+    final seats = repository.seats
+        .where((s) => room == 'All rooms' || s.readingRoom == room)
+        .toList();
+    final now = repository.monitoringTime;
+    final statuses = {
+      for (final seat in seats) seat.id: repository.seatStatus(seat, at: now),
+    };
+    int count(SeatStatus status) =>
+        statuses.values.where((s) => s == status).length;
+    final available = count(SeatStatus.available);
+    final reserved = count(SeatStatus.reserved);
+    final occupied = count(SeatStatus.occupied);
+    final maintenance = count(SeatStatus.maintenance);
+    final total = seats.length;
+    final rate = total == 0 ? 0.0 : (reserved + occupied) / total;
     final primary = Theme.of(context).colorScheme.primary;
-    final seats = [
-      for (final row in ['A', 'B'])
-        for (var number = 1; number <= 12; number++)
-          '$row${number.toString().padLeft(2, '0')}',
-    ];
-    final reservedSeats = {'A03', 'A10', 'B04', 'B10'};
-    final conflictSeats = {'B12'};
-    final selectedSeat = 'B08';
-    final availableCount = 9;
-    final reservedCount = 3;
-    final occupiedCount = 5;
-    final occupancyRate = (reservedCount + occupiedCount) / (availableCount + reservedCount + occupiedCount);
 
     return ManagerScaffold(
       title: 'Reading Room Monitoring',
@@ -40,17 +67,25 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
         child: ListView(
           children: [
             DropdownButtonFormField<String>(
-              initialValue: _floor,
-              decoration: const InputDecoration(isDense: true),
+              key: ValueKey(room),
+              initialValue: room,
+              decoration: const InputDecoration(
+                labelText: 'Reading room',
+                isDense: true,
+              ),
               items: [
-                for (final floor in ['Floor 1', 'Floor 2', 'Floor 3'])
-                  DropdownMenuItem(value: floor, child: Text(floor)),
+                for (final name in ['All rooms', ...rooms])
+                  DropdownMenuItem(value: name, child: Text(name)),
               ],
               onChanged: (value) {
-                if (value != null) setState(() => _floor = value);
+                if (value != null) setState(() => _room = value);
               },
             ),
             const SizedBox(height: 13),
+            Text(
+              'Current availability ? ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(13),
@@ -60,9 +95,9 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                       width: 105,
                       height: 105,
                       child: _OccupancyDonut(
-                        percent: (occupancyRate * 100).round(),
-                        value: occupancyRate,
-                        summaryText: '${reservedCount + occupiedCount} / ${availableCount + reservedCount + occupiedCount}',
+                        percent: (rate * 100).round(),
+                        value: rate,
+                        summaryText: '${reserved + occupied} / $total',
                       ),
                     ),
                     const SizedBox(width: 13),
@@ -70,20 +105,31 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                       child: Column(
                         children: [
                           _OccupancyLegend(
+                            label: 'Total seats',
+                            value: '$total',
+                            color: primary,
+                          ),
+                          _OccupancyLegend(
                             label: 'Available',
-                            value: availableCount.toString(),
+                            value: '$available',
                             color: AppColors.success,
                           ),
                           _OccupancyLegend(
                             label: 'Reserved',
-                            value: reservedCount.toString(),
+                            value: '$reserved',
                             color: primary,
                           ),
                           _OccupancyLegend(
                             label: 'Occupied',
-                            value: occupiedCount.toString(),
+                            value: '$occupied',
                             color: AppColors.error,
                           ),
+                          if (maintenance > 0)
+                            _OccupancyLegend(
+                              label: 'Maintenance',
+                              value: '$maintenance',
+                              color: AppColors.secondaryText,
+                            ),
                         ],
                       ),
                     ),
@@ -102,21 +148,48 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: seats.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
+                    crossAxisCount: 4,
                     crossAxisSpacing: 6,
                     mainAxisSpacing: 7,
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.25,
                   ),
                   itemBuilder: (context, index) {
                     final seat = seats[index];
-                    final state = seat == selectedSeat
-                        ? ManagerSeatState.selected
-                        : conflictSeats.contains(seat)
-                        ? ManagerSeatState.conflict
-                        : reservedSeats.contains(seat)
-                        ? ManagerSeatState.reserved
-                        : ManagerSeatState.available;
-                    return SeatChip(label: seat, state: state);
+                    final status = statuses[seat.id]!;
+                    final color = switch (status) {
+                      SeatStatus.available => AppColors.success,
+                      SeatStatus.reserved => primary,
+                      SeatStatus.occupied => AppColors.error,
+                      SeatStatus.maintenance => AppColors.secondaryText,
+                    };
+                    return InkWell(
+                      onTap: () => _showSeat(context, seat.id),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              seat.seatNumber.isEmpty
+                                  ? seat.id
+                                  : seat.seatNumber,
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              status.label,
+                              style: TextStyle(color: color, fontSize: 9),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
@@ -128,10 +201,47 @@ class _ManagerReadingRoomScreenState extends State<ManagerReadingRoomScreen> {
                 _SeatStatusLegend(color: AppColors.success, label: 'Available'),
                 _SeatStatusLegend(color: primary, label: 'Reserved'),
                 _SeatStatusLegend(color: AppColors.error, label: 'Occupied'),
+                _SeatStatusLegend(
+                  color: AppColors.secondaryText,
+                  label: 'Maintenance',
+                ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showSeat(BuildContext context, String id) {
+    final repository = ManagerScope.read(context).repository;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ListenableBuilder(
+        listenable: repository,
+        builder: (context, _) {
+          final matches = repository.seats.where((seat) => seat.id == id);
+          final seat = matches.isEmpty ? null : matches.first;
+          return AlertDialog(
+            title: Text(
+              seat == null
+                  ? 'Seat not found'
+                  : 'Seat ${seat.seatNumber.isEmpty ? seat.id : seat.seatNumber}',
+            ),
+            content: Text(
+              repository.seatsError ??
+                  (seat == null
+                      ? 'This seat is no longer available.'
+                      : '${seat.readingRoom} ? ${seat.zone} ? ${repository.seatStatus(seat).label}'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -198,7 +308,13 @@ class _DonutPainter extends CustomPainter {
     stroke.color = track;
     canvas.drawArc(rect, 0, math.pi * 2, false, stroke);
     stroke.color = progress;
-    canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * value.clamp(0.0, 1.0), false, stroke);
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2 * value.clamp(0.0, 1.0),
+      false,
+      stroke,
+    );
   }
 
   @override

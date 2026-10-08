@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../models/reservation.dart';
 import '../../../models/user.dart';
 
 const managerReportTypes = [
@@ -10,7 +12,7 @@ const managerReportTypes = [
   'Conflicts',
 ];
 
-enum ManagerReservationStatus { confirmed, conflict, pending, cancelled }
+enum ManagerReservationStatus { confirmed, conflict, pending, cancelled, collected, returned, rejected, completed, unknown }
 
 enum ManagerSeatState { available, reserved, conflict, selected }
 
@@ -24,6 +26,16 @@ class ManagerReservation {
     required this.time,
     required this.status,
     required this.seat,
+    this.type = ReservationType.book,
+    this.itemId = '',
+    this.studentUid = '',
+    this.studentEmail = '',
+    this.bookingDate,
+    this.requestedAt,
+    this.rawStatus,
+    this.pickupLocation,
+    this.loanPeriodDays,
+    this.note,
   });
 
   final String id;
@@ -34,6 +46,64 @@ class ManagerReservation {
   final String time;
   final ManagerReservationStatus status;
   final String seat;
+  final ReservationType? type;
+  final String itemId;
+  final String studentUid;
+  final String studentEmail;
+  final DateTime? bookingDate;
+  final DateTime? requestedAt;
+  final String? rawStatus;
+  final String? pickupLocation;
+  final int? loanPeriodDays;
+  final String? note;
+
+  String get typeLabel => type?.label ?? 'Not available';
+  String get statusLabel {
+    final value = rawStatus ?? status.name;
+    return value.isEmpty ? 'Not available' : '${value[0].toUpperCase()}${value.substring(1)}';
+  }
+
+  factory ManagerReservation.fromMap(String id, Map<String, dynamic> data) {
+    final type = switch (data['type']) {
+      'book' => ReservationType.book,
+      'seat' => ReservationType.seat,
+      _ => null,
+    };
+    final rawStatus = data['status'] as String?;
+    final status = switch (rawStatus) {
+      'approved' || 'confirmed' => ManagerReservationStatus.confirmed,
+      'pending' => ManagerReservationStatus.pending,
+      'cancelled' => ManagerReservationStatus.cancelled,
+      'rejected' => ManagerReservationStatus.rejected,
+      'collected' => ManagerReservationStatus.collected,
+      'returned' => ManagerReservationStatus.returned,
+      'completed' => type == ReservationType.book
+          ? ManagerReservationStatus.collected : ManagerReservationStatus.completed,
+      'conflict' => ManagerReservationStatus.conflict,
+      _ => ManagerReservationStatus.unknown,
+    };
+    final date = (data['date'] as Timestamp?)?.toDate();
+    final itemName = (data['itemName'] ?? (type == ReservationType.book ? data['bookTitle'] : null)) as String? ?? '';
+    final time = data['timeSlot'] as String? ?? '';
+    return ManagerReservation(
+      id: id, type: type, itemId: data['itemId'] as String? ?? '',
+      book: itemName, student: data['studentName'] as String? ?? '',
+      studentId: data['studentId'] as String? ?? '',
+      studentUid: data['studentUid'] as String? ?? '',
+      studentEmail: data['studentEmail'] as String? ?? '',
+      date: date == null ? 'Not available' : '${date.day.toString().padLeft(2, '0')} ${const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.month - 1]} ${date.year}',
+      time: time, status: status,
+      rawStatus: rawStatus == 'completed' && type == ReservationType.book ? 'collected' : rawStatus,
+      seat: type == ReservationType.seat
+          ? itemName.replaceFirst(RegExp(r'^Seat\s+', caseSensitive: false), '') : '',
+      bookingDate: date,
+      requestedAt: (data['requestedAt'] as Timestamp?)?.toDate(),
+      pickupLocation: data['pickupLocation'] as String?,
+      loanPeriodDays: (data['loanPeriodDays'] as num?)?.toInt(),
+      note: (data['notes'] ?? data['note']) as String?,
+    );
+  }
+
 }
 
 class ManagerUser {
