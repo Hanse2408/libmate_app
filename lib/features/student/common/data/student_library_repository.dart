@@ -1,3 +1,6 @@
+import '../../../../models/book_reservation_validation.dart';
+import '../../../../models/student_loan.dart';
+
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -52,7 +55,8 @@ class StudentIdentity {
 /// their own reservations (see firestore.rules). Creating a reservation runs
 /// in a transaction that re-checks the book / seat, so two students cannot
 /// take the same seat-hour (see SeatSlots).
-class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserver {
+class StudentLibraryRepository extends ChangeNotifier
+    with WidgetsBindingObserver {
   StudentLibraryRepository({
     required FirebaseFirestore firestore,
     required StudentIdentity student,
@@ -60,7 +64,8 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     this.profileImages,
     this.lifecycleBinding,
     this._createEbooks,
-  }) : _db = firestore, _student = student {
+  }) : _db = firestore,
+       _student = student {
     lifecycleBinding?.addObserver(this);
     _listen();
   }
@@ -103,38 +108,58 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
       _availabilityWatches.containsKey(bookId);
 
   /// Updates only personal contact fields; account identity stays unchanged.
-  Future<ActionResult> updateProfile({required String name, required String phone, ImageUpload? photo, bool removePhoto = false}) async {
+  Future<ActionResult> updateProfile({
+    required String name,
+    required String phone,
+    ImageUpload? photo,
+    bool removePhoto = false,
+  }) async {
     final cleanName = name.trim();
     final cleanPhone = phone.trim();
     if (cleanName.length < 2 || cleanName.length > 80) {
-      return const ActionResult.failure('Please enter a name between 2 and 80 characters.');
+      return const ActionResult.failure(
+        'Please enter a name between 2 and 80 characters.',
+      );
     }
     final digits = cleanPhone.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleanPhone.isNotEmpty &&
-        (!RegExp(r'^\+?[0-9 ()-]+$').hasMatch(cleanPhone) || digits.length < 7 || digits.length > 15)) {
+        (!RegExp(r'^\+?[0-9 ()-]+$').hasMatch(cleanPhone) ||
+            digits.length < 7 ||
+            digits.length > 15)) {
       return const ActionResult.failure('Please enter a valid phone number.');
     }
     if (photo != null && removePhoto) {
-      return const ActionResult.failure('Choose a new photo or remove the existing photo.');
+      return const ActionResult.failure(
+        'Choose a new photo or remove the existing photo.',
+      );
     }
     if (photo != null) {
-      final (_, error) = ImageUpload.validate(bytes: photo.bytes, fileName: photo.fileName, mimeType: photo.contentType);
+      final (_, error) = ImageUpload.validate(
+        bytes: photo.bytes,
+        fileName: photo.fileName,
+        mimeType: photo.contentType,
+      );
       if (error != null) return ActionResult.failure(error);
     }
     return _run(() async {
       final updates = <String, dynamic>{
-        'name': cleanName, 'phone': cleanPhone, 'updatedAt': FieldValue.serverTimestamp(),
+        'name': cleanName,
+        'phone': cleanPhone,
+        'updatedAt': FieldValue.serverTimestamp(),
       };
       if (photo != null) {
         try {
-          final asset = await (profileImages ?? CloudinaryImageStorage()).upload(photo)
+          final asset = await (profileImages ?? CloudinaryImageStorage())
+              .upload(photo)
               .timeout(const Duration(seconds: 60));
           updates['photoUrl'] = asset.secureUrl;
           updates['photoPublicId'] = asset.publicId;
         } on ImageStorageException catch (error) {
           throw ActionRefused(error.message);
         } on TimeoutException {
-          throw const ActionRefused('The photo upload timed out. Please try again.');
+          throw const ActionRefused(
+            'The photo upload timed out. Please try again.',
+          );
         }
       } else if (removePhoto) {
         updates['photoUrl'] = FieldValue.delete();
@@ -154,26 +179,33 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
         final user = await tx.get(profile);
         final book = await tx.get(_col(FirestoreCollections.books).doc(bookId));
         if (enabled) {
-          if (!book.exists) throw StateError('This book is no longer in the catalogue.');
+          if (!book.exists)
+            throw StateError('This book is no longer in the catalogue.');
           if (BookRecord.fromMap(book.id, book.data()!).isAvailable) {
             throw StateError('This book is available now. You can reserve it.');
           }
         }
-        final watches = Map<String, dynamic>.from(user.data()?['bookAvailabilityWatches'] as Map? ?? {});
+        final watches = Map<String, dynamic>.from(
+          user.data()?['bookAvailabilityWatches'] as Map? ?? {},
+        );
         if (enabled) {
           watches.putIfAbsent(bookId, () => token);
         } else {
           watches.remove(bookId);
         }
         tx.update(profile, {
-          FieldPath(['bookAvailabilityWatches', bookId]): enabled ? watches[bookId] : FieldValue.delete(),
+          FieldPath(['bookAvailabilityWatches', bookId]): enabled
+              ? watches[bookId]
+              : FieldValue.delete(),
         });
       });
       return const ActionResult.success();
     } on StateError catch (error) {
       return ActionResult.failure(error.message.toString());
     } catch (_) {
-      return const ActionResult.failure('Could not update your alert. Please try again.');
+      return const ActionResult.failure(
+        'Could not update your alert. Please try again.',
+      );
     }
   }
 
@@ -201,18 +233,30 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
       await _db.runTransaction((tx) async {
         final user = await tx.get(profile);
         final book = await tx.get(_col(FirestoreCollections.books).doc(bookId));
-        final watches = Map<String, dynamic>.from(user.data()?['bookAvailabilityWatches'] as Map? ?? {});
-        if (!_alertsActive || _disposed || watches[bookId] != token ||
-            !book.exists || !BookRecord.fromMap(book.id, book.data()!).isAvailable) {
+        final watches = Map<String, dynamic>.from(
+          user.data()?['bookAvailabilityWatches'] as Map? ?? {},
+        );
+        if (!_alertsActive ||
+            _disposed ||
+            watches[bookId] != token ||
+            !book.exists ||
+            !BookRecord.fromMap(book.id, book.data()!).isAvailable) {
           return;
         }
-        final alerts = Map<String, dynamic>.from(user.data()?['bookAvailabilityNotifications'] as Map? ?? {});
-        alerts.putIfAbsent(token as String, () => StudentNotification.create(
-          recipientUid: student.uid, type: StudentNotificationType.bookAvailable,
-          title: 'Your next read is available!',
-          message: '${book.data()!['title']} has an available copy. Tap to reserve it before it is taken.',
-          itemId: bookId,
-        ));
+        final alerts = Map<String, dynamic>.from(
+          user.data()?['bookAvailabilityNotifications'] as Map? ?? {},
+        );
+        alerts.putIfAbsent(
+          token as String,
+          () => StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.bookAvailable,
+            title: 'Your next read is available!',
+            message:
+                '${book.data()!['title']} has an available copy. Tap to reserve it before it is taken.',
+            itemId: bookId,
+          ),
+        );
         watches.remove(bookId);
         // Both writes commit together. Other devices cannot deliver twice.
         tx.update(profile, {
@@ -234,8 +278,13 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
       (ebook ? _favoriteEbookIds : _favoriteBookIds).contains(id);
 
   List<String> get catalogueCategories {
-    final categories = _books.map((book) => book.category)
-        .where((category) => category != 'eBooks').toSet().toList()..sort();
+    final categories =
+        _books
+            .map((book) => book.category)
+            .where((category) => category != 'eBooks')
+            .toSet()
+            .toList()
+          ..sort();
     return ['All', ...categories, 'eBooks'];
   }
 
@@ -246,6 +295,9 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   List<BookRecord> _books = const [];
   List<SeatRecord> _seats = const [];
   Map<String, ReservationLoanProgress> _reservationLoans = {};
+  List<StudentLoan> _myLoans = const [];
+  List<StudentLoan> get borrowedBooks =>
+      List.unmodifiable(_myLoans.where((loan) => !loan.isReturned));
 
   ReservationLoanProgress? loanProgressForReservation(String reservationId) =>
       _reservationLoans[reservationId];
@@ -267,7 +319,11 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   /// This student's notifications, newest first.
   List<StudentNotification> get notifications =>
       [..._notifications, ..._availabilityNotifications]
-        .where((notification) => !_dismissedNotificationIds.contains(notification.id)).toList()
+          .where(
+            (notification) =>
+                !_dismissedNotificationIds.contains(notification.id),
+          )
+          .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   int get unreadNotificationCount =>
@@ -308,28 +364,46 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
 
   void _listen() {
     _waiting.add('favourites');
-    _subscriptions.add(_col(FirestoreCollections.users).doc(student.uid).snapshots().listen((snapshot) {
-      final data = snapshot.data() ?? const <String, dynamic>{};
-      _student = StudentIdentity(
-        uid: student.uid,
-        studentId: data['studentId'] as String? ?? student.studentId,
-        name: data['name'] as String? ?? student.name,
-        email: data['email'] as String? ?? student.email,
-        phone: data['phone'] as String? ?? '',
-        photoUrl: data['photoUrl'] as String?,
-      );
-      _dismissedNotificationIds = Set<String>.from(data['dismissedNotificationIds'] as List? ?? const []);
-      _availabilityWatches = Map<String, dynamic>.from(data['bookAvailabilityWatches'] as Map? ?? {});
-      final alerts = Map<String, dynamic>.from(data['bookAvailabilityNotifications'] as Map? ?? {});
-      _availabilityNotifications = [
-        for (final entry in alerts.entries)
-          StudentNotification.fromMap('availability_${entry.key}', Map<String, dynamic>.from(entry.value as Map)),
-      ];
-      _checkAvailabilityAlerts();
-      _favoriteBookIds = Set<String>.from(data['favoriteBookIds'] as List? ?? const []);
-      _favoriteEbookIds = Set<String>.from(data['favoriteEbookIds'] as List? ?? const []);
-      _received('favourites');
-    }, onError: (Object error) => _failed('favourites', error)));
+    _subscriptions.add(
+      _col(FirestoreCollections.users)
+          .doc(student.uid)
+          .snapshots()
+          .listen((snapshot) {
+            final data = snapshot.data() ?? const <String, dynamic>{};
+            _student = StudentIdentity(
+              uid: student.uid,
+              studentId: data['studentId'] as String? ?? student.studentId,
+              name: data['name'] as String? ?? student.name,
+              email: data['email'] as String? ?? student.email,
+              phone: data['phone'] as String? ?? '',
+              photoUrl: data['photoUrl'] as String?,
+            );
+            _dismissedNotificationIds = Set<String>.from(
+              data['dismissedNotificationIds'] as List? ?? const [],
+            );
+            _availabilityWatches = Map<String, dynamic>.from(
+              data['bookAvailabilityWatches'] as Map? ?? {},
+            );
+            final alerts = Map<String, dynamic>.from(
+              data['bookAvailabilityNotifications'] as Map? ?? {},
+            );
+            _availabilityNotifications = [
+              for (final entry in alerts.entries)
+                StudentNotification.fromMap(
+                  'availability_${entry.key}',
+                  Map<String, dynamic>.from(entry.value as Map),
+                ),
+            ];
+            _checkAvailabilityAlerts();
+            _favoriteBookIds = Set<String>.from(
+              data['favoriteBookIds'] as List? ?? const [],
+            );
+            _favoriteEbookIds = Set<String>.from(
+              data['favoriteEbookIds'] as List? ?? const [],
+            );
+            _received('favourites');
+          }, onError: (Object error) => _failed('favourites', error)),
+    );
     _watch(_col(FirestoreCollections.books), 'books', (docs) {
       _books = [
         for (final d in docs) BookRecord.fromMap(d.id, d.data()),
@@ -369,21 +443,32 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     );
 
     // Read only this student's loans, linked by reservation ID, never book ID.
-    _watch(_col(FirestoreCollections.borrowings)
-        .where('memberUid', isEqualTo: student.uid), 'loanProgress', (docs) {
-      final loans = <String, ReservationLoanProgress>{};
-      for (final doc in docs) {
-        final data = doc.data();
-        final reservationId = data['reservationId'];
-        if (reservationId is! String || reservationId.isEmpty) continue;
-        final loan = ReservationLoanProgress.fromMap(data);
-        final previous = loans[reservationId];
-        if (previous == null || loan.issuedAt.isAfter(previous.issuedAt)) {
-          loans[reservationId] = loan;
+    _watch(
+      _col(FirestoreCollections.borrowings)
+          .where('memberUid', isEqualTo: student.uid),
+      'loanProgress',
+      (docs) {
+        _myLoans =
+            [for (final doc in docs) StudentLoan.fromMap(doc.id, doc.data())]
+              ..sort(
+                (a, b) => (a.dueDate ?? DateTime(9999)).compareTo(
+                  b.dueDate ?? DateTime(9999),
+                ),
+              );
+        final loans = <String, ReservationLoanProgress>{};
+        for (final doc in docs) {
+          final data = doc.data();
+          final reservationId = data['reservationId'];
+          if (reservationId is! String || reservationId.isEmpty) continue;
+          final loan = ReservationLoanProgress.fromMap(data);
+          final previous = loans[reservationId];
+          if (previous == null || loan.issuedAt.isAfter(previous.issuedAt)) {
+            loans[reservationId] = loan;
+          }
         }
-      }
-      _reservationLoans = loans;
-    });
+        _reservationLoans = loans;
+      },
+    );
 
     _waiting.add('settings');
     _subscriptions.add(
@@ -473,19 +558,25 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   /// Hide an opened notification persistently, without requiring delete rules.
   /// Mark it read in the same batch so the badge stays accurate on every device.
   Future<ActionResult> dismissNotification(String id) async {
-    if (_dismissedNotificationIds.contains(id)) return const ActionResult.success();
+    if (_dismissedNotificationIds.contains(id))
+      return const ActionResult.success();
     final notification = notifications.where((n) => n.id == id).firstOrNull;
-    if (notification == null) return const ActionResult.failure('Notification not found.');
+    if (notification == null)
+      return const ActionResult.failure('Notification not found.');
     return _run(() async {
       final batch = _db.batch();
       final profile = _col(FirestoreCollections.users).doc(student.uid);
       final profileUpdates = <String, dynamic>{
         'dismissedNotificationIds': FieldValue.arrayUnion([id]),
       };
-      if (notification.type == StudentNotificationType.bookAvailable && id.startsWith('availability_')) {
-        profileUpdates['bookAvailabilityNotifications.${id.substring('availability_'.length)}.isRead'] = true;
+      if (notification.type == StudentNotificationType.bookAvailable &&
+          id.startsWith('availability_')) {
+        profileUpdates['bookAvailabilityNotifications.${id.substring('availability_'.length)}.isRead'] =
+            true;
       } else if (!notification.isRead) {
-        batch.update(_col(FirestoreCollections.notifications).doc(id), {'isRead': true});
+        batch.update(_col(FirestoreCollections.notifications).doc(id), {
+          'isRead': true,
+        });
       }
       batch.update(profile, profileUpdates);
       await batch.commit();
@@ -500,12 +591,16 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
       return const ActionResult.failure('Notification not found.');
     if (notification.isRead) return const ActionResult.success();
     return _run(() async {
-      if (notification.type == StudentNotificationType.bookAvailable && id.startsWith('availability_')) {
+      if (notification.type == StudentNotificationType.bookAvailable &&
+          id.startsWith('availability_')) {
         await _col(FirestoreCollections.users).doc(student.uid).update({
-          'bookAvailabilityNotifications.${id.substring('availability_'.length)}.isRead': true,
+          'bookAvailabilityNotifications.${id.substring('availability_'.length)}.isRead':
+              true,
         });
       } else {
-        await _col(FirestoreCollections.notifications).doc(id).update({'isRead': true});
+        await _col(FirestoreCollections.notifications)
+            .doc(id)
+            .update({'isRead': true});
       }
       return null;
     });
@@ -518,12 +613,16 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     return _run(() async {
       final batch = _db.batch();
       for (final n in unread) {
-        if (n.type == StudentNotificationType.bookAvailable && n.id.startsWith('availability_')) {
+        if (n.type == StudentNotificationType.bookAvailable &&
+            n.id.startsWith('availability_')) {
           batch.update(_col(FirestoreCollections.users).doc(student.uid), {
-            'bookAvailabilityNotifications.${n.id.substring('availability_'.length)}.isRead': true,
+            'bookAvailabilityNotifications.${n.id.substring('availability_'.length)}.isRead':
+                true,
           });
         } else {
-          batch.update(_col(FirestoreCollections.notifications).doc(n.id), {'isRead': true});
+          batch.update(_col(FirestoreCollections.notifications).doc(n.id), {
+            'isRead': true,
+          });
         }
       }
       await batch.commit();
@@ -624,11 +723,16 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   }
 
   /// Atomic per-user favourites: separate IDs for physical and digital books.
-  Future<ActionResult> setFavorite(String id, {required bool favorite, bool ebook = false}) {
+  Future<ActionResult> setFavorite(
+    String id, {
+    required bool favorite,
+    bool ebook = false,
+  }) {
     return _run(() async {
       await _col(FirestoreCollections.users).doc(student.uid).update({
-        ebook ? 'favoriteEbookIds' : 'favoriteBookIds':
-            favorite ? FieldValue.arrayUnion([id]) : FieldValue.arrayRemove([id]),
+        ebook ? 'favoriteEbookIds' : 'favoriteBookIds': favorite
+            ? FieldValue.arrayUnion([id])
+            : FieldValue.arrayRemove([id]),
       });
       return null;
     });
@@ -643,6 +747,12 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     required int loanPeriodDays,
     required String pickupLocation,
   }) async {
+    final fieldError = BookReservationValidation.error(
+      pickupDate: pickupDate,
+      loanPeriodDays: loanPeriodDays,
+      pickupLocation: pickupLocation,
+    );
+    if (fieldError != null) return ActionResult.failure(fieldError);
     final blocker = bookReservationBlocker(book);
 
     if (blocker != null) {
@@ -727,6 +837,13 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     required int loanPeriodDays,
     String? notes,
   }) {
+    final fieldError = BookReservationValidation.error(
+      pickupDate: pickupDate,
+      loanPeriodDays: loanPeriodDays,
+      pickupLocation: pickupLocation,
+    );
+    if (fieldError != null)
+      return Future.value(ActionResult.failure(fieldError));
     return _run(() async {
       await _db.runTransaction((tx) async {
         final ref = _col(FirestoreCollections.reservations).doc(reservationId);
@@ -753,10 +870,14 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
         }
 
         if (reservation.status == ReservationStatus.approved) {
-          throw const ActionRefused('Approved book reservations cannot be modified.');
+          throw const ActionRefused(
+            'Approved book reservations cannot be modified.',
+          );
         }
         if (!reservation.isPending) {
-          throw const ActionRefused('Only pending book reservations can be modified.');
+          throw const ActionRefused(
+            'Only pending book reservations can be modified.',
+          );
         }
 
         tx.update(ref, {

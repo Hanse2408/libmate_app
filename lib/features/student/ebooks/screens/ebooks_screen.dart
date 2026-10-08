@@ -69,6 +69,48 @@ class _EbooksScreenState extends State<EbooksScreen> {
                           controller: _search,
                           onChanged: provider.search,
                         ),
+                        if (provider.categories.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                for (final category in <String?>[
+                                  null,
+                                  ...provider.categories,
+                                ])
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: Text(category ?? 'All'),
+                                      selected:
+                                          provider.selectedCategory == category,
+                                      onSelected: (_) =>
+                                          provider.selectCategory(category),
+                                      selectedColor: c.primary.withValues(
+                                        alpha: .16,
+                                      ),
+                                      backgroundColor: c.surface,
+                                      labelStyle: TextStyle(
+                                        color:
+                                            provider.selectedCategory ==
+                                                category
+                                            ? c.primary
+                                            : c.muted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      side: BorderSide(
+                                        color: c.primary.withValues(alpha: .22),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 22),
                         Row(
                           children: [
@@ -78,7 +120,7 @@ class _EbooksScreenState extends State<EbooksScreen> {
                                 style: TextStyle(
                                   color: c.text,
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
@@ -113,8 +155,7 @@ class _EbooksScreenState extends State<EbooksScreen> {
                           _Message(
                             icon: Icons.search_off_rounded,
                             title: 'No e-books found',
-                            message:
-                                'Nothing matches "${provider.query.trim()}". Try a title, author or category.',
+                            message: 'No e-books match your search and category. Try another category or clear your search.',
                           )
                         else
                           for (final ebook in results) ...[
@@ -155,8 +196,8 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = EbookColors.of(context);
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: c.border),
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(color: c.primary.withValues(alpha: .22)),
     );
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
@@ -180,6 +221,10 @@ class _SearchBar extends StatelessWidget {
                 ),
           filled: true,
           fillColor: c.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 17,
+          ),
           border: border,
           enabledBorder: border,
           focusedBorder: border.copyWith(
@@ -203,15 +248,23 @@ class _EbookCard extends StatelessWidget {
     final size = EbookRecord.formatSize(ebook.pdfSizeBytes);
     return Material(
       color: c.surface,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: c.border),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.alphaBlend(c.primary.withValues(alpha: .04), c.surface),
+                c.surface,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: c.primary.withValues(alpha: .22)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +289,7 @@ class _EbookCard extends StatelessWidget {
                       style: TextStyle(
                         color: c.text,
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -328,8 +381,8 @@ class _Message extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: c.border),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: c.primary.withValues(alpha: .22)),
       ),
       child: Column(
         children: [
@@ -346,7 +399,7 @@ class _Message extends StatelessWidget {
             style: TextStyle(
               color: c.text,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 6),

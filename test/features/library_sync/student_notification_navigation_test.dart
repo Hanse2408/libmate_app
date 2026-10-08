@@ -8,6 +8,44 @@ import 'package:libmate_app/features/student/seat_booking/screens/seat_reservati
 import 'library_test_support.dart';
 
 void main() {
+  testWidgets('read notifications stay hidden and dismiss clears the badge without navigation', (tester) async {
+    final db = await seededFirestore();
+    final library = studentRepo(db);
+    addTearDown(library.dispose);
+    for (final id in ['old-read', 'new-alert', 'other-alert']) {
+      await db.collection('notifications').doc(id).set({
+        'recipientUid': studentUid, 'type': 'reservationApproved',
+        'isRead': id == 'old-read', 'title': id,
+      });
+    }
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: StudentNotificationButton(library: library))));
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Notifications'));
+    await tester.pumpAndSettle();
+    expect(find.text('old-read'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('dismiss-new-alert')));
+    await tester.pumpAndSettle();
+    expect(find.byType(StudentNotificationsScreen), findsOneWidget);
+    expect(find.text('new-alert'), findsNothing);
+    expect(find.text('other-alert'), findsOneWidget);
+    expect(library.unreadNotificationCount, 1);
+    expect((await db.collection('notifications').doc('new-alert').get()).data()!['isRead'], true);
+    await tester.tap(find.text('Mark all read'));
+    await tester.pumpAndSettle();
+    expect(find.text('other-alert'), findsNothing);
+    expect(find.text('You have no new notifications.'), findsOneWidget);
+    expect(library.unreadNotificationCount, 0);
+    Navigator.of(tester.element(find.byType(StudentNotificationsScreen))).pop();
+    await tester.pumpAndSettle();
+    expect(tester.widget<Badge>(find.byType(Badge)).isLabelVisible, false);
+    await tester.tap(find.byTooltip('Notifications'));
+    await tester.pumpAndSettle();
+    expect(find.text('You have no new notifications.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   test('opened notifications disappear persistently and only for their recipient', () async {
     final db = await seededFirestore(); final library = studentRepo(db);
     addTearDown(library.dispose);

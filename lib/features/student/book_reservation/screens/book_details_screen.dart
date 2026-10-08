@@ -141,7 +141,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -164,7 +164,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: StudentPalette.of(context).border,
+          color: StudentPalette.of(context).primary.withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
         ),
       ),
       child: IconButton(
@@ -182,9 +182,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   Widget _buildBookCover() {
     return Container(
       width: double.infinity,
-      height: 230,
+      height: 250,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color.alphaBlend(StudentPalette.of(context).primary.withValues(alpha: .12), StudentPalette.of(context).card), StudentPalette.of(context).card]),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: StudentPalette.of(context).primary.withValues(alpha: .2)),
       ),
       child: Center(
         child: StudentBookCover(
@@ -238,7 +241,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(9),
           ),
           child: Text(
             category,
@@ -256,7 +259,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ),
           decoration: BoxDecoration(
             color: available ? StudentPalette.of(context).successTint : StudentPalette.of(context).errorTint,
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(9),
           ),
           child: Text(
             available
@@ -286,7 +289,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         color: Theme.of(context).colorScheme.surface,
         gradient: StudentPalette.of(context).cardGradient,
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: StudentPalette.of(context).gold,
           width: 1.5,
@@ -342,7 +345,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           style: TextStyle(
             color: StudentPalette.of(context).muted,
             fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
@@ -366,7 +369,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 15,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         SizedBox(height: 8),
@@ -432,7 +435,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           'Reserve Book',
           style: TextStyle(
             fontSize: 15,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

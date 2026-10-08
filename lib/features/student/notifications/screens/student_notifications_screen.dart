@@ -80,7 +80,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
         child: ListenableBuilder(
           listenable: library,
           builder: (context, _) {
-            final notifications = library.notifications;
+            final notifications = library.notifications.where((n) => !n.isRead).toList();
             return Column(
               children: [
                 Padding(
@@ -102,7 +102,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 21,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
@@ -132,7 +132,7 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            library.loadError ?? 'You have no notifications yet.',
+            library.loadError ?? 'You have no new notifications.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -151,15 +151,17 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
         final (icon, color) = _style(context, n.type);
         return InkWell(
           onTap: () => _openNotification(n),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [Color.alphaBlend(color.withValues(alpha: .08), Theme.of(context).colorScheme.surface), Theme.of(context).colorScheme.surface]),
               color: n.isRead
                   ? Theme.of(context).colorScheme.surface
                   : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFD6E3F2)),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? .35 : .22)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,6 +202,14 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Dismiss notification',
+                  key: ValueKey('dismiss-${n.id}'),
+                  onPressed: () => _run(context, () => library.dismissNotification(n.id)),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  visualDensity: VisualDensity.compact,
                 ),
                 if (!n.isRead)
                   Container(

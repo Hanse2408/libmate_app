@@ -1,3 +1,4 @@
+import 'package:libmate_app/models/reservation_display_reference.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,7 +59,7 @@ void main() {
     expect(find.text('Reading Room A'), findsOneWidget);
     expect(find.text('Tue, 5 Mar 2030'), findsOneWidget);
     expect(find.text('10:00 – 12:00'), findsOneWidget);
-    expect(find.text('abc123XYZ'), findsOneWidget);
+    expect(find.text(ReservationDisplayReference.forId('abc123XYZ')), findsOneWidget);
     expect(find.text('Confirmed'), findsOneWidget);
     expect(find.textContaining('Pending'), findsNothing);
     expect(find.textContaining('approval'), findsNothing);

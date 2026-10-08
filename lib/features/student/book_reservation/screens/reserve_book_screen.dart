@@ -1,9 +1,11 @@
+import '../../common/widgets/loan_period_field.dart';
 import '../../common/widgets/student_palette.dart';
 import '../../../../core/constants/book_pickup_locations.dart';
 import 'my_reservations_screen.dart';
 import 'find_books_screen.dart';
 import '../../common/screens/profile_screen.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../../models/book.dart';
@@ -31,9 +33,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   DateTime _pickupDate = _today().add(const Duration(days: 1));
 
   late int _loanPeriod =
-      _loanPeriods.contains(widget.library.settings.loanPeriodDays)
-          ? widget.library.settings.loanPeriodDays
-          : 14;
+      (widget.library.settings.loanPeriodDays >= 1 &&
+          widget.library.settings.loanPeriodDays <= 30)
+      ? widget.library.settings.loanPeriodDays
+      : 14;
 
   bool _saving = false;
 
@@ -46,8 +49,6 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
 
   String _pickupLocation = BookPickupLocations.defaultLocation;
 
-  final List<int> _loanPeriods = [7, 14, 21, 30];
-
   final List<String> _pickupLocations = BookPickupLocations.all;
 
   @override
@@ -56,9 +57,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
 
     if (book == null) {
       return Scaffold(
-        body: Center(
-          child: Text('This book is no longer in the catalogue.'),
-        ),
+        body: Center(child: Text('This book is no longer in the catalogue.')),
       );
     }
 
@@ -83,7 +82,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                       style: TextStyle(
                         color: StudentPalette.of(context).text,
                         fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     SizedBox(height: 12),
@@ -121,7 +120,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 style: TextStyle(
                   color: StudentPalette.of(context).text,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -143,17 +142,14 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         color: StudentPalette.of(context).card,
         shape: BoxShape.circle,
         border: Border.all(
-          color: StudentPalette.of(context).border,
+          color: StudentPalette.of(context).primary
+              .withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
         ),
       ),
       child: IconButton(
         onPressed: onPressed,
         padding: EdgeInsets.zero,
-        icon: Icon(
-          icon,
-          color: StudentPalette.of(context).text,
-          size: 19,
-        ),
+        icon: Icon(icon, color: StudentPalette.of(context).text, size: 19),
       ),
     );
   }
@@ -166,9 +162,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         color: StudentPalette.of(context).card,
         gradient: StudentPalette.of(context).cardGradient,
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -198,10 +194,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 ),
                 SizedBox(height: 7),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: StudentPalette.of(context).blueTint,
                     borderRadius: BorderRadius.circular(6),
@@ -217,10 +210,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 ),
                 SizedBox(height: 7),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: StudentPalette.of(context).successTint,
                     borderRadius: BorderRadius.circular(6),
@@ -259,9 +249,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         color: StudentPalette.of(context).card,
         gradient: StudentPalette.of(context).cardGradient,
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -305,17 +295,10 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 17,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 17),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: StudentPalette.of(context).text,
-                  size: 23,
-                ),
+                Icon(icon, color: StudentPalette.of(context).text, size: 23),
                 SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -334,7 +317,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                         style: TextStyle(
                           color: StudentPalette.of(context).muted,
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
@@ -352,7 +335,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
             Divider(
               height: 1,
               thickness: 1,
-              color: StudentPalette.of(context).border,
+              color: StudentPalette.of(context).primary.withValues(
+                alpha: StudentPalette.of(context).isDark ? .32 : .22,
+              ),
             ),
         ],
       ),
@@ -362,15 +347,12 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   Widget _buildWarning() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 18,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).goldTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
         ),
       ),
       child: Row(
@@ -423,10 +405,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         ),
         child: Text(
           _saving ? 'Sending request…' : 'Confirm Reservation',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -439,33 +418,41 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       },
       onSearch: () {
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FindBooksScreen(library: widget.library)));
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => FindBooksScreen(library: widget.library),
+          ),
+        );
       },
       onReservations: () {
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: widget.library)));
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MyReservationsScreen(library: widget.library),
+          ),
+        );
       },
       onProfile: () {
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: widget.library)));
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProfileScreen(library: widget.library),
+          ),
+        );
       },
     );
   }
 
-
-
   Future<void> _selectPickupDate() async {
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: _pickupDate,
+      initialDate: _pickupDate.isBefore(_today()) ? _today() : _pickupDate,
       firstDate: _today(),
       lastDate: _today().add(Duration(days: 30)),
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context),
-          child: child!,
-        );
+        return Theme(data: Theme.of(context), child: child!);
       },
     );
 
+    if (!mounted) return;
     if (selectedDate != null) {
       setState(() {
         _pickupDate = selectedDate;
@@ -474,73 +461,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
   }
 
   Future<void> _selectLoanPeriod() async {
-    final selectedPeriod = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 18, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: StudentPalette.of(context).border,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              SizedBox(height: 18),
-              Text(
-                'Select Loan Period',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 12),
-              ..._loanPeriods.map(
-                (period) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    '$period Days',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 15,
-                    ),
-                  ),
-                  trailing: period == _loanPeriod
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                        )
-                      : Icon(
-                          Icons.circle_outlined,
-                          color: StudentPalette.of(context).border,
-                        ),
-                  onTap: () {
-                    Navigator.pop(context, period);
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (selectedPeriod != null) {
-      setState(() {
-        _loanPeriod = selectedPeriod;
-      });
-    }
+    final days = await selectLoanPeriod(context, _loanPeriod);
+    if (!mounted || days == null) return;
+    setState(() => _loanPeriod = days);
   }
 
   Future<void> _selectPickupLocation() async {
@@ -548,9 +471,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -562,7 +483,9 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: StudentPalette.of(context).border,
+                  color: StudentPalette.of(context).primary.withValues(
+                    alpha: StudentPalette.of(context).isDark ? .32 : .22,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -572,7 +495,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: 12),
@@ -607,6 +530,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
       },
     );
 
+    if (!mounted) return;
     if (selectedLocation != null) {
       setState(() {
         _pickupLocation = selectedLocation;
@@ -635,11 +559,7 @@ class _ReserveBookScreenState extends State<ReserveBookScreen> {
     if (!result.success) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(result.message!),
-          ),
-        );
+        ..showSnackBar(SnackBar(content: Text(result.message!)));
       return;
     }
 

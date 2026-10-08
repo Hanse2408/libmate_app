@@ -1,9 +1,12 @@
+import '../../book_reservation/screens/borrowed_books_screen.dart';
 import '../widgets/student_palette.dart';
 import '../../../../core/widgets/libmate_logo.dart';
 import '../widgets/edit_profile_dialog.dart';
 import '../widgets/student_avatar.dart';
 import '../widgets/student_notification_button.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_theme.dart';
 import '../data/student_library_repository.dart';
 import '../widgets/student_bottom_navigation.dart';
@@ -11,10 +14,7 @@ import '../../book_reservation/screens/find_books_screen.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({
-    super.key,
-    required this.library,
-  });
+  const ProfileScreen({super.key, required this.library});
 
   final StudentLibraryRepository library;
 
@@ -23,7 +23,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _darkMode = false;
+  bool get _darkMode => Theme.of(context).brightness == Brightness.dark;
   bool _notificationsEnabled = true;
 
   Color get _backgroundColor => Theme.of(context).scaffoldBackgroundColor;
@@ -36,226 +36,401 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(listenable: widget.library, builder: (context, _) => Scaffold(
-      backgroundColor: _backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProfileHeading(),
-                    SizedBox(height: 18),
-                    _buildUserCard(),
-                    SizedBox(height: 20),
-                    _buildSettingsCard(),
-                    SizedBox(height: 20),
-                    _buildStatisticsCard(),
-                    SizedBox(height: 20),
-                    _buildLogoutButton(),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-    ));
-  }
-
-  Widget _buildTopHeader() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 18, 20, 8),
-      child: Row(
-        children: [
-          Row(
+    return ListenableBuilder(
+      listenable: widget.library,
+      builder: (context, _) => Scaffold(
+        backgroundColor: _backgroundColor,
+        body: SafeArea(
+          child: Column(
             children: [
-              _buildLibMateLogo(),
-              SizedBox(width: 8),
-              Text(
-                'LibMate',
-                style: TextStyle(
-                  color: _textColor,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+              _buildTopHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(20, 14, 20, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildProfileHeading(),
+                      SizedBox(height: 22),
+                      _buildUserCard(),
+                      SizedBox(height: 20),
+                      _buildSectionHeading('Library activity'),
+                      SizedBox(height: 10),
+                      _buildStatisticsCard(),
+                      SizedBox(height: 24),
+                      _buildSectionHeading('Preferences'),
+                      SizedBox(height: 10),
+                      _buildSettingsCard(),
+                      SizedBox(height: 20),
+                      _buildLogoutButton(),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          Spacer(),
-          StudentNotificationButton(library: widget.library, color: _textColor),
-          SizedBox(width: 16),
-          StudentAvatar(name: widget.library.student.name, photoUrl: widget.library.student.photoUrl, size: 34),
-        ],
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
     );
   }
 
-  Widget _buildLibMateLogo() => const LibMateLogo(size: 36);
-
-  Widget _buildProfileHeading() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTopHeader() => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+    child: Row(
       children: [
-        Text(
-          'Profile',
-          style: TextStyle(
-            color: _textColor,
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
+        _buildLibMateLogo(),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'LibMate',
+                style: TextStyle(
+                  color: _textColor,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.6,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'LEARN · RESERVE · BELONG',
+                style: TextStyle(
+                  color: _primaryColor,
+                  fontSize: 8.5,
+                  letterSpacing: .7,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(height: 2),
-        Text(
-          'Manage your account and preferences.',
-          style: TextStyle(
+        Container(
+          decoration: BoxDecoration(
+            color: _cardColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: StudentPalette.of(context).border),
+          ),
+          child: StudentNotificationButton(
+            library: widget.library,
             color: _textColor,
-            fontSize: 12,
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
 
-  Widget _buildUserCard() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(15, 17, 15, 17),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        gradient: StudentPalette.of(context).cardGradient,
-        boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
-          width: 1.2,
+  Widget _buildLibMateLogo() => const LibMateLogo(size: 36);
+
+  Widget _buildProfileHeading() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'MY ACCOUNT',
+        style: TextStyle(
+          color: _darkMode ? _textColor : const Color(0xFF334155),
+          fontSize: 11,
+          letterSpacing: 2,
+          fontWeight: FontWeight.w800,
         ),
       ),
-      child: Row(
+      const SizedBox(height: 6),
+      Text(
+        'Profile',
+        style: TextStyle(
+          color: _darkMode ? _textColor : const Color(0xFF172033),
+          fontSize: 36,
+          height: 1.1,
+          letterSpacing: -1.2,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'A little space for everything you.',
+        style: TextStyle(
+          color: _darkMode ? _secondaryTextColor : const Color(0xFF475569),
+          fontSize: 13,
+          height: 1.4,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  );
+
+  Widget _buildSectionHeading(String title) => Text(
+    title,
+    style: TextStyle(
+      color: _textColor,
+      fontSize: 15,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.2,
+    ),
+  );
+
+  Widget _buildUserCard() {
+    final student = widget.library.student;
+    const white = Colors.white;
+    final quiet = white.withValues(alpha: .74);
+    final gold = StudentPalette.of(context).gold;
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _darkMode
+              ? const [Color(0xFF172C4B), Color(0xFF0F1A2C)]
+              : const [Color(0xFF1E3A8A), Color(0xFF172554)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: _darkMode
+              ? StudentPalette.of(context).border
+              : const Color(0xFF1E3A8A),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _darkMode ? .18 : .12),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
         children: [
-          StudentAvatar(name: widget.library.student.name, photoUrl: widget.library.student.photoUrl, size: 52),
-          SizedBox(width: 15),
-          Expanded(
+          Positioned(
+            top: -50,
+            right: -48,
+            child: IgnorePointer(
+              child: Container(
+                width: 190,
+                height: 190,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: white.withValues(alpha: .06),
+                    width: 28,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 35,
+            left: -65,
+            child: IgnorePointer(
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: white.withValues(alpha: .035),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  widget.library.student.name,
-                  style: TextStyle(
-                    color: _textColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Icon(Icons.auto_stories_outlined, color: gold, size: 17),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'YOUR LIBRARY CARD',
+                        style: TextStyle(
+                          color: quiet,
+                          fontSize: 10,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Edit profile',
+                      onPressed: _editProfile,
+                      style: IconButton.styleFrom(
+                        backgroundColor: white.withValues(alpha: .09),
+                        foregroundColor: white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: gold.withValues(alpha: .8),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: StudentAvatar(
+                      name: student.name,
+                      photoUrl: student.photoUrl,
+                      size: 58,
+                    ),
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 9),
                 Text(
-                  'Student ID: ${widget.library.student.studentId}',
-                  style: TextStyle(
-                    color: _secondaryTextColor,
-                    fontSize: 13,
+                  student.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: white,
+                    fontSize: 23,
+                    height: 1.2,
+                    letterSpacing: -.5,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  widget.library.student.email,
-                  style: TextStyle(
-                    color: _secondaryTextColor,
-                    fontSize: 13,
+                const SizedBox(height: 10),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: gold.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: gold.withValues(alpha: .3)),
+                    ),
+                    child: Text(
+                      'Student ID: ${student.studentId}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: gold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
-                if (widget.library.student.phone.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(widget.library.student.phone,
-                    style: TextStyle(color: _secondaryTextColor, fontSize: 13)),
+                const SizedBox(height: 10),
+                Divider(height: 1, color: white.withValues(alpha: .12)),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.mail_outline_rounded, color: quiet, size: 17),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        student.email,
+                        style: TextStyle(
+                          color: quiet,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (student.phone.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(Icons.phone_outlined, color: quiet, size: 17),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          student.phone,
+                          style: TextStyle(color: quiet, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: StudentPalette.of(context).blueTint,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              tooltip: 'Edit profile',
-              onPressed: _editProfile,
-              padding: EdgeInsets.zero,
-              icon: Icon(
-                Icons.edit_outlined,
-                color: _primaryColor,
-                size: 18,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsCard() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _cardColor,
-        gradient: StudentPalette.of(context).cardGradient,
-        boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
-          width: 1.2,
+  Widget _profilePanel({required Widget child, Color? borderColor}) => Material(
+    color: _cardColor,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(
+        color: (borderColor ?? _primaryColor).withValues(
+          alpha: _darkMode ? .35 : .22,
         ),
       ),
-      child: Column(
-        children: [
-          _buildDarkModeRow(),
-          _buildSettingsDivider(),
-          _buildSettingsRow(
-            icon: Icons.notifications_none_rounded,
-            iconBackground: StudentPalette.of(context).blueTint,
-            iconColor: _primaryColor,
-            title: 'Notifications',
-            subtitle: 'Manage your notification preferences',
-            showArrow: true,
-            onTap: _openNotifications,
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsRow(
-            icon: Icons.tune_rounded,
-            iconBackground: StudentPalette.of(context).goldTint,
-            iconColor: StudentPalette.of(context).gold,
-            title: 'Settings',
-            subtitle: 'Update your preferences',
-            showArrow: true,
-            onTap: _openSettings,
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsRow(
-            icon: Icons.help_outline_rounded,
-            iconBackground: StudentPalette.of(context).blueTint,
-            iconColor: _primaryColor,
-            title: 'Help & Support',
-            subtitle: 'Get help or contact us',
-            showArrow: true,
-            onTap: _openHelp,
-          ),
-        ],
+    ),
+    child: child,
+  );
+
+  Widget _buildSettingsCard() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _profilePanel(
+        borderColor: StudentPalette.of(context).gold,
+        child: _buildDarkModeRow(),
       ),
-    );
-  }
+      const SizedBox(height: 10),
+      _profilePanel(
+        child: _buildSettingsRow(
+          icon: Icons.notifications_none_rounded,
+          iconBackground: StudentPalette.of(context).blueTint,
+          iconColor: _primaryColor,
+          title: 'Notifications',
+          subtitle: 'Manage notification preferences',
+          showArrow: true,
+          onTap: _openNotifications,
+        ),
+      ),
+      const SizedBox(height: 24),
+      _buildSectionHeading('Support & account'),
+      const SizedBox(height: 10),
+      _profilePanel(
+        borderColor: StudentPalette.of(context).gold,
+        child: Column(
+          children: [
+            _buildSettingsRow(
+              icon: Icons.tune_rounded,
+              iconBackground: StudentPalette.of(context).goldTint,
+              iconColor: StudentPalette.of(context).goldText,
+              title: 'Settings',
+              subtitle: 'Make LibMate work for you',
+              showArrow: true,
+              onTap: _openSettings,
+            ),
+            _buildSettingsDivider(),
+            _buildSettingsRow(
+              icon: Icons.help_outline_rounded,
+              iconBackground: StudentPalette.of(context).blueTint,
+              iconColor: _primaryColor,
+              title: 'Help & Support',
+              subtitle: 'We are here to help',
+              showArrow: true,
+              onTap: _openHelp,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 
   Widget _buildDarkModeRow() {
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: 15,
-        vertical: 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 15, vertical: 16),
       child: Row(
         children: [
           _buildSettingIcon(
@@ -278,11 +453,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 SizedBox(height: 1),
                 Text(
-                  'Switch between light and dark theme',
-                  style: TextStyle(
-                    color: _textColor,
-                    fontSize: 10,
-                  ),
+                  'Choose your preferred appearance',
+                  style: TextStyle(color: _secondaryTextColor, fontSize: 12),
                 ),
               ],
             ),
@@ -290,20 +462,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Switch(
             value: _darkMode,
             onChanged: (value) {
-              setState(() {
-                _darkMode = value;
-              });
               AppThemeController.instance.setDarkMode(value);
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    value
-                        ? 'Dark Mode enabled'
-                        : 'Dark Mode disabled',
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      value ? 'Dark mode enabled' : 'Dark mode disabled',
+                    ),
                   ),
-                ),
-              );
+                );
             },
             activeThumbColor: _primaryColor,
             activeTrackColor: StudentPalette.of(context).blueBorder,
@@ -325,10 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 12,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 16),
         child: Row(
           children: [
             _buildSettingIcon(
@@ -352,10 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   SizedBox(height: 1),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: _textColor,
-                      fontSize: 10,
-                    ),
+                    style: TextStyle(color: _textColor, fontSize: 12),
                   ),
                 ],
               ),
@@ -389,176 +552,195 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required Color iconColor,
   }) {
     return Container(
-      width: 29,
-      height: 29,
+      width: 42,
+      height: 42,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(11),
       ),
-      child: Icon(
-        icon,
-        color: iconColor,
-        size: 18,
-      ),
+      child: Icon(icon, color: iconColor, size: 18),
     );
   }
 
   Widget _buildSettingsDivider() {
     return Divider(
       height: 1,
-      color: _dividerColor,
+      indent: 65,
+      endIndent: 16,
+      color: _dividerColor.withValues(alpha: .55),
     );
   }
 
-  Widget _buildStatisticsCard() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 15,
-      ),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        gradient: StudentPalette.of(context).cardGradient,
-        boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: StudentPalette.of(context).blueBorder,
-          width: 1.2,
+  Widget _buildStatisticsCard() => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: _buildStatistic(
+          icon: Icons.menu_book_outlined,
+          iconColor: _primaryColor,
+          label: 'Books borrowed',
+          value: '${widget.library.borrowedBooks.length}',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => BorrowedBooksScreen(library: widget.library),
+            ),
+          ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatistic(
-              icon: Icons.menu_book_outlined,
-              iconColor: StudentPalette.of(context).primary,
-              label: 'Books borrowed',
-              value: '2',
-            ),
-          ),
-          _buildStatisticDivider(),
-          Expanded(
-            child: _buildStatistic(
-              icon: Icons.access_time_rounded,
-              iconColor: StudentPalette.of(context).primary,
-              label: 'Member since',
-              value: '2023',
-            ),
-          ),
-          _buildStatisticDivider(),
-          Expanded(
-            child: _buildStatistic(
-              icon: Icons.star_border_rounded,
-              iconColor: StudentPalette.of(context).primary,
-              label: 'Account type',
-              value: 'Student',
-            ),
-          ),
-        ],
+      const SizedBox(width: 10),
+      Expanded(
+        child: _buildStatistic(
+          icon: Icons.access_time_rounded,
+          iconColor: _primaryColor,
+          label: 'Member since',
+          value: '2023',
+        ),
       ),
-    );
-  }
+      const SizedBox(width: 10),
+      Expanded(
+        child: _buildStatistic(
+          icon: Icons.school_outlined,
+          iconColor: StudentPalette.of(context).goldText,
+          label: 'Account type',
+          value: 'Student',
+        ),
+      ),
+    ],
+  );
 
   Widget _buildStatistic({
     required IconData icon,
     required Color iconColor,
     required String label,
     required String value,
-  }) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          color: iconColor,
-          size: 21,
-        ),
-        SizedBox(height: 5),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: _secondaryTextColor,
-            fontSize: 11,
-          ),
-        ),
-        SizedBox(height: 3),
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: _secondaryTextColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatisticDivider() {
-    return Container(
-      width: 1,
-      height: 38,
-      color: _dividerColor,
-    );
-  }
-
-  Widget _buildLogoutButton() {
-    return SizedBox(
+    VoidCallback? onTap,
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
       width: double.infinity,
-      height: 47,
-      child: OutlinedButton.icon(
-        onPressed: _logout,
-        icon: Icon(
-          Icons.logout_rounded,
-          size: 19,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: iconColor.withValues(alpha: _darkMode ? .35 : .22),
         ),
-        label: Text(
-          'Log Out',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: StudentPalette.of(context).error,
-          backgroundColor: _cardColor,
-          side: BorderSide(
-            color: StudentPalette.of(context).error,
-            width: 1.2,
+          const SizedBox(height: 12),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _textColor,
+              fontSize: value == 'Student' ? 16 : 22,
+              height: 1.1,
+              letterSpacing: -.5,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+          const SizedBox(height: 7),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _secondaryTextColor,
+              fontSize: 10,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildLogoutButton() => Column(
+    children: [
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: _logout,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: StudentPalette.of(context).error,
+            backgroundColor: StudentPalette.of(context).errorTint,
+            side: BorderSide(
+              color: StudentPalette.of(context).error,
+              width: 1.2,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: const Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Icon(Icons.logout_rounded, size: 20),
+              ),
+              Text(
+                'Log Out',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Icon(Icons.arrow_forward_rounded, size: 18),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+      const SizedBox(height: 22),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.auto_stories_outlined,
+            size: 14,
+            color: _secondaryTextColor,
+          ),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              'Your library, within reach.',
+              style: TextStyle(color: _secondaryTextColor, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
 
   Future<void> _editProfile() async {
-    await showDialog<bool>(context: context, barrierDismissible: false,
-      builder: (_) => EditProfileDialog(library: widget.library));
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => EditProfileDialog(library: widget.library),
+    );
   }
 
   void _openNotifications() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Notification settings will be connected later.',
-        ),
-      ),
+      SnackBar(content: Text('Notification settings will be connected later.')),
     );
   }
 
   void _openSettings() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Settings will be connected later.',
-        ),
-      ),
+      SnackBar(content: Text('Settings will be connected later.')),
     );
   }
 
@@ -567,9 +749,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       backgroundColor: _cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -623,9 +803,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: Text(
                     'Close',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -659,18 +837,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          title:           Text(
+          title: Text(
             'Log Out?',
-            style: TextStyle(
-              color: _textColor,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: _textColor, fontWeight: FontWeight.w700),
           ),
-          content:           Text(
+          content: Text(
             'Are you sure you want to log out of LibMate?',
-            style: TextStyle(
-              color: _secondaryTextColor,
-            ),
+            style: TextStyle(color: _secondaryTextColor),
           ),
           actions: [
             TextButton(

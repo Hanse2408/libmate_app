@@ -59,7 +59,7 @@ class BorrowingDetailsScreen extends StatelessWidget {
               trailing: StatusChip.borrowing(loan.status),
               onBack: onBack,
             ),
-            ReservationReference(reservationId: loan.id),
+            ReservationReference(reservationId: loan.id, isReservation: false),
             _StatusBanner(loan: loan),
             BookSummaryCard(
               book: repository.bookById(loan.bookId),

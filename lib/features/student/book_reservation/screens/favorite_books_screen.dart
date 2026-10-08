@@ -30,7 +30,18 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
     final colors = StudentPalette.of(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('My Favourites')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 22, color: colors.text),
+        ),
+        title: Text('My Favourites', style: TextStyle(color: colors.text,
+        fontSize: 24, letterSpacing: -.6, fontWeight: FontWeight.w800)),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent, elevation: 0),
       body: ListenableBuilder(
         listenable: Listenable.merge([library, ebooks]),
         builder: (context, _) {
@@ -55,6 +66,12 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                   onChanged: (value) => setState(() => _query = value),
                   decoration: InputDecoration(
                     hintText: 'Search your favourites...',
+                    filled: true, fillColor: colors.card,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(color: colors.primary.withValues(alpha: .22))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide(color: colors.primary, width: 1.5)),
                     prefixIcon: Icon(Icons.search_rounded, color: colors.muted),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                   ),
@@ -69,8 +86,11 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                     child: ChoiceChip(
                       label: Text(category), selected: selected == category,
                       selectedColor: colors.primary, backgroundColor: colors.card,
-                      labelStyle: TextStyle(color: selected == category ? Colors.white : colors.muted),
+                      labelStyle: TextStyle(color: selected == category ? Colors.white : colors.muted, fontWeight: FontWeight.w700),
                       showCheckmark: false,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      side: BorderSide(color: selected == category ? colors.primary : colors.primary.withValues(alpha: .2)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       onSelected: (_) => setState(() => _category = category),
                     ),
                   ),
@@ -88,7 +108,7 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                           const SizedBox(height: 14),
                           Text(library.loadError ?? ebooks.loadError ?? (items.isEmpty
                             ? 'Your favourites belong here. Tap a book\'s heart to save it.'
-                            : 'No favourites match this category or search.'), textAlign: TextAlign.center, style: TextStyle(color: colors.muted)),
+                            : 'No favourites match this category or search.'), textAlign: TextAlign.center, style: TextStyle(color: colors.muted, fontSize: 12)),
                         ]),
                       ))
                     : ListView.separated(
@@ -102,29 +122,36 @@ class _FavoriteBooksScreenState extends State<FavoriteBooksScreen> {
                             : BookDetailsScreen(library: library, bookId: item.id));
                           return Material(
                             color: colors.card,
-                            elevation: 2,
+                            elevation: 1,
                             shadowColor: colors.primary.withValues(alpha: .12),
                             surfaceTintColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: colors.border)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: colors.favorite.withValues(alpha: colors.isDark ? .3 : .18))),
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(
                               onTap: openDetails,
                               child: Padding(
-                                padding: const EdgeInsets.all(14),
+                                padding: const EdgeInsets.all(16),
                                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   StudentBookCover(title: item.title, author: item.author, imageUrl: item.cover, width: 68, height: 96, fit: BoxFit.contain),
                                   const SizedBox(width: 14),
                                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+                                    Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.text, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: -.2)),
                                     const SizedBox(height: 5),
-                                    Text(item.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.muted)),
+                                    Text(item.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.muted, fontSize: 12)),
                                     const SizedBox(height: 5),
-                                    Text(item.ebook ? 'eBooks · ${item.category}' : item.category, style: TextStyle(color: colors.primary, fontSize: 12)),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(color: colors.blueTint, borderRadius: BorderRadius.circular(7)),
+                                      child: Text(item.ebook ? 'eBooks · ${item.category}' : item.category,
+                                        style: TextStyle(color: colors.primary, fontSize: 11, fontWeight: FontWeight.w700))),
                                     const SizedBox(height: 10),
                                     if (item.ebook)
-                                      FilledButton.tonal(onPressed: openDetails, child: const Text('Read Online'))
+                                      FilledButton.tonal(onPressed: openDetails,
+                                        style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11))),
+                                        child: const Text('Read Online'))
                                     else ...[
                                       FilledButton(
+                                        style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11))),
                                         onPressed: item.blocker == null ? () => _open(ReserveBookScreen(library: library, bookId: item.id)) : null,
                                         child: const Text('Reserve Book'),
                                       ),

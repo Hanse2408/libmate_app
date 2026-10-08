@@ -1,32 +1,20 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme/app_theme.dart';
-
-/// The Student side has no dark mode, so the e-book screens always use the
-/// Student light theme ([AppTheme.light]), even when the device (and so
-/// the app's `ThemeMode.system`) is dark.
-final ThemeData _studentLight = AppTheme.light;
-
-/// Wraps a Student e-book screen in the Student light theme, so stock
-/// widgets (text fields, spinners, buttons) are light too.
+/// E-book screens inherit the student's selected light or dark appearance.
 class StudentEbookTheme extends StatelessWidget {
   const StudentEbookTheme({super.key, required this.child});
-
   final Widget child;
-
   @override
-  Widget build(BuildContext context) =>
-      Theme(data: _studentLight, child: child);
+  Widget build(BuildContext context) => child;
 }
 
-/// Colours for the Student e-book screens, from the Student light theme
-/// (LibMate blue, surfaces, text).
+/// Semantic colours shared by the catalogue, details and reader controls.
 class EbookColors {
   const EbookColors._(this._scheme, this.background);
 
   factory EbookColors.of(BuildContext context) => EbookColors._(
-    _studentLight.colorScheme,
-    _studentLight.scaffoldBackgroundColor,
+    Theme.of(context).colorScheme,
+    Theme.of(context).scaffoldBackgroundColor,
   );
 
   final ColorScheme _scheme;
@@ -36,11 +24,12 @@ class EbookColors {
   Color get onPrimary => _scheme.onPrimary;
   Color get surface => _scheme.surface;
   Color get text => _scheme.onSurface;
-  Color get muted => _scheme.onSurface.withValues(alpha: 0.62);
+  Color get muted => _scheme.onSurfaceVariant;
   Color get border => _scheme.outlineVariant;
-  Color get tint => _scheme.primaryContainer.withValues(alpha: 0.55);
+  Color get tint => _scheme.primary.withValues(alpha: .12);
   Color get error => _scheme.error;
-  Color get success => const Color(0xFF22A06B);
+  Color get success => _scheme.brightness == Brightness.dark
+      ? const Color(0xFF6EE7B7) : const Color(0xFF22A06B);
 }
 
 /// Page header from the E-books design: round back button, bold title and
@@ -87,7 +76,8 @@ class EbookPageHeader extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: c.text,
-                    fontSize: 28,
+                    fontSize: 27,
+                    letterSpacing: -.7,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
                   ),
@@ -96,7 +86,7 @@ class EbookPageHeader extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle!,
-                    style: TextStyle(color: c.muted, fontSize: 15),
+                    style: TextStyle(color: c.muted, fontSize: 13, height: 1.4),
                   ),
                 ],
               ],
@@ -119,6 +109,7 @@ class EbookBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: c.tint,
+        border: Border.all(color: c.primary.withValues(alpha: .18)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

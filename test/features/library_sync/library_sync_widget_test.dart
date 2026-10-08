@@ -1,3 +1,4 @@
+import 'package:libmate_app/models/reservation_display_reference.dart';
 import 'dart:async';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -302,7 +303,7 @@ void main() {
     // H01 opens H02 with the booking that was just made.
     expect(find.byType(SeatBookingConfirmationScreen), findsOneWidget);
     expect(find.text('Seat booked successfully!'), findsOneWidget);
-    expect(find.text(bookingDoc.id), findsOneWidget);
+    expect(find.text(ReservationDisplayReference.forId(bookingDoc.id)), findsOneWidget);
     expect(find.textContaining('approval'), findsNothing);
     expect((await db.collection('reservations').get()).docs, hasLength(1));
   });
@@ -335,8 +336,12 @@ void main() {
     final student = studentRepo(db);
     addTearDown(student.dispose);
     await _pumpStudent(tester, SeatBookingScreen(library: student));
-    // Tomorrow, 08:00-09:00 (default times) overlaps the other booking.
+    // Choose the overlapping hour explicitly; today's default depends on the clock.
     await _pickBookingDay(tester, day);
+    await tester.tap(find.text('Start Time'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('08:00').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('seat-${seat.id}')));
     await tester.pumpAndSettle();
 

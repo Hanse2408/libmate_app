@@ -1,3 +1,4 @@
+import '../../../../models/reservation_display_reference.dart';
 import '../../common/widgets/student_palette.dart';
 import 'my_reservations_screen.dart';
 import 'find_books_screen.dart';
@@ -76,7 +77,7 @@ class BookingConfirmationScreen extends StatelessWidget {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -95,7 +96,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: StudentPalette.of(context).border,
+          color: StudentPalette.of(context).primary.withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
         ),
       ),
       child: IconButton(
@@ -269,9 +270,9 @@ class BookingConfirmationScreen extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         gradient: StudentPalette.of(context).cardGradient,
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -284,16 +285,22 @@ class BookingConfirmationScreen extends StatelessWidget {
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
           SizedBox(height: 10),
           Divider(
             height: 1,
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
           ),
           SizedBox(height: 5),
+          _buildReceiptRow(
+            context: context,
+            icon: Icons.receipt_long_outlined,
+            label: 'Reservation Reference',
+            value: ReservationDisplayReference.forId(reservationId),
+          ),
           _buildReceiptRow(
           context: context,
             icon: Icons.menu_book_outlined,
@@ -359,12 +366,16 @@ class BookingConfirmationScreen extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          Expanded(
+            flex: 2,
+            child: Text(
             value,
+            textAlign: TextAlign.end,
             style: TextStyle(
               color: valueColor ?? Theme.of(context).colorScheme.onSurface,
               fontSize: 12.5,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
+            ),
             ),
           ),
         ],
@@ -383,7 +394,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         color: StudentPalette.of(context).blueTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: StudentPalette.of(context).blueBorder,
+          color: StudentPalette.of(context).primary.withValues(alpha: .25),
         ),
       ),
       child: Row(
@@ -431,14 +442,14 @@ class BookingConfirmationScreen extends StatelessWidget {
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         child: Text(
           'View My Reservations',
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -463,14 +474,14 @@ class BookingConfirmationScreen extends StatelessWidget {
             width: 1.2,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         child: Text(
           'Back to Home',
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

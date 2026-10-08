@@ -121,6 +121,37 @@ void main() {
   );
 
   group('provider / repository', () {
+    test(
+      'category filters combine with search and recover after deletion',
+      () async {
+        await db
+            .collection('ebooks')
+            .doc('E1')
+            .set(_ebookDoc(id: 'E1', category: 'Computing'));
+        await db
+            .collection('ebooks')
+            .doc('E2')
+            .set(
+              _ebookDoc(id: 'E2', title: 'History Book', category: 'History'),
+            );
+        final provider = newProvider();
+        addTearDown(provider.dispose);
+        await settle();
+        expect(provider.categories, ['Computing', 'History']);
+        provider.selectCategory('History');
+        expect(provider.visibleEbooks.single.id, 'E2');
+        provider.search('Clean');
+        expect(provider.visibleEbooks, isEmpty);
+        provider.selectCategory(null);
+        expect(provider.visibleEbooks.single.id, 'E1');
+        provider.search('');
+        provider.selectCategory('History');
+        await db.collection('ebooks').doc('E2').delete();
+        await settle();
+        expect(provider.selectedCategory, isNull);
+        expect(provider.visibleEbooks.single.id, 'E1');
+      },
+    );
     test('no e-books yet: empty list, no error', () async {
       final provider = newProvider();
       await settle();
@@ -195,35 +226,56 @@ void main() {
       provider.dispose();
     });
 
-    test('Read Online uses the saved Cloudinary pdfUrl, nothing else', () async {
-      await db.collection('ebooks').doc('E1').set({
-        ..._ebookDoc(id: 'E1'),
-        'pdfUrl': 'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
-      });
-      await db.collection('ebooks').doc('E2').set(_ebookDoc(id: 'E2', withPdf: false));
-      await db.collection('ebooks').doc('E3').set({..._ebookDoc(id: 'E3'), 'pdfUrl': 'ebooks/E3/1.pdf'});
-      final provider = newProvider();
-      await settle();
+    test(
+      'Read Online uses the saved Cloudinary pdfUrl, nothing else',
+      () async {
+        await db.collection('ebooks').doc('E1').set({
+          ..._ebookDoc(id: 'E1'),
+          'pdfUrl': 'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
+        });
+        await db
+            .collection('ebooks')
+            .doc('E2')
+            .set(_ebookDoc(id: 'E2', withPdf: false));
+        await db.collection('ebooks').doc('E3').set({
+          ..._ebookDoc(id: 'E3'),
+          'pdfUrl': 'ebooks/E3/1.pdf',
+        });
+        final provider = newProvider();
+        await settle();
 
-      expect(
-        provider.readOnlineUri(provider.ebookById('E1')!).toString(),
-        'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
-      );
-      expect(provider.readOnlineUri(provider.ebookById('E2')!), isNull); // no PDF
-      expect(provider.readOnlineUri(provider.ebookById('E3')!), isNull); // not a web link
-      expect(downloader.calls, isEmpty); // reading never downloads a file
-      provider.dispose();
-    });
+        expect(
+          provider.readOnlineUri(provider.ebookById('E1')!).toString(),
+          'https://res.cloudinary.com/demo/image/upload/v1/libmate/ebooks/clean.pdf',
+        );
+        expect(
+          provider.readOnlineUri(provider.ebookById('E2')!),
+          isNull,
+        ); // no PDF
+        expect(
+          provider.readOnlineUri(provider.ebookById('E3')!),
+          isNull,
+        ); // not a web link
+        expect(downloader.calls, isEmpty); // reading never downloads a file
+        provider.dispose();
+      },
+    );
 
     group('PDF loader', () {
-      final url = Uri.parse('https://res.cloudinary.com/demo/image/upload/v1/clean.pdf');
+      final url = Uri.parse(
+        'https://res.cloudinary.com/demo/image/upload/v1/clean.pdf',
+      );
       EbookPdfLoader loader(http.Response response) =>
           EbookPdfLoader(client: MockClient((_) async => response));
 
       test('returns the PDF bytes, with progress', () async {
         final progress = <int>[];
         final bytes = await loader(
-          http.Response.bytes(_pdfBytes, 200, headers: {'content-length': '${_pdfBytes.length}'}),
+          http.Response.bytes(
+            _pdfBytes,
+            200,
+            headers: {'content-length': '${_pdfBytes.length}'},
+          ),
         ).load(url, onProgress: (received, _) => progress.add(received));
         expect(bytes, _pdfBytes);
         expect(progress.last, _pdfBytes.length);
@@ -231,7 +283,11 @@ void main() {
 
       test('Cloudinary refusing PDF delivery is reported as such', () async {
         final error = await loader(
-          http.Response('{}', 401, headers: {'x-cld-error': 'deny or ACL failure'}),
+          http.Response(
+            '{}',
+            401,
+            headers: {'x-cld-error': 'deny or ACL failure'},
+          ),
         ).load(url).then<Object?>((_) => null, onError: (Object e) => e);
         expect(error, isA<EbookReadException>());
         expect((error! as EbookReadException).statusCode, 401);
@@ -240,9 +296,17 @@ void main() {
 
       test('a missing file and a non-PDF answer are reported', () async {
         Future<String> failure(http.Response r) =>
-            loader(r).load(url).then((_) => '', onError: (Object e) => e.toString());
-        expect(await failure(http.Response('', 404)), contains('not found (HTTP 404)'));
-        expect(await failure(http.Response('<html>', 200)), contains('did not return a PDF'));
+            loader(r)
+                .load(url)
+                .then((_) => '', onError: (Object e) => e.toString());
+        expect(
+          await failure(http.Response('', 404)),
+          contains('not found (HTTP 404)'),
+        );
+        expect(
+          await failure(http.Response('<html>', 200)),
+          contains('did not return a PDF'),
+        );
       });
     });
   });
@@ -254,19 +318,24 @@ void main() {
     setUp(() {
       rendered = [];
       // Stands in for the PDF engine (pdfrx) and reports the page count.
-      EbookReaderScreen.pdfViewBuilder = (context, bytes, sourceName, callbacks) {
-        expect(bytes, _pdfBytes);
-        rendered.add(sourceName);
-        WidgetsBinding.instance.addPostFrameCallback((_) => callbacks.onReady(464));
-        return const Center(child: Text('PDF pages'));
-      };
+      EbookReaderScreen.pdfViewBuilder =
+          (context, bytes, sourceName, callbacks) {
+            expect(bytes, _pdfBytes);
+            rendered.add(sourceName);
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => callbacks.onReady(464),
+            );
+            return const Center(child: Text('PDF pages'));
+          };
     });
 
     tearDown(() => EbookReaderScreen.pdfViewBuilder = realViewer);
 
     /// Lets the PDF request (real async) finish, then redraws.
     Future<void> loadPdf(WidgetTester tester) async {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
       await tester.pumpAndSettle();
     }
 
@@ -367,7 +436,10 @@ void main() {
       expect(find.byTooltip('Zoom in'), findsOneWidget);
       expect(find.byTooltip('Zoom out'), findsOneWidget);
       // The existing (stored) PDF link is what is read; nothing is saved.
-      expect(requested.single.toString(), 'https://storage.test/ebooks/E1/1.pdf');
+      expect(
+        requested.single.toString(),
+        'https://storage.test/ebooks/E1/1.pdf',
+      );
       expect(rendered.toSet().single, 'https://storage.test/ebooks/E1/1.pdf');
       expect(downloader.calls, isEmpty);
 
@@ -414,7 +486,10 @@ void main() {
         (library) => EbookReaderScreen(library: library, ebookId: 'E1'),
       );
       await loadPdf(tester);
-      expect(find.textContaining('refused to deliver this PDF (HTTP 401)'), findsOneWidget);
+      expect(
+        find.textContaining('refused to deliver this PDF (HTTP 401)'),
+        findsOneWidget,
+      );
       expect(find.text('PDF pages'), findsNothing);
       expect(find.byTooltip('Zoom in'), findsNothing);
 
@@ -429,25 +504,37 @@ void main() {
 
     testWidgets('loading state shows progress', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: EbookReaderLoading(progress: 0.4))),
+        const MaterialApp(
+          home: Scaffold(body: EbookReaderLoading(progress: 0.4)),
+        ),
       );
       expect(find.text('Opening the e-book… 40%'), findsOneWidget);
     });
 
     for (final (name, screen) in [
       ('list', (StudentLibraryRepository l) => EbooksScreen(library: l)),
-      ('details', (StudentLibraryRepository l) => EbookDetailsScreen(library: l, ebookId: 'E1')),
-      ('reader', (StudentLibraryRepository l) => EbookReaderScreen(library: l, ebookId: 'E1')),
+      (
+        'details',
+        (StudentLibraryRepository l) =>
+            EbookDetailsScreen(library: l, ebookId: 'E1'),
+      ),
+      (
+        'reader',
+        (StudentLibraryRepository l) =>
+            EbookReaderScreen(library: l, ebookId: 'E1'),
+      ),
     ]) {
-      testWidgets('the $name screen stays light when the device is dark', (tester) async {
+      testWidgets('the $name screen follows the selected dark theme', (
+        tester,
+      ) async {
         await db.collection('ebooks').doc('E1').set(_ebookDoc(id: 'E1'));
         await pump(tester, screen, theme: AppTheme.dark);
-        final light = AppTheme.light;
+        final dark = AppTheme.dark;
         final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-        expect(scaffold.backgroundColor, light.scaffoldBackgroundColor);
+        expect(scaffold.backgroundColor, dark.scaffoldBackgroundColor);
         final context = tester.element(find.byType(Scaffold).first);
-        expect(Theme.of(context).brightness, Brightness.light);
-        expect(Theme.of(context).colorScheme.surface, light.colorScheme.surface);
+        expect(Theme.of(context).brightness, Brightness.dark);
+        expect(Theme.of(context).colorScheme.surface, dark.colorScheme.surface);
       });
     }
 

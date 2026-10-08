@@ -87,11 +87,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     const LibMateLogo(size: 48),
     const SizedBox(width: 10),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('LibMate', style: TextStyle(color: textDark, fontFamily: 'Georgia',
-        fontFamilyFallback: const ['Times New Roman', 'serif'], fontSize: 29, fontWeight: FontWeight.w700, height: 1.1)),
+      Text('LibMate', style: TextStyle(color: textDark, fontFamily: 'Times New Roman',
+        fontFamilyFallback: const ['Times', 'serif'], fontSize: 29, fontWeight: FontWeight.w700, height: 1.1)),
       const SizedBox(height: 4),
       Text('Learn  \u2022  Reserve  \u2022  Belong', maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: secondaryText, fontSize: 11)),
+        style: TextStyle(color: primaryBlue, fontSize: 11)),
     ])),
     StudentNotificationButton(library: _library, color: textDark),
     const SizedBox(width: 4),
@@ -102,12 +102,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   ]);
 
   Widget _buildGreeting() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text('Good morning,', style: TextStyle(color: secondaryText, fontSize: 16)),
+    Text('Good morning,', style: TextStyle(color: _dark ? secondaryText : const Color(0xFF334155), fontSize: 16)),
     const SizedBox(height: 3),
-    Text('$_firstName!', style: TextStyle(color: textDark, fontFamily: 'Georgia',
-      fontFamilyFallback: const ['Times New Roman', 'serif'], fontSize: 38, fontWeight: FontWeight.w700, height: 1.15)),
+    Text('$_firstName!', style: TextStyle(color: textDark, fontFamily: 'Times New Roman',
+      fontFamilyFallback: const ['Times', 'serif'], fontSize: 38, fontWeight: FontWeight.w700, height: 1.15)),
     const SizedBox(height: 7),
-    Text('What would you like to do today?', style: TextStyle(color: secondaryText, fontSize: 15)),
+    Text('What would you like to do today?', style: TextStyle(color: _dark ? secondaryText : const Color(0xFF334155), fontSize: 15)),
   ]);
 
   Widget _buildSearchBar() => InkWell(onTap: _openFindBooks, borderRadius: BorderRadius.circular(18),

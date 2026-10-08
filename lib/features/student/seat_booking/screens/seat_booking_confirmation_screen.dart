@@ -1,3 +1,4 @@
+import '../../../../models/reservation_display_reference.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../models/seat.dart';
@@ -107,8 +108,8 @@ class SeatBookingConfirmationScreen extends StatelessWidget {
                         ),
                         _ReceiptRow(
                           icon: Icons.confirmation_number_outlined,
-                          label: 'Booking ID',
-                          value: reservationId,
+                          label: 'Reservation Reference',
+                          value: ReservationDisplayReference.forId(reservationId),
                         ),
                         const _ReceiptRow(
                           icon: Icons.check_circle_outline_rounded,

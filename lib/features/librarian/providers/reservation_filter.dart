@@ -1,3 +1,4 @@
+import '../../../models/reservation_display_reference.dart';
 import '../models/reservation_record.dart';
 
 enum ReservationDateFilter {
@@ -57,6 +58,12 @@ class ReservationFilter {
 
     final text = query.trim().toLowerCase();
     if (text.isEmpty) return true;
+    final referenceQuery = ReservationDisplayReference.searchKey(text);
+    if (referenceQuery.isNotEmpty &&
+        [r.displayReference, ReservationDisplayReference.legacyForId(r.id)]
+          .any((reference) => ReservationDisplayReference.searchKey(reference).contains(referenceQuery))) {
+      return true;
+    }
     return [
       r.id,
       r.studentName,

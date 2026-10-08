@@ -18,11 +18,17 @@ class StudentEbookProvider extends ChangeNotifier {
           ..sort(
             (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
           );
+        if (_category != null && !categories.contains(_category)) {
+          _category = null;
+        }
         _isLoading = false;
         _loadError = null;
         _notify();
       },
       onError: (Object error) {
+        if (_category != null && !categories.contains(_category)) {
+          _category = null;
+        }
         _isLoading = false;
         _loadError =
             'Could not load e-books. '
@@ -41,6 +47,19 @@ class StudentEbookProvider extends ChangeNotifier {
   bool _isLoading = true;
   String? _loadError;
   String _query = '';
+  String? _category;
+  String? get selectedCategory => _category;
+  List<String> get categories =>
+      (_ebooks
+          .map((e) => e.category.trim())
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort());
+  void selectCategory(String? category) {
+    _category = category;
+    _notify();
+  }
 
   List<EbookRecord> get ebooks => _ebooks;
   bool get isLoading => _isLoading;
@@ -50,13 +69,14 @@ class StudentEbookProvider extends ChangeNotifier {
   /// E-books matching the search (title, author or category).
   List<EbookRecord> get visibleEbooks {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _ebooks;
+
     return _ebooks
         .where(
           (e) =>
-              e.title.toLowerCase().contains(q) ||
-              e.author.toLowerCase().contains(q) ||
-              e.category.toLowerCase().contains(q),
+              (_category == null || e.category.trim() == _category) &&
+              (e.title.toLowerCase().contains(q) ||
+                  e.author.toLowerCase().contains(q) ||
+                  e.category.toLowerCase().contains(q)),
         )
         .toList();
   }
@@ -79,7 +99,8 @@ class StudentEbookProvider extends ChangeNotifier {
   Uri? readOnlineUri(EbookRecord ebook) {
     if (!ebook.hasPdf) return null;
     final uri = Uri.tryParse(ebook.pdfUrl!.trim());
-    final isWeb = uri != null && (uri.isScheme('https') || uri.isScheme('http'));
+    final isWeb =
+        uri != null && (uri.isScheme('https') || uri.isScheme('http'));
     return isWeb ? uri : null;
   }
 

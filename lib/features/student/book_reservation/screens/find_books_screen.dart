@@ -174,8 +174,9 @@ void dispose() {
               'Find Books',
               style: TextStyle(
                 color: StudentPalette.of(context).text,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+                fontSize: 27,
+                letterSpacing: -.7,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -183,7 +184,8 @@ void dispose() {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: StudentPalette.of(context).blueTint,
+              color: StudentPalette.of(context).favorite.withValues(alpha: .09),
+              border: Border.all(color: StudentPalette.of(context).favorite.withValues(alpha: .2)),
               borderRadius: BorderRadius.circular(14),
             ),
             child: IconButton(
@@ -209,9 +211,9 @@ void dispose() {
               color: StudentPalette.of(context).card,
               gradient: StudentPalette.of(context).cardGradient,
               boxShadow: StudentPalette.of(context).cardShadow,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: StudentPalette.of(context).border,
+                color: StudentPalette.of(context).primary.withValues(alpha: .22),
               ),
             ),
             child: TextField(
@@ -235,7 +237,13 @@ void dispose() {
                         ),
                       )
                     : null,
+                filled: false,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(
                   vertical: 15,
                   horizontal: 4,
@@ -276,7 +284,7 @@ void dispose() {
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
           fontSize: 18,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
       ),
       SizedBox(height: 14),
@@ -342,7 +350,7 @@ void dispose() {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -365,7 +373,7 @@ void dispose() {
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
             itemCount: books.length,
-            separatorBuilder: (_, _) => SizedBox(height: 14),
+            separatorBuilder: (_, _) => SizedBox(height: 16),
             itemBuilder: (context, index) {
               return _buildBookCard(books[index]);
             },
@@ -383,16 +391,16 @@ void dispose() {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
       child: Container(
-        padding: EdgeInsets.all(14),
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           gradient: StudentPalette.of(context).cardGradient,
           boxShadow: StudentPalette.of(context).cardShadow,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(alpha: .22),
           ),
         ),
         child: Row(
@@ -411,7 +419,7 @@ void dispose() {
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   SizedBox(height: 5),
@@ -424,7 +432,7 @@ void dispose() {
                       fontSize: 13,
                     ),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 14),
                   Row(
                     children: [
                       // Long category names are shortened instead of overflowing.
@@ -540,7 +548,7 @@ void dispose() {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 10,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -563,7 +571,7 @@ void dispose() {
         color: StudentPalette.of(context).card,
         gradient: StudentPalette.of(context).cardGradient,
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: StudentPalette.of(context).border,
         ),
@@ -581,7 +589,7 @@ void dispose() {
             style: TextStyle(
               color: StudentPalette.of(context).text,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           SizedBox(height: 6),
@@ -639,7 +647,7 @@ void dispose() {
                   width: 42,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: StudentPalette.of(context).border,
+                    color: StudentPalette.of(context).primary.withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -650,7 +658,7 @@ void dispose() {
                 style: TextStyle(
                   color: StudentPalette.of(context).text,
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: 18),
@@ -670,7 +678,7 @@ void dispose() {
                         )
                       : Icon(
                           Icons.circle_outlined,
-                          color: StudentPalette.of(context).border,
+                          color: StudentPalette.of(context).primary.withValues(alpha: .22),
                         ),
                   onTap: () {
                     Navigator.pop(context);

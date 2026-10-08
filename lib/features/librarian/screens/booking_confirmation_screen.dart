@@ -163,7 +163,7 @@ class BookingConfirmationScreen extends StatelessWidget {
       ],
       (Icons.person_outline, 'Student', r.studentName),
       if (!approved) (Icons.block, 'Reason', r.rejectionReason ?? '-'),
-      (Icons.receipt_long_outlined, 'Reference No', r.id),
+      (Icons.receipt_long_outlined, 'Reference No', r.displayReference),
     ];
   }
 }

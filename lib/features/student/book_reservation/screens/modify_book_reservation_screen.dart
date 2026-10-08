@@ -1,24 +1,28 @@
+import '../../common/widgets/loan_period_field.dart';
 import '../../common/widgets/student_palette.dart';
 import '../../../../core/constants/book_pickup_locations.dart';
 import '../widgets/reservation_notice.dart';
 import '../../../../models/book.dart';
 import '../../../../models/reservation.dart' as shared;
 import '../../common/widgets/student_book_cover.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../common/screens/profile_screen.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
 import '../../common/data/student_library_repository.dart';
 import 'find_books_screen.dart';
 import 'my_reservations_screen.dart';
-class ModifyBookReservationScreen extends StatefulWidget {
-const ModifyBookReservationScreen({
-  super.key,
-  required this.library,
-  required this.reservationId,
-});
 
-final StudentLibraryRepository library;
-final String reservationId;
+class ModifyBookReservationScreen extends StatefulWidget {
+  const ModifyBookReservationScreen({
+    super.key,
+    required this.library,
+    required this.reservationId,
+  });
+
+  final StudentLibraryRepository library;
+  final String reservationId;
 
   @override
   State<ModifyBookReservationScreen> createState() =>
@@ -27,9 +31,9 @@ final String reservationId;
 
 class _ModifyBookReservationScreenState
     extends State<ModifyBookReservationScreen> {
-late DateTime _reservationDate;
-late String _pickupLocation;
-late int _loanPeriodDays;
+  late DateTime _reservationDate;
+  late String _pickupLocation;
+  late int _loanPeriodDays;
 
   final TextEditingController _notesController = TextEditingController();
 
@@ -42,29 +46,34 @@ late int _loanPeriodDays;
 
   BookRecord? get _book {
     final reservation = _reservation;
-    return reservation == null ? null : widget.library.bookById(reservation.itemId);
+    return reservation == null
+        ? null
+        : widget.library.bookById(reservation.itemId);
   }
 
   void _refreshBookData() {
     if (mounted) setState(() {});
   }
-  List<String> get _pickupLocations => BookPickupLocations.including(_pickupLocation);
+
+  List<String> get _pickupLocations =>
+      BookPickupLocations.including(_pickupLocation);
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  final reservation = widget.library.myReservations.firstWhere(
-    (r) => r.id == widget.reservationId,
-  );
+    final reservation = widget.library.myReservations.firstWhere(
+      (r) => r.id == widget.reservationId,
+    );
 
-  _notesController.text = reservation.note ?? '';
-  widget.library.addListener(_refreshBookData);
-  _reservationDate = reservation.date;
-  _loanPeriodDays = reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
-  _pickupLocation =
-      reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
-}
+    _notesController.text = reservation.note ?? '';
+    widget.library.addListener(_refreshBookData);
+    _reservationDate = reservation.date;
+    _loanPeriodDays =
+        reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
+    _pickupLocation =
+        reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
+  }
 
   @override
   void dispose() {
@@ -119,7 +128,7 @@ void initState() {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -138,7 +147,8 @@ void initState() {
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: StudentPalette.of(context).border,
+          color: StudentPalette.of(context).primary
+              .withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
         ),
       ),
       child: IconButton(
@@ -165,7 +175,7 @@ void initState() {
         boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -187,14 +197,18 @@ void initState() {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  _book?.author.trim().isNotEmpty == true ? _book!.author : 'Author unavailable',
+                  _book?.author.trim().isNotEmpty == true
+                      ? _book!.author
+                      : 'Author unavailable',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
                 Text(
-                  _book?.category.trim().isNotEmpty == true ? _book!.category : 'Category unavailable',
+                  _book?.category.trim().isNotEmpty == true
+                      ? _book!.category
+                      : 'Category unavailable',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
@@ -202,10 +216,7 @@ void initState() {
                 ),
                 SizedBox(height: 7),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: StudentPalette.of(context).blueTint,
                     borderRadius: BorderRadius.circular(8),
@@ -215,7 +226,7 @@ void initState() {
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -237,6 +248,7 @@ void initState() {
       radius: 7,
     );
   }
+
   Widget _buildChangeSchedule() {
     return Container(
       width: double.infinity,
@@ -247,7 +259,7 @@ void initState() {
         boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).blueBorder,
+          color: StudentPalette.of(context).primary.withValues(alpha: .25),
           width: 1.2,
         ),
       ),
@@ -259,7 +271,7 @@ void initState() {
             style: TextStyle(
               color: StudentPalette.of(context).text,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           SizedBox(height: 14),
@@ -322,7 +334,9 @@ void initState() {
           color: StudentPalette.of(context).field,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(
+              alpha: StudentPalette.of(context).isDark ? .32 : .22,
+            ),
           ),
         ),
         child: Row(
@@ -364,7 +378,9 @@ void initState() {
           color: StudentPalette.of(context).field,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(
+              alpha: StudentPalette.of(context).isDark ? .32 : .22,
+            ),
           ),
         ),
         child: Row(
@@ -395,32 +411,10 @@ void initState() {
     );
   }
 
-  Widget _buildLoanPeriodField() {
-    final periods = {7, 14, 21, 30, _loanPeriodDays}.toList()..sort();
-    return DropdownButtonFormField<int>(
-      initialValue: _loanPeriodDays,
-      isExpanded: true,
-      style: TextStyle(color: StudentPalette.of(context).text, fontSize: 14),
-      decoration: InputDecoration(
-        prefixIcon: Icon(Icons.schedule_outlined, color: StudentPalette.of(context).muted),
-        filled: true,
-        fillColor: StudentPalette.of(context).field,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: StudentPalette.of(context).border),
-        ),
-      ),
-      items: [
-        for (final days in periods)
-          DropdownMenuItem(value: days, child: Text('$days Days')),
-      ],
-      onChanged: (value) {
-        if (value != null) setState(() => _loanPeriodDays = value);
-      },
-    );
-  }
+  Widget _buildLoanPeriodField() => LoanPeriodField(
+    initialValue: _loanPeriodDays,
+    onChanged: (days) => _loanPeriodDays = days,
+  );
   Widget _buildNotesField() {
     return TextField(
       controller: _notesController,
@@ -437,20 +431,22 @@ void initState() {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(
+              alpha: StudentPalette.of(context).isDark ? .32 : .22,
+            ),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).primary.withValues(
+              alpha: StudentPalette.of(context).isDark ? .32 : .22,
+            ),
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: StudentPalette.of(context).primary,
-          ),
+          borderSide: BorderSide(color: StudentPalette.of(context).primary),
         ),
       ),
     );
@@ -459,15 +455,12 @@ void initState() {
   Widget _buildImportantNotice() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 11,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: StudentPalette.of(context).blueTint,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: StudentPalette.of(context).blueBorder,
+          color: StudentPalette.of(context).primary.withValues(alpha: .25),
         ),
       ),
       child: Text(
@@ -488,23 +481,17 @@ void initState() {
       height: 47,
       child: ElevatedButton.icon(
         onPressed: _confirmUpdate,
-        icon: Icon(
-          Icons.check_rounded,
-          size: 19,
-        ),
+        icon: Icon(Icons.check_rounded, size: 19),
         label: Text(
           'Confirm & Update',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: StudentPalette.of(context).primary,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
@@ -520,20 +507,14 @@ void initState() {
         style: OutlinedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.surface,
           foregroundColor: StudentPalette.of(context).error,
-          side: BorderSide(
-            color: StudentPalette.of(context).error,
-            width: 1.3,
-          ),
+          side: BorderSide(color: StudentPalette.of(context).error, width: 1.3),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         child: Text(
           'Discard Changes',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -542,17 +523,23 @@ void initState() {
   Future<void> _selectReservationDate() async {
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: _reservationDate,
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2030),
+      initialDate: DateTime.fromMillisecondsSinceEpoch(
+        _reservationDate.millisecondsSinceEpoch.clamp(
+          DateUtils.dateOnly(DateTime.now()).millisecondsSinceEpoch,
+          DateUtils.dateOnly(DateTime.now())
+              .add(const Duration(days: 30))
+              .millisecondsSinceEpoch,
+        ),
+      ),
+      firstDate: DateUtils.dateOnly(DateTime.now()),
+      lastDate: DateUtils.dateOnly(DateTime.now())
+          .add(const Duration(days: 30)),
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context),
-          child: child!,
-        );
+        return Theme(data: Theme.of(context), child: child!);
       },
     );
 
+    if (!mounted) return;
     if (selectedDate != null) {
       setState(() {
         _reservationDate = selectedDate;
@@ -565,9 +552,7 @@ void initState() {
       context: context,
       backgroundColor: StudentPalette.of(context).card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -579,7 +564,9 @@ void initState() {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: StudentPalette.of(context).border,
+                  color: StudentPalette.of(context).primary.withValues(
+                    alpha: StudentPalette.of(context).isDark ? .32 : .22,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -589,7 +576,7 @@ void initState() {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: 12),
@@ -632,73 +619,74 @@ void initState() {
   }
 
   Future<void> _confirmUpdate() async {
-  if (_reservation?.status == shared.ReservationStatus.approved) {
-    showReservationNotice(context, message: 'Approved book reservations cannot be modified.');
-    return;
-  }
-  final result = await widget.library.updateBookReservation(
-    reservationId: widget.reservationId,
-    pickupDate: _reservationDate,
-    pickupLocation: _pickupLocation,
-    loanPeriodDays: _loanPeriodDays,
-    notes: _notesController.text,
-  );
-
-  if (!mounted) return;
-
-  if (!result.success) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.message!),
-      ),
+    if (_reservation?.status == shared.ReservationStatus.approved) {
+      showReservationNotice(
+        context,
+        message: 'Approved book reservations cannot be modified.',
+      );
+      return;
+    }
+    final result = await widget.library.updateBookReservation(
+      reservationId: widget.reservationId,
+      pickupDate: _reservationDate,
+      pickupLocation: _pickupLocation,
+      loanPeriodDays: _loanPeriodDays,
+      notes: _notesController.text,
     );
-    return;
-  }
 
-  showDialog<void>(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        title: Text(
-          'Reservation Updated',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.w700,
+    if (!mounted) return;
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.message!)));
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
           ),
-        ),
-        content: Text(
-          'Your reservation has been updated.\n\n'
-          'Date: ${_formatDate(_reservationDate)}\n'
-          'Pickup: $_pickupLocation\n'
-          'Notes: ${_notesController.text}',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            height: 1.5,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.pop(context);
-            },
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: StudentPalette.of(context).primary,
-                fontWeight: FontWeight.w700,
-              ),
+          title: Text(
+            'Reservation Updated',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
             ),
           ),
-        ],
-      );
-    },
-  );
-}
+          content: Text(
+            'Your reservation has been updated.\n\n'
+            'Date: ${_formatDate(_reservationDate)}\n'
+            'Pickup: $_pickupLocation\n'
+            'Notes: ${_notesController.text}',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Navigator.pop(context);
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: StudentPalette.of(context).primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _discardChanges() {
     Navigator.of(context).maybePop();
   }
@@ -722,37 +710,33 @@ void initState() {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-Widget _buildBottomNavigationBar() {
-  return StudentBottomNavigation(
-    selectedIndex: 2,
-    onHome: () {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    },
-    onSearch: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => FindBooksScreen(
-            library: widget.library,
+  Widget _buildBottomNavigationBar() {
+    return StudentBottomNavigation(
+      selectedIndex: 2,
+      onHome: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      onSearch: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => FindBooksScreen(library: widget.library),
           ),
-        ),
-      );
-    },
-    onReservations: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MyReservationsScreen(
-            library: widget.library,
+        );
+      },
+      onReservations: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MyReservationsScreen(library: widget.library),
           ),
-        ),
-      );
-    },
-    onProfile: () {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(library: widget.library),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+      onProfile: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProfileScreen(library: widget.library),
+          ),
+        );
+      },
+    );
+  }
 }

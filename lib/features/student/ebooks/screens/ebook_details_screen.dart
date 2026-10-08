@@ -88,17 +88,23 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
     final size = EbookRecord.formatSize(ebook.pdfSizeBytes);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       children: [
-        Center(
-          child: StudentBookCover(
-            title: ebook.title,
-            author: ebook.author,
-            imageUrl: ebook.coverAsset, // an assets/images/books/ path
-            width: 158,
-            height: 218,
-            radius: 12,
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [Color.alphaBlend(c.primary.withValues(alpha: .12), c.surface), c.surface]),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: c.primary.withValues(alpha: .2)),
           ),
+          child: Center(child: Container(
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .2),
+                blurRadius: 22, offset: const Offset(0, 10))]),
+            child: StudentBookCover(title: ebook.title, author: ebook.author,
+              imageUrl: ebook.coverAsset, width: 150, height: 206, radius: 12),
+          )),
         ),
         const SizedBox(height: 20),
         Text(
@@ -106,7 +112,9 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: c.text,
-            fontSize: 22,
+            fontSize: 25,
+            letterSpacing: -.6,
+            height: 1.2,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -127,6 +135,7 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
               decoration: BoxDecoration(
                 color: c.tint,
+                border: Border.all(color: c.primary.withValues(alpha: .2)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -134,7 +143,7 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
                 style: TextStyle(
                   color: c.primary,
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -160,8 +169,8 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
           'Description',
           style: TextStyle(
             color: c.text,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 8),
@@ -169,17 +178,17 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
           ebook.description.isEmpty
               ? 'No description has been added yet.'
               : ebook.description,
-          style: TextStyle(color: c.muted, fontSize: 13, height: 1.6),
+          style: TextStyle(color: c.muted, fontSize: 14, height: 1.7),
         ),
         const SizedBox(height: 22),
         // The PDF file (or why it cannot be read yet).
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: canRead ? c.border : c.error.withValues(alpha: 0.5),
+              color: canRead ? c.primary.withValues(alpha: .22) : c.error.withValues(alpha: .5),
             ),
           ),
           child: Row(
@@ -215,9 +224,10 @@ class _EbookDetailsScreenState extends State<EbookDetailsScreen> {
             ),
             style: FilledButton.styleFrom(
               backgroundColor: c.primary,
+              elevation: 0,
               foregroundColor: c.onPrimary,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           ),
@@ -237,16 +247,16 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = EbookColors.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.primary.withValues(alpha: .2)),
       ),
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) Container(width: 1, height: 34, color: c.border),
+            if (i > 0) Container(width: 1, height: 34, color: c.primary.withValues(alpha: .15)),
             Expanded(
               child: Column(
                 children: [
@@ -263,7 +273,7 @@ class _InfoRow extends StatelessWidget {
                     style: TextStyle(
                       color: c.text,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],

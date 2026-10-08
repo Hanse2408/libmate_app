@@ -70,7 +70,7 @@ void main() {
   });
 
   for (final dark in [false, true]) {
-    testWidgets('alert toggle and read notification navigation, dark: $dark', (tester) async {
+    testWidgets('alert toggle and unread notification navigation, dark: $dark', (tester) async {
       tester.view.physicalSize = const Size(440, 1400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -90,12 +90,13 @@ void main() {
       await db.collection('books').doc('watched').update({'availableCopies': 1});
       await tester.pumpAndSettle();
       final alert = library.notifications.singleWhere((n) => n.itemId == 'watched');
-      await library.markNotificationRead(alert.id);
+      expect(alert.isRead, false);
       await tester.pumpWidget(MaterialApp(theme: dark ? AppTheme.dark : AppTheme.light,
         home: StudentNotificationsScreen(library: library)));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Your next read is available!')); await tester.pumpAndSettle();
       expect(find.byType(ReserveBookScreen), findsOneWidget);
+      expect(library.notifications.where((n) => n.id == alert.id), isEmpty);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
