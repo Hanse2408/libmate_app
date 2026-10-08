@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerUserDetailsScreen extends StatefulWidget {
@@ -22,7 +23,17 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _user = ManagerUserStore.instance.findById(widget.user.id) ?? widget.user;
+    _user = widget.user;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final repository = ManagerScope.of(context).repository;
+    final nextUser = repository.findUserById(widget.user.id) ?? widget.user;
+    if (_user.id != nextUser.id || _user.name != nextUser.name || _user.email != nextUser.email) {
+      setState(() => _user = nextUser);
+    }
   }
 
   @override
@@ -97,10 +108,10 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
                   extra: _user,
                 );
                 if (!mounted) return;
+                if (!context.mounted) return;
+                final repository = ManagerScope.of(context).repository;
                 setState(() {
-                  _user =
-                      ManagerUserStore.instance.findById(widget.user.id) ??
-                      _user;
+                  _user = repository.findUserById(widget.user.id) ?? _user;
                 });
               },
             ),
@@ -114,12 +125,17 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
                 side: const BorderSide(color: AppColors.error),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Demo mode: profile changes are local only. Deactivation does not change sign-in access.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 9),
+            OutlinedButton.icon(
+              onPressed: _confirmDeletion,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Delete User'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+              ),
             ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -151,9 +167,46 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      ManagerUserStore.instance.deactivate(_user.id);
+      ManagerScope.of(context).repository.deactivateUser(_user.id);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User deactivated successfully (demo).')),
+        const SnackBar(content: Text('User deactivated successfully.')),
+      );
+      context.pop(true);
+    } on StateError catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    }
+  }
+
+  Future<void> _confirmDeletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+        title: const Text('Delete User?'),
+        content: Text(
+          'This will permanently remove ${_user.name} from the manager list and Firestore.\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      ManagerScope.of(context).repository.deleteUser(_user.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User deleted successfully.')),
       );
       context.pop(true);
     } on StateError catch (error) {

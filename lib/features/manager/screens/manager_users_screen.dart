@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
-import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerUsersScreen extends StatefulWidget {
@@ -19,7 +19,34 @@ class _ManagerUsersScreenState extends State<ManagerUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final users = ManagerUserStore.instance.users.where((user) {
+    final repository = ManagerScope.of(context).repository;
+    if (repository.isLoading) {
+      return ManagerScaffold(
+        title: 'Users & Roles',
+        currentIndex: 3,
+        fourthItem: ManagerFourthNav.users,
+        body: ManagerPagePadding(
+          child: const Center(
+            child: Text('Loading users...'),
+          ),
+        ),
+      );
+    }
+
+    if (repository.loadError != null) {
+      return ManagerScaffold(
+        title: 'Users & Roles',
+        currentIndex: 3,
+        fourthItem: ManagerFourthNav.users,
+        body: ManagerPagePadding(
+          child: Center(
+            child: Text(repository.loadError!),
+          ),
+        ),
+      );
+    }
+
+    final users = repository.users.where((user) {
       final query = _query.toLowerCase();
       final matchesQuery =
           query.isEmpty ||

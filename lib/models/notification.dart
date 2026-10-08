@@ -9,7 +9,9 @@ enum StudentNotificationType {
   bookCollected,
   bookReturned,
   loanRenewed,
-  bookAvailable;
+  bookAvailable,
+  seatBookingConfirmed,
+  seatReservationUpdated;
 
   static StudentNotificationType fromName(Object? name) {
     for (final type in values) {

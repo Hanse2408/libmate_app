@@ -74,63 +74,6 @@ class ManagerUser {
   }
 }
 
-class ManagerUserStore {
-  ManagerUserStore._()
-    : _users = [
-        for (final user in managerUsers)
-          user.copyWith(createdAt: DateTime(2026, 10, 2)),
-      ];
-
-  static final instance = ManagerUserStore._();
-
-  final List<ManagerUser> _users;
-
-  List<ManagerUser> get users => List.unmodifiable(_users);
-
-  ManagerUser? findById(String id) {
-    for (final user in _users) {
-      if (user.id == id) return user;
-    }
-    return null;
-  }
-
-  void add(ManagerUser user) {
-    final duplicate = _users.any(
-      (existing) =>
-          existing.id.toLowerCase() == user.id.toLowerCase() ||
-          existing.email.toLowerCase() == user.email.toLowerCase(),
-    );
-    if (duplicate) {
-      throw const FormatException('A user with this ID or email already exists.');
-    }
-    _users.add(user);
-  }
-
-  void update(String id, ManagerUser updatedUser) {
-    final index = _users.indexWhere((user) => user.id == id);
-    if (index == -1) {
-      throw StateError('The user no longer exists.');
-    }
-    final duplicate = _users.any(
-      (existing) =>
-          existing.id != id &&
-          existing.email.toLowerCase() == updatedUser.email.toLowerCase(),
-    );
-    if (duplicate) {
-      throw const FormatException('A user with this email already exists.');
-    }
-    _users[index] = updatedUser;
-  }
-
-  void deactivate(String id) {
-    final index = _users.indexWhere((user) => user.id == id);
-    if (index == -1) {
-      throw StateError('The user no longer exists.');
-    }
-    _users[index] = _users[index].copyWith(isActive: false);
-  }
-}
-
 String managerRoleLabel(UserRole role) {
   return switch (role) {
     UserRole.student => 'Student',
@@ -140,8 +83,10 @@ String managerRoleLabel(UserRole role) {
 }
 
 UserRole managerRoleFromLabel(String label) {
+  final normalized = label.trim().toLowerCase();
   return UserRole.values.firstWhere(
-    (role) => managerRoleLabel(role) == label,
+    (role) => managerRoleLabel(role).toLowerCase() == normalized,
+    orElse: () => UserRole.student,
   );
 }
 

@@ -292,6 +292,16 @@ class StudentLibraryRepository extends ChangeNotifier
   List<StudentNotification> _notifications = const [];
   Set<String> _dismissedNotificationIds = {};
 
+  // New-notification events for the in-app banner. The first snapshot is the
+  // baseline; ids already seen never fire again.
+  final StreamController<StudentNotification> _newNotifications =
+      StreamController<StudentNotification>.broadcast();
+  final Set<String> _seenNotificationIds = {};
+  bool _notificationsBaselined = false;
+
+  /// Notifications that arrive after the initial load (unread, recent only).
+  Stream<StudentNotification> get newNotifications => _newNotifications.stream;
+
   List<BookRecord> _books = const [];
   List<SeatRecord> _seats = const [];
   Map<String, ReservationLoanProgress> _reservationLoans = {};
@@ -439,6 +449,16 @@ class StudentLibraryRepository extends ChangeNotifier
         _notifications = [
           for (final d in docs) StudentNotification.fromMap(d.id, d.data()),
         ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        for (final n in _notifications) {
+          final isNew = _seenNotificationIds.add(n.id);
+          final recent =
+              DateTime.now().difference(n.createdAt) <
+              const Duration(minutes: 5);
+          if (isNew && _notificationsBaselined && !n.isRead && recent) {
+            _newNotifications.add(n);
+          }
+        }
+        _notificationsBaselined = true;
       },
     );
 
@@ -542,6 +562,7 @@ class StudentLibraryRepository extends ChangeNotifier
     _alertsActive = false;
     lifecycleBinding?.removeObserver(this);
     _stopListening();
+    _newNotifications.close();
     _ebooks?.dispose();
     super.dispose();
   }
@@ -550,9 +571,56 @@ class StudentLibraryRepository extends ChangeNotifier
   /// stop first, so no "permission denied" errors appear while signing out.
   /// The router then sends the user to the Login screen.
   Future<void> signOut() async {
+    // Push-token cleanup needs the signed-in user, so it runs first and can
+    // never block logout.
+    try {
+      await beforeSignOut?.call().timeout(const Duration(seconds: 5));
+    } catch (_) {}
     _alertsActive = false;
     _stopListening();
     await onSignOut?.call();
+  }
+
+  /// Optional cleanup run just before sign-out (removes this device's push token).
+  Future<void> Function()? beforeSignOut;
+
+  /// Adds this device's push token to users/{uid}.fcmTokens (no duplicates;
+  /// other user fields are untouched).
+  Future<void> addFcmToken(String token) =>
+      _col(FirestoreCollections.users).doc(student.uid).update({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+      });
+
+  /// Removes only the given device token from users/{uid}.fcmTokens.
+  Future<void> removeFcmToken(String token) =>
+      _col(FirestoreCollections.users).doc(student.uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+      });
+
+  /// Deletes the given notifications of this student. Ids that are not this
+  /// student's own are ignored. Book-availability alerts live in the student's
+  /// profile, so they are hidden there instead of deleted.
+  Future<ActionResult> deleteNotifications(Set<String> ids) async {
+    final own = notifications.where((n) => ids.contains(n.id)).toList();
+    if (own.isEmpty) return const ActionResult.success();
+    return _run(() async {
+      final batch = _db.batch();
+      final hidden = <String>[];
+      for (final n in own) {
+        if (n.id.startsWith('availability_')) {
+          hidden.add(n.id);
+        } else {
+          batch.delete(_col(FirestoreCollections.notifications).doc(n.id));
+        }
+      }
+      if (hidden.isNotEmpty) {
+        batch.update(_col(FirestoreCollections.users).doc(student.uid), {
+          'dismissedNotificationIds': FieldValue.arrayUnion(hidden),
+        });
+      }
+      await batch.commit();
+      return null;
+    });
   }
 
   /// Hide an opened notification persistently, without requiring delete rules.
@@ -984,6 +1052,19 @@ class StudentLibraryRepository extends ChangeNotifier
             'studentUid': student.uid,
           });
         }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.seatBookingConfirmed,
+            title: 'Seat Booking Confirmed',
+            message:
+                'Seat ${latest.seatNumber} has been reserved for $slotLabel.',
+            reservationId: ref.id,
+            itemId: latest.id,
+          ),
+        );
       });
 
       return createdReservationId;
@@ -1117,6 +1198,20 @@ class StudentLibraryRepository extends ChangeNotifier
         for (final id in toRelease) {
           tx.delete(_col(FirestoreCollections.seatSlots).doc(id));
         }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.seatReservationUpdated,
+            title: 'Reservation Updated',
+            message:
+                'Your reservation is now Seat ${latest.seatNumber} for '
+                '${ReservationRecord.slotLabel(startHour, endHour)}.',
+            reservationId: reservationId,
+            itemId: latest.id,
+          ),
+        );
       });
 
       return reservationId;

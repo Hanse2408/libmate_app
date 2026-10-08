@@ -6,6 +6,7 @@ import 'package:libmate_app/features/librarian/models/member_record.dart';
 import 'package:libmate_app/features/librarian/providers/librarian_dashboard_summary.dart';
 import 'package:libmate_app/features/student/common/data/student_library_repository.dart';
 import 'package:libmate_app/models/book.dart';
+import 'package:libmate_app/models/notification.dart';
 import 'package:libmate_app/models/reservation.dart';
 import 'package:libmate_app/models/seat.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
@@ -423,7 +424,15 @@ void main() {
           ),
           isFalse,
         );
-        expect(student.notifications, isEmpty);
+        // Exactly one student confirmation, and no librarian request.
+        expect(student.notifications, hasLength(1));
+        final note = student.notifications.single;
+        expect(note.type, StudentNotificationType.seatBookingConfirmed);
+        expect(note.title, 'Seat Booking Confirmed');
+        expect(note.recipientUid, studentUid);
+        expect(note.reservationId, doc.id);
+        expect(note.itemId, seat.id);
+        expect(note.isRead, isFalse);
       },
     );
 

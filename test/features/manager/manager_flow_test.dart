@@ -8,6 +8,10 @@ import 'package:libmate_app/app/routes/app_router.dart';
 import 'package:libmate_app/app/routes/app_routes.dart';
 import 'package:libmate_app/app/theme/app_theme.dart';
 import 'package:libmate_app/features/auth/providers/auth_provider.dart';
+import 'package:libmate_app/features/manager/data/manager_mock_data.dart';
+import 'package:libmate_app/features/manager/data/manager_repository.dart';
+import 'package:libmate_app/features/manager/providers/manager_scope.dart';
+import 'package:libmate_app/features/manager/screens/manager_users_screen.dart';
 import 'package:libmate_app/models/user.dart';
 import 'package:libmate_app/repositories/auth_repository.dart';
 import 'package:libmate_app/repositories/user_repository.dart';
@@ -65,6 +69,32 @@ class _FakeUserRepository implements UserRepository {
     email: 'manager@libmate.com',
     role: UserRole.manager,
   );
+}
+
+class _LoadingManagerRepository extends ManagerRepository {
+  @override
+  List<ManagerUser> get users => const [];
+
+  @override
+  List<ManagerReservation> get reservations => const [];
+
+  @override
+  List<ManagerNotice> get notices => const [];
+
+  @override
+  List<int> get policyValues => const [3, 5, 7, 2, 7];
+
+  @override
+  bool get isLoading => true;
+
+  @override
+  void replaceUsers(List<ManagerUser> users) {}
+
+  @override
+  void replaceReservations(List<ManagerReservation> reservations) {}
+
+  @override
+  void replacePolicyValues(List<int> values) {}
 }
 
 String _path(GoRouter router) =>
@@ -139,6 +169,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(_path(router), AppRoutes.managerReservations);
     expect(find.text('RES-1024'), findsOneWidget);
+  });
+
+  testWidgets('manager routes reuse a single repository instance', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var factoryCalls = 0;
+    final authRepository = _FakeAuthRepository();
+    final authProvider = AuthProvider(
+      authRepository: authRepository,
+      userRepository: _FakeUserRepository(),
+    );
+    final router = AppRouter(
+      authProvider,
+      createManagerRepository: () {
+        factoryCalls += 1;
+        return ManagerMockRepository.instance;
+      },
+    ).router;
+    await tester.pumpWidget(
+      MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+    );
+    authRepository.emitSignedIn();
+    await tester.pumpAndSettle();
+
+    router.go(AppRoutes.managerUsers);
+    await tester.pumpAndSettle();
+    router.go(AppRoutes.managerReports);
+    await tester.pumpAndSettle();
+
+    expect(factoryCalls, 1);
+  });
+
+  testWidgets('manager user screen shows a loading state while the live data is still loading', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final authRepository = _FakeAuthRepository();
+    final authProvider = AuthProvider(
+      authRepository: authRepository,
+      userRepository: _FakeUserRepository(),
+    );
+
+    final loadingRepository = _LoadingManagerRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManagerScope(
+          repository: loadingRepository,
+          authProvider: authProvider,
+          child: const ManagerUsersScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('Loading users...'), findsOneWidget);
   });
 
   testWidgets('manager can create, edit and deactivate a user locally', (
@@ -237,7 +326,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Export Preview Ready'), findsOneWidget);
     expect(
-      find.text('This is a UI demo. No CSV file has been created yet.'),
+      find.text('This report is ready to be exported as CSV.'),
       findsOneWidget,
     );
   });
@@ -273,9 +362,42 @@ void main() {
 
     router.go(AppRoutes.managerPolicies);
     await tester.pumpAndSettle();
+    expect(find.text('Policy & Limits'), findsOneWidget);
+    expect(find.textContaining('Demo mode'), findsNothing);
     await tester.tap(find.widgetWithText(OutlinedButton, 'Back'));
     await tester.pumpAndSettle();
     expect(_path(router), AppRoutes.managerDashboard);
+  });
+
+  testWidgets('policy apply updates the visible value immediately', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final authRepository = _FakeAuthRepository();
+    final authProvider = AuthProvider(
+      authRepository: authRepository,
+      userRepository: _FakeUserRepository(),
+    );
+    final router = AppRouter(authProvider).router;
+    await tester.pumpWidget(
+      MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+    );
+    authRepository.emitSignedIn();
+    await tester.pumpAndSettle();
+
+    router.go(AppRoutes.managerPolicies);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Book Reservation Limit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('4'), findsWidgets);
   });
 
   testWidgets('dashboard fits a phone layout and exposes manager shortcuts', (

@@ -1,9 +1,13 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../data/manager_mock_data.dart';
+import '../data/manager_repository.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
 class ManagerReportsScreen extends StatefulWidget {
@@ -41,14 +45,14 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                 color: AppColors.lightBlue,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 17, color: AppColors.navy),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, size: 17, color: AppColors.navy),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Sample figures for interface preview',
-                      style: TextStyle(fontSize: 11, color: AppColors.navy),
+                      'Live figures from the active manager data source',
+                      style: const TextStyle(fontSize: 11, color: AppColors.navy),
                     ),
                   ),
                 ],
@@ -69,8 +73,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.event_note_outlined,
                     title: _tab == 0 ? 'Reservations' : 'Total Records',
-                    value: _reportTotal,
-                    trend: 'Sample',
+                    value: _reportTotal(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -79,8 +83,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.check_circle_outline,
                     title: _reportSecondLabel,
-                    value: _reportSecondValue,
-                    trend: 'Sample',
+                    value: _reportSecondValue(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -89,8 +93,8 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
                   child: StatCard(
                     icon: Icons.info_outline,
                     title: _reportThirdLabel,
-                    value: _reportThirdValue,
-                    trend: 'Sample',
+                    value: _reportThirdValue(context),
+                    trend: 'Live',
                     trendColor: AppColors.primary,
                   ),
                 ),
@@ -140,49 +144,108 @@ class _ManagerReportsScreenState extends State<ManagerReportsScreen> {
     );
   }
 
-  String get _reportTotal => switch (_tab) {
-    5 => '${ManagerUserStore.instance.users.length}',
-    1 => '${popularBooks.length}',
-    2 => '${overdueBooks.length}',
-    6 => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.conflict).length}',
-    _ => '${managerReservations.length}',
-  };
+  String _reportTotal(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      5 => '${repository.users.length}',
+      1 => '${_popularBookCount(repository)}',
+      2 => '${_overdueCount(repository)}',
+      6 => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.conflict).length}',
+      _ => '${repository.reservations.length}',
+    };
+  }
 
   String get _reportSecondLabel => switch (_tab) {
     1 => 'Top Book',
-    2 => 'Reminder',
+    2 => 'Most Overdue',
     3 || 4 => 'Occupied',
     5 => 'Active',
     6 => 'Pending',
     _ => 'Confirmed',
   };
 
-  String get _reportSecondValue => switch (_tab) {
-    1 => 'Clean Code',
-    2 => '12',
-    3 || 4 => '84',
-    5 => '${ManagerUserStore.instance.users.where((user) => user.isActive).length}',
-    6 => '1',
-    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
-  };
+  String _reportSecondValue(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      1 => _topBook(repository),
+      2 => _mostOverdueBook(repository),
+      3 || 4 => '${repository.reservations.length}',
+      5 => '${repository.users.where((user) => user.isActive).length}',
+      6 => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
+      _ => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
+    };
+  }
 
   String get _reportThirdLabel => switch (_tab) {
     1 => 'Reservations',
-    2 => 'Overdue',
+    2 => 'At Risk',
     3 || 4 => 'Available',
     5 => 'Inactive',
     6 => 'Resolved',
     _ => 'Pending',
   };
 
-  String get _reportThirdValue => switch (_tab) {
-    1 => '128',
-    2 => '12',
-    3 || 4 => '36',
-    5 => '${ManagerUserStore.instance.users.where((user) => !user.isActive).length}',
-    6 => '1',
-    _ => '${managerReservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
-  };
+  String _reportThirdValue(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (_tab) {
+      1 => '${_popularBookCount(repository)}',
+      2 => '${_overdueCount(repository)}',
+      3 || 4 => '${max(0, 30 - repository.reservations.length)}',
+      5 => '${repository.users.where((user) => !user.isActive).length}',
+      6 => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.confirmed).length}',
+      _ => '${repository.reservations.where((reservation) => reservation.status == ManagerReservationStatus.pending).length}',
+    };
+  }
+
+  int _popularBookCount(ManagerRepository repository) {
+    final counts = <String, int>{};
+    for (final reservation in repository.reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return counts.values.fold<int>(0, (sum, value) => sum + value);
+  }
+
+  String _topBook(ManagerRepository repository) {
+    final counts = <String, int>{};
+    for (final reservation in repository.reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    if (counts.isEmpty) return 'No data';
+    final entry = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return entry.first.key;
+  }
+
+  int _overdueCount(ManagerRepository repository) {
+    return repository.reservations
+        .where((reservation) =>
+            reservation.status == ManagerReservationStatus.pending ||
+            reservation.status == ManagerReservationStatus.conflict)
+        .length;
+  }
+
+  String _mostOverdueBook(ManagerRepository repository) {
+    final entries = repository.reservations
+        .where((reservation) =>
+            reservation.status == ManagerReservationStatus.pending ||
+            reservation.status == ManagerReservationStatus.conflict)
+        .map((reservation) => reservation.book)
+        .toList();
+    if (entries.isEmpty) return 'No data';
+    final counts = <String, int>{};
+    for (final item in entries) {
+      final title = item.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    if (counts.isEmpty) return 'No data';
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.first.key;
+  }
 
   Future<void> _chooseDateRange() async {
     final range = await showDateRangePicker(
@@ -220,20 +283,25 @@ class _ReportList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repository = ManagerScope.of(context).repository;
     final items = switch (tab) {
-      1 => popularBooks,
-      2 => overdueBooks,
+      1 => _popularItems(repository),
+      2 => _overdueItems(repository),
       5 => [
-        for (final user in ManagerUserStore.instance.users)
+        for (final user in repository.users)
           (user.name, '${user.role} · ${user.status}'),
       ],
-      6 => const [
-        ('Seat B12 · 10:00 AM', 'Reservation conflict · Pending'),
-        ('Seat C04 · 11:00 AM', 'Reservation conflict · Resolved'),
+      6 => [
+        for (final reservation in repository.reservations.where(
+          (item) => item.status == ManagerReservationStatus.conflict ||
+              item.status == ManagerReservationStatus.pending,
+        ))
+          ('${reservation.book} · ${reservation.seat}',
+              '${reservation.status.name} · ${reservation.student}'),
       ],
-      3 || 4 => const [
-        ('Ground Floor', '84 occupied · 36 available'),
-        ('Peak time', '10:00 AM - 12:00 PM'),
+      3 || 4 => [
+        ('Live bookings', '${repository.reservations.length} active reservations'),
+        ('User accounts', '${repository.users.length} profiles in system'),
       ],
       _ => const <(String, String)>[],
     };
@@ -264,6 +332,38 @@ class _ReportList extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  List<(String, String)> _popularItems(ManagerRepository repository) {
+    final counts = <String, int>{};
+    for (final reservation in repository.reservations) {
+      final title = reservation.book.trim();
+      if (title.isEmpty) continue;
+      counts.update(title, (value) => value + 1, ifAbsent: () => 1);
+    }
+    if (counts.isEmpty) return const [('No book data', 'No reservations recorded')];
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return [
+      for (final entry in sorted)
+        (entry.key, '${entry.value} reservations'),
+    ];
+  }
+
+  List<(String, String)> _overdueItems(ManagerRepository repository) {
+    final attention = repository.reservations.where(
+      (reservation) =>
+          reservation.status == ManagerReservationStatus.pending ||
+          reservation.status == ManagerReservationStatus.conflict,
+    );
+    if (attention.isEmpty) {
+      return const [('No overdue items', 'No attention needed')];
+    }
+    return [
+      for (final reservation in attention)
+        ('${reservation.book}',
+            '${reservation.student} · ${reservation.status.name} · ${reservation.seat}'),
+    ];
   }
 }
 

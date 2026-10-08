@@ -3,16 +3,30 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../core/services/report_export_service.dart';
 import '../data/manager_mock_data.dart';
+import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
 
-class ManagerExportConfirmationScreen extends StatelessWidget {
+class ManagerExportConfirmationScreen extends StatefulWidget {
   const ManagerExportConfirmationScreen({super.key, required this.selection});
 
   final ManagerReportSelection selection;
 
   @override
+  State<ManagerExportConfirmationScreen> createState() =>
+      _ManagerExportConfirmationScreenState();
+}
+
+class _ManagerExportConfirmationScreenState
+    extends State<ManagerExportConfirmationScreen> {
+  bool _isSaving = false;
+  String? _savedPath;
+
+  @override
   Widget build(BuildContext context) {
+    final canExportCsv = widget.selection.format.toUpperCase() == 'CSV';
+
     return ManagerScaffold(
       title: 'Export Confirmation',
       body: ManagerPagePadding(
@@ -37,7 +51,9 @@ class ManagerExportConfirmationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'This is a UI demo. No ${selection.format} file has been created yet.',
+                canExportCsv
+                    ? 'This report is ready to be exported as CSV.'
+                    : 'CSV export is currently available for this report type.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -47,40 +63,53 @@ class ManagerExportConfirmationScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(14),
                   child: Column(
                     children: [
-                      _ExportInfoRow(label: 'Report', value: selection.reportType),
+                      _ExportInfoRow(label: 'Report', value: widget.selection.reportType),
                       const Divider(height: 20),
                       _ExportInfoRow(
                         label: 'Date Range',
                         value:
-                            '${_dateLabel(selection.startDate)} - ${_dateLabel(selection.endDate)}',
+                            '${_dateLabel(widget.selection.startDate)} - ${_dateLabel(widget.selection.endDate)}',
                       ),
                       const Divider(height: 20),
-                      _ExportInfoRow(label: 'Format', value: selection.format),
+                      _ExportInfoRow(label: 'Format', value: widget.selection.format),
                       const Divider(height: 20),
                       _ExportInfoRow(
                         label: 'Records',
-                        value: '${_recordCount(selection)} sample records',
+                        value: '${_recordCount(widget.selection)} sample records',
                       ),
                       const Divider(height: 20),
                       _ExportInfoRow(
                         label: 'Generated',
                         value: _dateLabel(DateTime.now()),
                       ),
+                      if (_savedPath != null) ...[
+                        const Divider(height: 20),
+                        _ExportInfoRow(
+                          label: 'Saved File',
+                          value: _savedPath!,
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 14),
               FilledButton.icon(
-                onPressed: null,
+                onPressed: canExportCsv && !_isSaving ? _downloadReport : null,
                 icon: const Icon(Icons.download_outlined),
-                label: const Text('Download (not available in demo)'),
+                label: Text(
+                  _isSaving ? 'Saving...' : 'Download CSV',
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: null,
+                onPressed: _savedPath == null ? null : () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Report saved to $_savedPath')),
+                  );
+                },
                 icon: const Icon(Icons.share_outlined),
-                label: const Text('Share (not available in demo)'),
+                label: const Text('Open saved file'),
               ),
               const SizedBox(height: 8),
               SecondaryButton(
@@ -94,14 +123,55 @@ class ManagerExportConfirmationScreen extends StatelessWidget {
     );
   }
 
-  int _recordCount(ManagerReportSelection selection) =>
-      switch (selection.reportType) {
-        'Users' => ManagerUserStore.instance.users.length,
-        'Reservations' || 'Conflicts' => managerReservations.length,
-        'Popular Books' => popularBooks.length,
-        'Overdue Books' => overdueBooks.length,
-        _ => 4,
-      };
+  Future<void> _downloadReport() async {
+    setState(() => _isSaving = true);
+    try {
+      final repository = ManagerScope.of(context).repository;
+      final path = await ReportExportService.saveCsv(
+        widget.selection,
+        repository: repository,
+      );
+      if (path == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Export cancelled.')),
+        );
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _savedPath = path;
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Report saved to $path')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report export failed.')),
+      );
+    }
+  }
+
+  int _recordCount(ManagerReportSelection selection) {
+    final repository = ManagerScope.of(context).repository;
+    return switch (selection.reportType) {
+      'Users' => repository.users.length,
+      'Reservations' => repository.reservations.length,
+      'Conflicts' => repository.reservations
+          .where((reservation) => reservation.status == ManagerReservationStatus.conflict)
+          .length,
+      'Popular Books' => repository.reservations.length,
+      'Overdue Books' => repository.reservations
+          .where((reservation) =>
+              reservation.status == ManagerReservationStatus.pending ||
+              reservation.status == ManagerReservationStatus.conflict)
+          .length,
+      _ => 0,
+    };
+  }
 
   String _dateLabel(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')} ${_month(date.month)} ${date.year}';

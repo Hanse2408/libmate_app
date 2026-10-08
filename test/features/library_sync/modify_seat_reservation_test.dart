@@ -12,6 +12,7 @@ import 'package:libmate_app/features/student/seat_booking/providers/seat_booking
 import 'package:libmate_app/features/student/seat_booking/screens/modify_seat_reservation_screen.dart';
 import 'package:libmate_app/features/student/seat_booking/screens/seat_reservation_details_screen.dart';
 import 'package:libmate_app/models/action_result.dart';
+import 'package:libmate_app/models/notification.dart';
 import 'package:libmate_app/models/reservation.dart';
 import 'package:libmate_app/models/seat.dart';
 
@@ -150,6 +151,48 @@ void main() {
         );
       },
     );
+
+    Future<List<StudentNotification>> studentNotes(String type) async {
+      final docs = (await db.collection('notifications').get()).docs;
+      return [
+        for (final d in docs)
+          if (d.data()['audience'] == 'student' && d.data()['type'] == type)
+            StudentNotification.fromMap(d.id, d.data()),
+      ];
+    }
+
+    test('a real modification creates one seatReservationUpdated note', () async {
+      final id = await book(student, a1, 10, 12);
+
+      final result = await modify(id, a2, 14, 15);
+      expect(result.success, isTrue, reason: result.message);
+
+      final notes = await studentNotes('seatReservationUpdated');
+      expect(notes, hasLength(1));
+      expect(notes.single.recipientUid, studentUid);
+      expect(notes.single.reservationId, id);
+      expect(notes.single.itemId, a2.id);
+      expect(notes.single.isRead, isFalse);
+      expect(await studentNotes('seatBookingConfirmed'), hasLength(1));
+    });
+
+    test('a no-change modification creates no update note', () async {
+      final id = await book(student, a1, 10, 12);
+      await modify(id, a1, 10, 12);
+      expect(await studentNotes('seatReservationUpdated'), isEmpty);
+    });
+
+    test('cancelling a seat creates one cancellation note and frees slots', () async {
+      final id = await book(student, a1, 10, 12);
+      expect((await student.cancelReservation(id)).success, isTrue);
+      await settle();
+
+      final notes = await studentNotes('reservationCancelled');
+      expect(notes, hasLength(1));
+      expect(notes.single.reservationId, id);
+      expect(notes.single.itemId, a1.id);
+      expect(await slotIds(), isEmpty);
+    });
 
     test('a seat-hour held by another student cannot be taken', () async {
       final id = await book(student, a1, 10, 12);
