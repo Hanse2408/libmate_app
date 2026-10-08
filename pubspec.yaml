@@ -49,6 +49,7 @@ dependencies:
   url_launcher: ^6.3.3
   web: ^1.1.1
   pdfrx: ^2.6.5
+  firebase_messaging: ^16.7.0
 
 dev_dependencies:
   flutter_test:

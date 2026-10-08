@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 
 import 'app/routes/app_router.dart';
+import 'core/services/push_messaging_client.dart';
 import 'app/startup/app_startup.dart';
 import 'app/theme/app_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -40,9 +41,8 @@ class _LibMateStartupState extends State<_LibMateStartup> {
 
   Future<void> _start() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      registerPushBackgroundHandler();
     } catch (_) {
       if (mounted) {
         setState(

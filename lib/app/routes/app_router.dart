@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -27,6 +28,7 @@ import '../../features/manager/screens/manager_profile_screen.dart';
 import '../../features/student/common/data/student_library_repository.dart';
 import '../../features/student/common/screens/student_home_screen.dart';
 import '../../models/user.dart';
+import '../../core/services/push_messaging_client.dart';
 import '../startup/app_startup.dart';
 import 'app_routes.dart';
 import 'librarian_routes.dart';
@@ -88,8 +90,11 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.studentHome,
           builder: (context, state) => StudentHomeScreen(
-            createLibrary:
-                createStudentLibrary ?? () => _firestoreStudentLibrary(authProvider),
+            createLibrary: createStudentLibrary ?? () => _firestoreStudentLibrary(authProvider),
+            // Real push only for the live app (not tests, not web).
+            createPushClient: createStudentLibrary == null && !kIsWeb
+                ? FirebaseMessagingClient.new
+                : null,
           ),
         ),
         LibrarianRoutes.shellRoute(

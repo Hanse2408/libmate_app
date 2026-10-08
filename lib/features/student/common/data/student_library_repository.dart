@@ -243,6 +243,16 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   List<StudentNotification> _notifications = const [];
   Set<String> _dismissedNotificationIds = {};
 
+  // New-notification events for the in-app banner. The first snapshot is the
+  // baseline; ids already seen never fire again.
+  final StreamController<StudentNotification> _newNotifications =
+      StreamController<StudentNotification>.broadcast();
+  final Set<String> _seenNotificationIds = {};
+  bool _notificationsBaselined = false;
+
+  /// Notifications that arrive after the initial load (unread, recent only).
+  Stream<StudentNotification> get newNotifications => _newNotifications.stream;
+
   List<BookRecord> _books = const [];
   List<SeatRecord> _seats = const [];
   Map<String, ReservationLoanProgress> _reservationLoans = {};
@@ -362,28 +372,38 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
           .where('recipientUid', isEqualTo: student.uid),
       'notifications',
       (docs) {
-        _notifications = [
-          for (final d in docs) StudentNotification.fromMap(d.id, d.data()),
-        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _notifications = [for (final d in docs) StudentNotification.fromMap(d.id, d.data())]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        for (final n in _notifications) {
+          final isNew = _seenNotificationIds.add(n.id);
+          final recent = DateTime.now().difference(n.createdAt) < const Duration(minutes: 5);
+          if (isNew && _notificationsBaselined && !n.isRead && recent) {
+            _newNotifications.add(n);
+          }
+        }
+        _notificationsBaselined = true;
       },
     );
 
     // Read only this student's loans, linked by reservation ID, never book ID.
-    _watch(_col(FirestoreCollections.borrowings)
-        .where('memberUid', isEqualTo: student.uid), 'loanProgress', (docs) {
-      final loans = <String, ReservationLoanProgress>{};
-      for (final doc in docs) {
-        final data = doc.data();
-        final reservationId = data['reservationId'];
-        if (reservationId is! String || reservationId.isEmpty) continue;
-        final loan = ReservationLoanProgress.fromMap(data);
-        final previous = loans[reservationId];
-        if (previous == null || loan.issuedAt.isAfter(previous.issuedAt)) {
-          loans[reservationId] = loan;
+    _watch(
+      _col(FirestoreCollections.borrowings).where('memberUid', isEqualTo: student.uid),
+      'loanProgress',
+      (docs) {
+        final loans = <String, ReservationLoanProgress>{};
+        for (final doc in docs) {
+          final data = doc.data();
+          final reservationId = data['reservationId'];
+          if (reservationId is! String || reservationId.isEmpty) continue;
+          final loan = ReservationLoanProgress.fromMap(data);
+          final previous = loans[reservationId];
+          if (previous == null || loan.issuedAt.isAfter(previous.issuedAt)) {
+            loans[reservationId] = loan;
+          }
         }
-      }
-      _reservationLoans = loans;
-    });
+        _reservationLoans = loans;
+      },
+    );
 
     _waiting.add('settings');
     _subscriptions.add(
@@ -457,6 +477,7 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     _alertsActive = false;
     lifecycleBinding?.removeObserver(this);
     _stopListening();
+    _newNotifications.close();
     _ebooks?.dispose();
     super.dispose();
   }
@@ -465,10 +486,30 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
   /// stop first, so no "permission denied" errors appear while signing out.
   /// The router then sends the user to the Login screen.
   Future<void> signOut() async {
+    // Push-token cleanup needs the signed-in user, so it runs first and can
+    // never block logout.
+    try {
+      await beforeSignOut?.call().timeout(const Duration(seconds: 5));
+    } catch (_) {}
     _alertsActive = false;
     _stopListening();
     await onSignOut?.call();
   }
+  /// Optional cleanup run just before sign-out (removes this device's push token).
+  Future<void> Function()? beforeSignOut;
+
+  /// Adds this device's push token to users/{uid}.fcmTokens (no duplicates;
+  /// other user fields are untouched).
+  Future<void> addFcmToken(String token) =>
+      _col(FirestoreCollections.users).doc(student.uid).update({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+      });
+
+  /// Removes only the given device token from users/{uid}.fcmTokens.
+  Future<void> removeFcmToken(String token) =>
+      _col(FirestoreCollections.users).doc(student.uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+      });
 
   /// Deletes the given notifications of this student. Ids that are not this
   /// student's own are ignored. Book-availability alerts live in the student's
@@ -495,6 +536,7 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
       return null;
     });
   }
+
   /// Marks one of this student's notifications as read (already read: no-op).
   Future<ActionResult> markNotificationRead(String id) async {
     final notification = notifications.where((n) => n.id == id).firstOrNull;
