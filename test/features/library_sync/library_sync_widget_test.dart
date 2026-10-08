@@ -335,19 +335,32 @@ void main() {
     final student = studentRepo(db);
     addTearDown(student.dispose);
     await _pumpStudent(tester, SeatBookingScreen(library: student));
-    // Tomorrow, 08:00-09:00 (default times) overlaps the other booking.
     await _pickBookingDay(tester, day);
-    await tester.tap(find.byKey(ValueKey('seat-${seat.id}')));
+    // The default start hour depends on the current time, so choose 08:00
+    // explicitly; the window then overlaps the other student's 08:00-10:00.
+    final defaultStart = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data)
+        .skipWhile((t) => t != 'Start Time')
+        .elementAt(1)!;
+    await tester.tap(find.text(defaultStart));
     await tester.pumpAndSettle();
-
+    await tester.tap(find.text('08:00').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('seat-${seat.id}')));
+    // The blocked-seat message is a SnackBar; pumpAndSettle would wait for it
+    // to auto-dismiss, so advance only a moment.
+    await tester.pump(const Duration(milliseconds: 500));
     expect(
       find.text('Seat A01 is already booked at this time.'),
       findsOneWidget,
     );
+    await tester.pumpAndSettle();
     final button = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Book Seat'),
     );
     expect(button.onPressed, isNull);
+    expect((await db.collection('reservations').get()).docs, hasLength(1));
   });
 
   testWidgets('a student is kept out of Librarian pages', (tester) async {

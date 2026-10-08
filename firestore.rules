@@ -251,7 +251,7 @@ service cloud.firestore {
         || (isStudent()
           && request.resource.data.audience == 'student'
           && request.resource.data.recipientUid == request.auth.uid
-          && request.resource.data.type in ['reservationRequested', 'reservationCancelled']
+          && request.resource.data.type in ['reservationRequested', 'reservationCancelled', 'seatBookingConfirmed', 'seatReservationUpdated']
           && request.resource.data.isRead == false);
     }
 

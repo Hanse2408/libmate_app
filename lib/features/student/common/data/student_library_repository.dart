@@ -863,6 +863,19 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
             'studentUid': student.uid,
           });
         }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.seatBookingConfirmed,
+            title: 'Seat Booking Confirmed',
+            message:
+                'Seat ${latest.seatNumber} has been reserved for $slotLabel.',
+            reservationId: ref.id,
+            itemId: latest.id,
+          ),
+        );
       });
 
       return createdReservationId;
@@ -996,6 +1009,20 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
         for (final id in toRelease) {
           tx.delete(_col(FirestoreCollections.seatSlots).doc(id));
         }
+
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.seatReservationUpdated,
+            title: 'Reservation Updated',
+            message:
+                'Your reservation is now Seat ${latest.seatNumber} for '
+                '${ReservationRecord.slotLabel(startHour, endHour)}.',
+            reservationId: reservationId,
+            itemId: latest.id,
+          ),
+        );
       });
 
       return reservationId;
