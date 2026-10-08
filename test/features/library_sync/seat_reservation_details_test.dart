@@ -1,3 +1,4 @@
+import 'package:libmate_app/models/reservation_display_reference.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -116,7 +117,7 @@ void main() {
     expect(find.text('Quiet Zone'), findsOneWidget);
     expect(find.text('Power outlet'), findsOneWidget);
     expect(find.text('10:00 – 12:00'), findsOneWidget);
-    expect(find.text(id), findsOneWidget);
+    expect(find.text(ReservationDisplayReference.forId(id)), findsOneWidget);
     expect(find.text('Note'), findsNothing); // empty optional values are hidden
 
     await tester.tap(find.byTooltip('Back'));

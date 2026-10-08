@@ -1,3 +1,5 @@
+import '../../common/widgets/loan_period_field.dart';
+import '../../../../models/reservation_display_reference.dart';
 import '../../common/widgets/student_palette.dart';
 import '../../../../core/constants/book_pickup_locations.dart';
 import '../widgets/reservation_notice.dart';
@@ -8,29 +10,29 @@ import 'my_reservations_screen.dart' show MyReservationsScreen;
 import 'find_books_screen.dart';
 import '../../common/screens/profile_screen.dart';
 import '../../common/widgets/student_bottom_navigation.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../common/data/student_library_repository.dart';
 import '../../../../models/reservation.dart';
 
 class ReservationDetailsScreen extends StatefulWidget {
   const ReservationDetailsScreen({
-  super.key,
-  required this.library,
-  required this.reservationId,
-});
+    super.key,
+    required this.library,
+    required this.reservationId,
+  });
 
-final StudentLibraryRepository library;
-final String reservationId;
+  final StudentLibraryRepository library;
+  final String reservationId;
 
   @override
   State<ReservationDetailsScreen> createState() =>
       _ReservationDetailsScreenState();
 }
 
-class _ReservationDetailsScreenState
-    extends State<ReservationDetailsScreen> {
-
-       ReservationRecord? get _reservation {
+class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
+  ReservationRecord? get _reservation {
     for (final reservation in widget.library.myReservations) {
       if (reservation.id == widget.reservationId) {
         return reservation;
@@ -57,25 +59,42 @@ class _ReservationDetailsScreenState
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
-  bool _cancelled = false;
+
+  bool _cancelledLocally = false;
+  bool get _cancelled =>
+      _cancelledLocally || _reservation?.status == ReservationStatus.cancelled;
   bool _cancelling = false;
 
   BookRecord? get _book {
     final reservation = _reservation;
-    return reservation == null ? null : widget.library.bookById(reservation.itemId);
+    return reservation == null
+        ? null
+        : widget.library.bookById(reservation.itemId);
   }
 
   String get author => _book?.author.trim().isNotEmpty == true
-      ? _book!.author : 'Author unavailable';
+      ? _book!.author
+      : 'Author unavailable';
   String get category => _book?.category.trim().isNotEmpty == true
-      ? _book!.category : 'Category unavailable';
-static const String pickupDesk = 'Book Collection Desk';
+      ? _book!.category
+      : 'Category unavailable';
+  static const String pickupDesk = 'Book Collection Desk';
 
   @override
   Widget build(BuildContext context) {
@@ -91,11 +110,14 @@ static const String pickupDesk = 'Book Collection Desk';
                 child: Column(
                   children: [
                     _buildBookCard(),
-                    if (_reservation != null && _reservation!.type == ReservationType.book) ...[
+                    if (_reservation != null &&
+                        _reservation!.type == ReservationType.book) ...[
                       const SizedBox(height: 16),
                       ReservationProgressCard(
                         reservation: _reservation!,
-                        loan: widget.library.loanProgressForReservation(widget.reservationId),
+                        loan: widget.library.loanProgressForReservation(
+                          widget.reservationId,
+                        ),
                       ),
                     ],
                     SizedBox(height: 16),
@@ -130,7 +152,7 @@ static const String pickupDesk = 'Book Collection Desk';
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -149,7 +171,8 @@ static const String pickupDesk = 'Book Collection Desk';
         color: Theme.of(context).colorScheme.surface,
         shape: BoxShape.circle,
         border: Border.all(
-          color: StudentPalette.of(context).border,
+          color: StudentPalette.of(context).primary
+              .withValues(alpha: StudentPalette.of(context).isDark ? .32 : .22),
         ),
       ),
       child: IconButton(
@@ -176,7 +199,7 @@ static const String pickupDesk = 'Book Collection Desk';
         boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -189,7 +212,7 @@ static const String pickupDesk = 'Book Collection Desk';
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-  _book?.title ?? _reservation?.itemName ?? 'Book',
+                  _book?.title ?? _reservation?.itemName ?? 'Book',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 19,
@@ -225,9 +248,11 @@ static const String pickupDesk = 'Book Collection Desk';
                     _buildSmallBadge(
                       label: _book?.stock.label ?? 'Book unavailable',
                       backgroundColor: _book?.isAvailable == true
-                          ? StudentPalette.of(context).successTint : StudentPalette.of(context).errorTint,
+                          ? StudentPalette.of(context).successTint
+                          : StudentPalette.of(context).errorTint,
                       textColor: _book?.isAvailable == true
-                          ? StudentPalette.of(context).success : StudentPalette.of(context).error,
+                          ? StudentPalette.of(context).success
+                          : StudentPalette.of(context).error,
                     ),
                   ],
                 ),
@@ -249,16 +274,14 @@ static const String pickupDesk = 'Book Collection Desk';
       radius: 7,
     );
   }
+
   Widget _buildSmallBadge({
     required String label,
     required Color backgroundColor,
     required Color textColor,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(10),
@@ -268,7 +291,7 @@ static const String pickupDesk = 'Book Collection Desk';
         style: TextStyle(
           color: textColor,
           fontSize: 11,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -284,7 +307,7 @@ static const String pickupDesk = 'Book Collection Desk';
         boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).goldBorder,
+          color: StudentPalette.of(context).gold.withValues(alpha: .32),
           width: 1.2,
         ),
       ),
@@ -296,22 +319,20 @@ static const String pickupDesk = 'Book Collection Desk';
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           SizedBox(height: 10),
           _buildInformationRow(
             icon: Icons.bookmark_border_rounded,
-            label: 'Reservation ID',
-            value: widget.reservationId,
+            label: 'Reservation Reference',
+            value: ReservationDisplayReference.forId(widget.reservationId),
           ),
           _buildInformationDivider(),
           _buildInformationRow(
             icon: Icons.calendar_today_outlined,
             label: 'Reservation Date',
-            value: _reservation == null
-    ? '-'
-    : _formatDate(_reservation!.date),
+            value: _reservation == null ? '-' : _formatDate(_reservation!.date),
           ),
           _buildInformationDivider(),
           _buildInformationRow(
@@ -337,11 +358,7 @@ static const String pickupDesk = 'Book Collection Desk';
       padding: EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: StudentPalette.of(context).muted,
-            size: 21,
-          ),
+          Icon(icon, color: StudentPalette.of(context).muted, size: 21),
           SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -352,12 +369,16 @@ static const String pickupDesk = 'Book Collection Desk';
               ),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: StudentPalette.of(context).text,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: StudentPalette.of(context).text,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -366,10 +387,7 @@ static const String pickupDesk = 'Book Collection Desk';
   }
 
   Widget _buildInformationDivider() {
-    return Divider(
-      height: 1,
-      color: StudentPalette.of(context).border,
-    );
+    return Divider(height: 1, color: StudentPalette.of(context).border);
   }
 
   Widget _buildLocationRow() {
@@ -395,14 +413,14 @@ static const String pickupDesk = 'Book Collection Desk';
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children:  [
+            children: [
               Text(
                 _reservation?.pickupLocation ?? '-',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: StudentPalette.of(context).text,
                   fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: 2),
@@ -430,7 +448,7 @@ static const String pickupDesk = 'Book Collection Desk';
         boxShadow: StudentPalette.of(context).cardShadow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: StudentPalette.of(context).blueBorder,
+          color: StudentPalette.of(context).primary.withValues(alpha: .25),
           width: 1.2,
         ),
       ),
@@ -450,7 +468,7 @@ static const String pickupDesk = 'Book Collection Desk';
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -458,15 +476,13 @@ static const String pickupDesk = 'Book Collection Desk';
           SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: StudentPalette.of(context).blueTint,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: StudentPalette.of(context).blueBorder,
+                color: StudentPalette.of(context).primary
+                    .withValues(alpha: .25),
               ),
             ),
             child: Text(
@@ -491,16 +507,10 @@ static const String pickupDesk = 'Book Collection Desk';
       height: 48,
       child: ElevatedButton.icon(
         onPressed: _cancelled ? null : _modifyReservation,
-        icon: Icon(
-          Icons.edit_outlined,
-          size: 19,
-        ),
+        icon: Icon(Icons.edit_outlined, size: 19),
         label: Text(
           'Modify Reservation',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: StudentPalette.of(context).primary,
@@ -508,7 +518,7 @@ static const String pickupDesk = 'Book Collection Desk';
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
@@ -521,20 +531,14 @@ static const String pickupDesk = 'Book Collection Desk';
       height: 48,
       child: OutlinedButton.icon(
         onPressed: _cancelled || _cancelling ? null : _showCancelDialog,
-        icon: Icon(
-          Icons.delete_outline_rounded,
-          size: 19,
-        ),
+        icon: Icon(Icons.delete_outline_rounded, size: 19),
         label: Text(
           _cancelling
               ? 'Cancelling…'
               : _cancelled
-                  ? 'Reservation Cancelled'
-                  : 'Cancel Reservation',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+              ? 'Reservation Cancelled'
+              : 'Cancel Reservation',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: StudentPalette.of(context).error,
@@ -547,7 +551,7 @@ static const String pickupDesk = 'Book Collection Desk';
             width: 1.3,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
@@ -557,9 +561,12 @@ static const String pickupDesk = 'Book Collection Desk';
   Future<void> _modifyReservation() async {
     final reservation = _reservation;
     if (reservation == null || !reservation.isPending) {
-      showReservationNotice(context, message: reservation?.status == ReservationStatus.approved
-          ? 'Approved book reservations cannot be modified.'
-          : 'Only pending book reservations can be modified.');
+      showReservationNotice(
+        context,
+        message: reservation?.status == ReservationStatus.approved
+            ? 'Approved book reservations cannot be modified.'
+            : 'Only pending book reservations can be modified.',
+      );
       return;
     }
 
@@ -567,9 +574,11 @@ static const String pickupDesk = 'Book Collection Desk';
     final today = DateTime(now.year, now.month, now.day);
     final lastDate = today.add(Duration(days: 30));
     var pickupDate = reservation.date;
-    var loanPeriod = reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
-    var location = reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
-    final periods = {7, 14, 21, 30, loanPeriod}.toList()..sort();
+    var loanPeriod =
+        reservation.loanPeriodDays ?? widget.library.settings.loanPeriodDays;
+    var location =
+        reservation.pickupLocation ?? BookPickupLocations.defaultLocation;
+
     final locations = BookPickupLocations.including(location);
     var saving = false;
     String? error;
@@ -581,7 +590,9 @@ static const String pickupDesk = 'Book Collection Desk';
         builder: (dialogContext, updateDialog) => PopScope(
           canPop: !saving,
           child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
             title: Text('Modify Reservation'),
             content: SizedBox(
               width: 360,
@@ -593,33 +604,30 @@ static const String pickupDesk = 'Book Collection Desk';
                     OutlinedButton.icon(
                       icon: Icon(Icons.calendar_today_outlined),
                       label: Text('Pickup date: ${_formatDate(pickupDate)}'),
-                      onPressed: saving ? null : () async {
-                        final initialDate = pickupDate.isBefore(today)
-                            ? today
-                            : pickupDate.isAfter(lastDate) ? lastDate : pickupDate;
-                        final selected = await showDatePicker(
-                          context: dialogContext,
-                          initialDate: initialDate,
-                          firstDate: today,
-                          lastDate: lastDate,
-                        );
-                        if (selected != null && dialogContext.mounted) {
-                          updateDialog(() => pickupDate = selected);
-                        }
-                      },
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final initialDate = pickupDate.isBefore(today)
+                                  ? today
+                                  : pickupDate.isAfter(lastDate)
+                                  ? lastDate
+                                  : pickupDate;
+                              final selected = await showDatePicker(
+                                context: dialogContext,
+                                initialDate: initialDate,
+                                firstDate: today,
+                                lastDate: lastDate,
+                              );
+                              if (selected != null && dialogContext.mounted) {
+                                updateDialog(() => pickupDate = selected);
+                              }
+                            },
                     ),
                     SizedBox(height: 16),
-                    DropdownButtonFormField<int>(
+                    LoanPeriodField(
                       initialValue: loanPeriod,
-                      decoration: InputDecoration(
-                        labelText: 'Loan period',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [for (final days in periods)
-                        DropdownMenuItem(value: days, child: Text('$days Days'))],
-                      onChanged: saving ? null : (value) {
-                        if (value != null) updateDialog(() => loanPeriod = value);
-                      },
+                      enabled: !saving,
+                      onChanged: (days) => loanPeriod = days,
                     ),
                     SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -629,15 +637,25 @@ static const String pickupDesk = 'Book Collection Desk';
                         labelText: 'Pickup location',
                         border: OutlineInputBorder(),
                       ),
-                      items: [for (final item in locations)
-                        DropdownMenuItem(value: item, child: Text(item))],
-                      onChanged: saving ? null : (value) {
-                        if (value != null) updateDialog(() => location = value);
-                      },
+                      items: [
+                        for (final item in locations)
+                          DropdownMenuItem(value: item, child: Text(item)),
+                      ],
+                      onChanged: saving
+                          ? null
+                          : (value) {
+                              if (value != null)
+                                updateDialog(() => location = value);
+                            },
                     ),
                     if (error != null) ...[
                       SizedBox(height: 12),
-                      Text(error!, style: TextStyle(color: Theme.of(dialogContext).colorScheme.error)),
+                      Text(
+                        error!,
+                        style: TextStyle(
+                          color: Theme.of(dialogContext).colorScheme.error,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -649,38 +667,49 @@ static const String pickupDesk = 'Book Collection Desk';
                 child: Text('Cancel'),
               ),
               FilledButton(
-                onPressed: saving ? null : () async {
-                  if (pickupDate.isBefore(today)) {
-                    updateDialog(() => error = 'Choose today or a future pickup date.');
-                    return;
-                  }
-                  final latest = _reservation;
-                  if (latest == null || !latest.isPending) {
-                    updateDialog(() => error = 'Only pending book reservations can be modified. Approved reservations cannot be modified.');
-                    return;
-                  }
-                  updateDialog(() { saving = true; error = null; });
-                  final result = await widget.library.updateBookReservation(
-                    reservationId: reservation.id,
-                    pickupDate: pickupDate,
-                    pickupLocation: location,
-                    loanPeriodDays: loanPeriod,
-                  );
-                  if (!dialogContext.mounted) return;
-                  if (!result.success) {
-                    updateDialog(() {
-                      saving = false;
-                      error = result.message ?? 'Unable to update reservation. Please try again.';
-                    });
-                    return;
-                  }
-                  Navigator.pop(dialogContext);
-                  if (!mounted) return;
-                  setState(() {});
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Reservation updated.')),
-                  );
-                },
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (pickupDate.isBefore(today)) {
+                          updateDialog(
+                            () =>
+                                error = 'Choose today or a future pickup date.',
+                          );
+                          return;
+                        }
+                        final latest = _reservation;
+                        if (latest == null || !latest.isPending) {
+                          updateDialog(
+                            () => error = 'Only pending book reservations can be modified. Approved reservations cannot be modified.',
+                          );
+                          return;
+                        }
+                        updateDialog(() {
+                          saving = true;
+                          error = null;
+                        });
+                        final result = await widget.library
+                            .updateBookReservation(
+                              reservationId: reservation.id,
+                              pickupDate: pickupDate,
+                              pickupLocation: location,
+                              loanPeriodDays: loanPeriod,
+                            );
+                        if (!dialogContext.mounted) return;
+                        if (!result.success) {
+                          updateDialog(() {
+                            saving = false;
+                            error = result.message ?? 'Unable to update reservation. Please try again.';
+                          });
+                          return;
+                        }
+                        Navigator.pop(dialogContext);
+                        if (!mounted) return;
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Reservation updated.')),
+                        );
+                      },
                 child: Text(saving ? 'Saving...' : 'OK'),
               ),
             ],
@@ -689,9 +718,13 @@ static const String pickupDesk = 'Book Collection Desk';
       ),
     );
   }
+
   void _showCancelDialog() {
     if (_reservation?.status == ReservationStatus.approved) {
-      showReservationNotice(context, message: 'Approved book reservations cannot be cancelled.');
+      showReservationNotice(
+        context,
+        message: 'Approved book reservations cannot be cancelled.',
+      );
       return;
     }
     showDialog<void>(
@@ -706,7 +739,7 @@ static const String pickupDesk = 'Book Collection Desk';
             'Cancel Reservation?',
             style: TextStyle(
               color: StudentPalette.of(context).text,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
@@ -737,13 +770,14 @@ static const String pickupDesk = 'Book Collection Desk';
                 if (reservation == null) return;
 
                 setState(() => _cancelling = true);
-                final result =
-                    await widget.library.cancelReservation(reservation.id);
+                final result = await widget.library.cancelReservation(
+                  reservation.id,
+                );
                 if (!mounted) return;
 
                 setState(() {
                   _cancelling = false;
-                  if (result.success) _cancelled = true;
+                  if (result.success) _cancelledLocally = true;
                 });
 
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -760,7 +794,7 @@ static const String pickupDesk = 'Book Collection Desk';
                 'Cancel Reservation',
                 style: TextStyle(
                   color: StudentPalette.of(context).error,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -773,14 +807,30 @@ static const String pickupDesk = 'Book Collection Desk';
   Widget _buildBottomNavigationBar() {
     return StudentBottomNavigation(
       selectedIndex: 2,
-      onHome: () { Navigator.of(context).popUntil((route) => route.isFirst); },
-      onSearch: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FindBooksScreen(library: widget.library))); },
-      onReservations: () {
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MyReservationsScreen(library: widget.library)));
+      onHome: () {
+        Navigator.of(context).popUntil((route) => route.isFirst);
       },
-      onProfile: () { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(library: widget.library))); },
+      onSearch: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => FindBooksScreen(library: widget.library),
+          ),
+        );
+      },
+      onReservations: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MyReservationsScreen(library: widget.library),
+          ),
+        );
+      },
+      onProfile: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProfileScreen(library: widget.library),
+          ),
+        );
+      },
     );
   }
-
-
 }

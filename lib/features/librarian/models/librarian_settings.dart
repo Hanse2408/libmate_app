@@ -7,6 +7,7 @@ class LibrarianSettings {
     this.closingHour = 20,
     this.maxBorrowLimit = 5,
     this.loanPeriodDays = 14,
+    this.dailyFineRate = 25,
     this.seatBookingHours = 2,
     this.reservationNotifications = true,
     this.overdueReminders = true,
@@ -23,6 +24,9 @@ class LibrarianSettings {
   /// Default loan period; also used when a loan is renewed.
   final int loanPeriodDays;
 
+  /// Rupees per calendar day after a book loan's due date.
+  final int dailyFineRate;
+
   /// Maximum length of one reading-room seat booking.
   final int seatBookingHours;
 
@@ -34,19 +38,27 @@ class LibrarianSettings {
 
   factory LibrarianSettings.fromMap(Map<String, dynamic> map) {
     const defaults = LibrarianSettings();
-    int number(String key, int fallback) => (map[key] as num?)?.toInt() ?? fallback;
+    int number(String key, int fallback) =>
+        (map[key] as num?)?.toInt() ?? fallback;
     bool flag(String key, bool fallback) => map[key] as bool? ?? fallback;
     return LibrarianSettings(
       openingHour: number('openingHour', defaults.openingHour),
       closingHour: number('closingHour', defaults.closingHour),
       maxBorrowLimit: number('maxBorrowLimit', defaults.maxBorrowLimit),
       loanPeriodDays: number('loanPeriodDays', defaults.loanPeriodDays),
+      dailyFineRate: number('dailyFineRate', defaults.dailyFineRate) < 0
+          ? defaults.dailyFineRate
+          : number('dailyFineRate', defaults.dailyFineRate),
       seatBookingHours: number('seatBookingHours', defaults.seatBookingHours),
-      reservationNotifications:
-          flag('reservationNotifications', defaults.reservationNotifications),
+      reservationNotifications: flag(
+        'reservationNotifications',
+        defaults.reservationNotifications,
+      ),
       overdueReminders: flag('overdueReminders', defaults.overdueReminders),
-      availabilityNotifications:
-          flag('availabilityNotifications', defaults.availabilityNotifications),
+      availabilityNotifications: flag(
+        'availabilityNotifications',
+        defaults.availabilityNotifications,
+      ),
     );
   }
 
@@ -56,6 +68,7 @@ class LibrarianSettings {
       'closingHour': closingHour,
       'maxBorrowLimit': maxBorrowLimit,
       'loanPeriodDays': loanPeriodDays,
+      'dailyFineRate': dailyFineRate,
       'seatBookingHours': seatBookingHours,
       'reservationNotifications': reservationNotifications,
       'overdueReminders': overdueReminders,
@@ -68,6 +81,7 @@ class LibrarianSettings {
     int? closingHour,
     int? maxBorrowLimit,
     int? loanPeriodDays,
+    int? dailyFineRate,
     int? seatBookingHours,
     bool? reservationNotifications,
     bool? overdueReminders,
@@ -78,6 +92,7 @@ class LibrarianSettings {
       closingHour: closingHour ?? this.closingHour,
       maxBorrowLimit: maxBorrowLimit ?? this.maxBorrowLimit,
       loanPeriodDays: loanPeriodDays ?? this.loanPeriodDays,
+      dailyFineRate: dailyFineRate ?? this.dailyFineRate,
       seatBookingHours: seatBookingHours ?? this.seatBookingHours,
       reservationNotifications:
           reservationNotifications ?? this.reservationNotifications,

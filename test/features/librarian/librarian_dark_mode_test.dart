@@ -82,6 +82,7 @@ void main() {
         LibrarianRoutes.settings,
         size: const Size(400, 2600),
       );
+      await tester.scrollUntilVisible(find.text('Dark Mode'), 300);
       final darkSwitch = find.descendant(
         of: find
             .ancestor(of: find.text('Dark Mode'), matching: find.byType(Row))
@@ -132,6 +133,7 @@ void main() {
       // And back to light.
       router.go(LibrarianRoutes.settings);
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Dark Mode'), 300);
       await tester.tap(darkSwitch);
       await tester.pumpAndSettle();
       expect(repositoryOf(tester).darkMode, isFalse);

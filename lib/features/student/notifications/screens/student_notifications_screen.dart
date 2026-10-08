@@ -36,7 +36,7 @@ class _StudentNotificationsScreenState
   bool _searching = false;
   String _query = '';
   _TypeFilter _typeFilter = _TypeFilter.all;
-  _StatusFilter _statusFilter = _StatusFilter.all;
+  _StatusFilter _statusFilter = _StatusFilter.unread;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -152,9 +152,10 @@ class _StudentNotificationsScreenState
   );
 
   String _emptyText() {
-    if (library.notifications.isEmpty) return 'No notifications yet';
+    if (library.notifications.isEmpty) return 'You have no new notifications.';
     if (_query.trim().isNotEmpty) return 'No matching notifications';
-    if (_statusFilter == _StatusFilter.unread) return 'No unread notifications';
+    if (_statusFilter == _StatusFilter.unread)
+      return 'You have no new notifications.';
     if (_statusFilter == _StatusFilter.read) return 'No read notifications';
     if (_typeFilter == _TypeFilter.books) return 'No book notifications';
     return 'No seat notifications';
@@ -401,21 +402,35 @@ class _StudentNotificationsScreenState
           child: InkWell(
             onTap: () => _selecting ? _toggle(n.id) : _openNotification(n),
             onLongPress: () => _toggle(n.id),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             child: Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
+                gradient: selected
+                    ? null
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.alphaBlend(
+                            color.withValues(alpha: .08),
+                            Theme.of(context).colorScheme.surface,
+                          ),
+                          Theme.of(context).colorScheme.surface,
+                        ],
+                      ),
                 color: selected
-                    ? const Color(0xFFDBEAFE)
-                    : n.isRead
-                    ? Colors.white
-                    : const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(16),
+                    ? Color.alphaBlend(
+                        primary.withValues(alpha: .18),
+                        Theme.of(context).colorScheme.surface,
+                      )
+                    : Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: selected
                       ? primary
                       : n.isRead
-                      ? const Color(0xFFE2E8F0)
+                      ? Theme.of(context).colorScheme.outlineVariant
                       : primary.withValues(alpha: 0.35),
                   width: selected ? 1.5 : 1,
                 ),
@@ -476,6 +491,18 @@ class _StudentNotificationsScreenState
                       ],
                     ),
                   ),
+                  if (!_selecting)
+                    IconButton(
+                      tooltip: 'Dismiss notification',
+                      key: ValueKey('dismiss-${n.id}'),
+                      onPressed: () => _run(
+                        context,
+                        () => library.dismissNotification(n.id),
+                      ),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   if (_selecting)
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
@@ -512,17 +539,17 @@ class _StudentNotificationsScreenState
   }
 
   Widget _categoryBadge(bool seat) {
-    const color = Color(0xFF64748B);
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
     return Container(
       key: ValueKey(seat ? 'badge-seat' : 'badge-book'),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         seat ? 'SEAT' : 'BOOK',
-        style: const TextStyle(
+        style: TextStyle(
           color: color,
           fontSize: 10,
           fontWeight: FontWeight.w700,

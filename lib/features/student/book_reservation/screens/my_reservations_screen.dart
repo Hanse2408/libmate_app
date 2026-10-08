@@ -1,3 +1,4 @@
+import '../../../../models/reservation_display_reference.dart';
 import '../../common/widgets/student_palette.dart';
 import 'reservation_details_screen.dart';
 import '../widgets/reservation_notice.dart';
@@ -121,8 +122,9 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                 'My Reservations',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  letterSpacing: -.6,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -153,15 +155,15 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
 
   Widget _buildToggle() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 22),
+      padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Container(
-        height: 50,
-        padding: EdgeInsets.all(3),
+        height: 54,
+        padding: EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: StudentPalette.of(context).blueTint,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).blueBorder,
           ),
         ),
         child: Row(
@@ -187,14 +189,14 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
               )
             : null,
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(label == 'Books' ? Icons.auto_stories_outlined : Icons.event_seat_outlined,
+            size: 18, color: selected ? Colors.white : StudentPalette.of(context).muted),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(
             color: selected ? Colors.white : StudentPalette.of(context).muted,
-            fontSize: 16,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-          ),
-        ),
+            fontSize: 15, fontWeight: selected ? FontWeight.w800 : FontWeight.w600)),
+        ]),
       ),
     );
   }
@@ -221,13 +223,14 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           children: [
             for (final (label, status) in options)
               Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
                   key: ValueKey('reservation-filter-${status?.name ?? 'all'}'),
                   label: Text(label),
                   selected: _statusFilter == status,
                   showCheckmark: false,
                   selectedColor: colors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   backgroundColor: colors.card,
                   labelStyle: TextStyle(
                     color: _statusFilter == status ? Colors.white : colors.muted,
@@ -347,16 +350,25 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     return true;
   }
   Widget _buildCardBody(BookReservation reservation) {
+    final colors = StudentPalette.of(context);
+    final accent = switch (reservation.statusType) {
+      ReservationStatus.pending => colors.gold,
+      ReservationStatus.ready => colors.success,
+      ReservationStatus.rejected => colors.error,
+      ReservationStatus.closed => colors.muted,
+      ReservationStatus.reserved => colors.primary,
+    };
     return Container(
-      padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: EdgeInsets.fromLTRB(14, 16, 14, 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        gradient: StudentPalette.of(context).cardGradient,
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color.alphaBlend(accent.withValues(alpha: colors.isDark ? .08 : .045), colors.card), colors.card]),
         boxShadow: StudentPalette.of(context).cardShadow,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: StudentPalette.of(context).border,
-          width: 1.2,
+          color: accent.withValues(alpha: colors.isDark ? .38 : .24),
+          width: 1.1,
         ),
       ),
       child: Column(
@@ -365,7 +377,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildBookCover(reservation),
-              SizedBox(width: 13),
+              SizedBox(width: 12),
               Expanded(
                 child: _buildBookInformation(reservation),
               ),
@@ -373,12 +385,16 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
               _buildStatusBadge(reservation),
             ],
           ),
-          SizedBox(height: 7),
+
+          if (reservation.statusType != ReservationStatus.closed) ...[
+
+          SizedBox(height: 12),
           Divider(
             height: 1,
-            color: StudentPalette.of(context).border,
+            color: StudentPalette.of(context).blueBorder,
           ),
-          SizedBox(height: 7),
+
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -403,7 +419,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     : null,
                 ),
               ),
-              SizedBox(width: 20),
+              SizedBox(width: 10),
               Expanded(
                 child: _buildActionButton(
                   label: _cancellingId == reservation.id ? 'Cancelling…' : 'Cancel',
@@ -416,6 +432,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
               ),
             ],
           ),
+          ],
         ],
       ),
     );
@@ -430,9 +447,9 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: StudentPalette.of(context).primary,
+            color: StudentPalette.of(context).text,
             fontSize: 17,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         SizedBox(height: 3),
@@ -442,16 +459,25 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: StudentPalette.of(context).muted,
-            fontSize: 14,
+            fontSize: 12,
           ),
+        ),
+        SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(color: StudentPalette.of(context).blueTint,
+            borderRadius: BorderRadius.circular(6)),
+          child: Text(ReservationDisplayReference.forId(reservation.id),
+            style: TextStyle(fontSize: 10, letterSpacing: .3, fontWeight: FontWeight.w700,
+              color: StudentPalette.of(context).primary)),
         ),
         SizedBox(height: 7),
         Row(
           children: [
             Icon(
               Icons.calendar_today_outlined,
-              color: StudentPalette.of(context).primary,
-              size: 21,
+              color: StudentPalette.of(context).text,
+              size: 16,
             ),
             SizedBox(width: 7),
             Expanded(
@@ -475,7 +501,7 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     final (backgroundColor, textColor) = switch (reservation.statusType) {
       ReservationStatus.reserved => (StudentPalette.of(context).blueTint, StudentPalette.of(context).primary),
       ReservationStatus.ready => (StudentPalette.of(context).successTint, StudentPalette.of(context).success),
-      ReservationStatus.pending => (StudentPalette.of(context).goldTint, StudentPalette.of(context).gold),
+      ReservationStatus.pending => (StudentPalette.of(context).goldTint, StudentPalette.of(context).goldText),
       ReservationStatus.rejected => (StudentPalette.of(context).errorTint, StudentPalette.of(context).error),
       ReservationStatus.closed => (StudentPalette.of(context).neutralTint, StudentPalette.of(context).muted),
     };
@@ -483,7 +509,8 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
       padding: EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: textColor.withValues(alpha: .22)),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         reservation.status,
@@ -552,12 +579,13 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
   }) {
     final enabled = onPressed != null;
     return SizedBox(
-      height: 28,
+      height: 40,
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
           backgroundColor: enabled ? backgroundColor : StudentPalette.of(context).neutralTint,
           foregroundColor: textColor,
+          side: BorderSide(color: (enabled ? textColor : StudentPalette.of(context).border).withValues(alpha: .22)),
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),

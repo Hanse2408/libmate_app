@@ -1,3 +1,4 @@
+import '../../../../models/reservation_display_reference.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../models/reservation.dart';
@@ -249,8 +250,8 @@ class _SeatReservationDetailsScreenState extends State<SeatReservationDetailsScr
         SeatInfoRow(icon: Icons.notes_rounded, label: 'Note', value: note),
       SeatInfoRow(
         icon: Icons.confirmation_number_outlined,
-        label: 'Booking ID',
-        value: r.id,
+        label: 'Reservation Reference',
+        value: ReservationDisplayReference.forId(r.id),
       ),
       SeatInfoRow(
         icon: Icons.check_circle_outline_rounded,

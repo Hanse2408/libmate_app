@@ -344,12 +344,13 @@ class _ZoomButtons extends StatelessWidget {
     Widget button(IconData icon, String tip, VoidCallback onTap) => IconButton(
       tooltip: tip,
       onPressed: onTap,
-      icon: Icon(icon, color: c.text),
+      icon: Icon(icon, color: c.primary),
     );
     return Material(
       color: c.surface,
-      elevation: 3,
-      borderRadius: BorderRadius.circular(14),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: c.primary.withValues(alpha: .25))),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

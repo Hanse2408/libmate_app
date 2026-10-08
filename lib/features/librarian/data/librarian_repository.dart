@@ -342,6 +342,9 @@ abstract class LibrarianRepository extends ChangeNotifier {
     if (settings.maxBorrowLimit < 1 || settings.maxBorrowLimit > 20) {
       return 'Borrowing limit must be between 1 and 20 books.';
     }
+    if (settings.dailyFineRate < 0 || settings.dailyFineRate > 1000) {
+      return 'Daily overdue fine must be between Rs. 0 and Rs. 1000.';
+    }
     if (settings.loanPeriodDays < 1 || settings.loanPeriodDays > 60) {
       return 'Borrowing period must be between 1 and 60 days.';
     }

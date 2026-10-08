@@ -1,3 +1,5 @@
+import 'package:libmate_app/models/reservation_display_reference.dart';
+
 import 'dart:async';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -302,7 +304,10 @@ void main() {
     // H01 opens H02 with the booking that was just made.
     expect(find.byType(SeatBookingConfirmationScreen), findsOneWidget);
     expect(find.text('Seat booked successfully!'), findsOneWidget);
-    expect(find.text(bookingDoc.id), findsOneWidget);
+    expect(
+      find.text(ReservationDisplayReference.forId(bookingDoc.id)),
+      findsOneWidget,
+    );
     expect(find.textContaining('approval'), findsNothing);
     expect((await db.collection('reservations').get()).docs, hasLength(1));
   });
@@ -425,7 +430,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pumpStudent(tester, MyReservationsScreen(library: student));
-    final statusBadge = find.byKey(ValueKey('reservation-status-${librarian.reservations.single.id}'));
+    final statusBadge = find.byKey(
+      ValueKey('reservation-status-${librarian.reservations.single.id}'),
+    );
     expect(tester.widget<Text>(statusBadge).data, 'Pending');
 
     final id = librarian.reservations.single.id;

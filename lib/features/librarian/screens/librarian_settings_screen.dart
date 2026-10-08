@@ -30,13 +30,18 @@ class LibrarianSettingsScreen extends StatelessWidget {
       builder: (context, _) {
         final settings = repository.settings;
         final profile = scope.authProvider.profile;
-        final name = (profile?.name.isNotEmpty ?? false) ? profile!.name : 'Librarian';
+        final name = (profile?.name.isNotEmpty ?? false)
+            ? profile!.name
+            : 'Librarian';
         final email = profile?.email ?? '-';
 
         Future<void> save(LibrarianSettings updated) async {
           final result = await repository.updateSettings(updated);
           if (!context.mounted) return;
-          _message(context, result.success ? 'Settings saved.' : result.message!);
+          _message(
+            context,
+            result.success ? 'Settings saved.' : result.message!,
+          );
         }
 
         String hour(int h) => '${h.toString().padLeft(2, '0')}:00';
@@ -56,8 +61,16 @@ class LibrarianSettingsScreen extends StatelessWidget {
             SettingsGroup(
               title: 'Account',
               tiles: [
-                SettingsTile(icon: Icons.person_outline, title: 'Profile', subtitle: name),
-                SettingsTile(icon: Icons.mail_outline, title: 'Email', subtitle: email),
+                SettingsTile(
+                  icon: Icons.person_outline,
+                  title: 'Profile',
+                  subtitle: name,
+                ),
+                SettingsTile(
+                  icon: Icons.mail_outline,
+                  title: 'Email',
+                  subtitle: email,
+                ),
                 const SettingsTile(
                   icon: Icons.badge_outlined,
                   title: 'Role',
@@ -80,7 +93,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                   iconColor: LibrarianColors.gold,
                   title: 'Opening Hours',
                   subtitle: 'When the library is open',
-                  value: '${hour(settings.openingHour)} – ${hour(settings.closingHour)}',
+                  value:
+                      '${hour(settings.openingHour)} – ${hour(settings.closingHour)}',
                   onTap: () async {
                     final hours = await showOpeningHoursDialog(
                       context,
@@ -88,7 +102,12 @@ class LibrarianSettingsScreen extends StatelessWidget {
                       closing: settings.closingHour,
                     );
                     if (hours != null) {
-                      await save(settings.copyWith(openingHour: hours.$1, closingHour: hours.$2));
+                      await save(
+                        settings.copyWith(
+                          openingHour: hours.$1,
+                          closingHour: hours.$2,
+                        ),
+                      );
                     }
                   },
                 ),
@@ -107,7 +126,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                       max: 20,
                       unit: 'books',
                     );
-                    if (value != null) await save(settings.copyWith(maxBorrowLimit: value));
+                    if (value != null)
+                      await save(settings.copyWith(maxBorrowLimit: value));
                   },
                 ),
                 SettingsTile(
@@ -125,7 +145,27 @@ class LibrarianSettingsScreen extends StatelessWidget {
                       max: 60,
                       unit: 'days',
                     );
-                    if (value != null) await save(settings.copyWith(loanPeriodDays: value));
+                    if (value != null)
+                      await save(settings.copyWith(loanPeriodDays: value));
+                  },
+                ),
+                SettingsTile(
+                  icon: Icons.payments_outlined,
+                  iconColor: LibrarianColors.gold,
+                  title: 'Daily Overdue Fine',
+                  subtitle: 'Rupees per day after the due date',
+                  value: 'Rs. ${settings.dailyFineRate} / day',
+                  onTap: () async {
+                    final value = await showNumberSettingDialog(
+                      context,
+                      title: 'Daily overdue fine',
+                      value: settings.dailyFineRate,
+                      min: 0,
+                      max: 1000,
+                      unit: 'Rs. / day',
+                    );
+                    if (value != null)
+                      await save(settings.copyWith(dailyFineRate: value));
                   },
                 ),
                 SettingsTile(
@@ -143,7 +183,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                       max: 8,
                       unit: 'hours',
                     );
-                    if (value != null) await save(settings.copyWith(seatBookingHours: value));
+                    if (value != null)
+                      await save(settings.copyWith(seatBookingHours: value));
                   },
                 ),
               ],
@@ -157,7 +198,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                   subtitle: 'New and cancelled requests',
                   trailing: Switch(
                     value: settings.reservationNotifications,
-                    onChanged: (v) => save(settings.copyWith(reservationNotifications: v)),
+                    onChanged: (v) =>
+                        save(settings.copyWith(reservationNotifications: v)),
                   ),
                 ),
                 SettingsTile(
@@ -167,7 +209,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                   subtitle: 'When borrowed books are overdue',
                   trailing: Switch(
                     value: settings.overdueReminders,
-                    onChanged: (v) => save(settings.copyWith(overdueReminders: v)),
+                    onChanged: (v) =>
+                        save(settings.copyWith(overdueReminders: v)),
                   ),
                 ),
                 SettingsTile(
@@ -177,7 +220,8 @@ class LibrarianSettingsScreen extends StatelessWidget {
                   subtitle: 'When a reserved book is back in stock',
                   trailing: Switch(
                     value: settings.availabilityNotifications,
-                    onChanged: (v) => save(settings.copyWith(availabilityNotifications: v)),
+                    onChanged: (v) =>
+                        save(settings.copyWith(availabilityNotifications: v)),
                   ),
                 ),
               ],
@@ -248,11 +292,17 @@ class LibrarianSettingsScreen extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 56),
                 foregroundColor: LibrarianColors.unavailable,
-                side: BorderSide(color: LibrarianColors.unavailable, width: 1.5),
+                side: BorderSide(
+                  color: LibrarianColors.unavailable,
+                  width: 1.5,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(LibrarianSpacing.radius),
                 ),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -271,7 +321,11 @@ class LibrarianSettingsScreen extends StatelessWidget {
 
 /// Avatar, name, role and email with an edit button (Profile design).
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.name, required this.email, required this.onEdit});
+  const _ProfileCard({
+    required this.name,
+    required this.email,
+    required this.onEdit,
+  });
 
   final String name;
   final String email;
@@ -313,7 +367,10 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   Text(
                     'Librarian',
-                    style: TextStyle(color: LibrarianColors.emphasis, fontSize: 16),
+                    style: TextStyle(
+                      color: LibrarianColors.emphasis,
+                      fontSize: 16,
+                    ),
                   ),
                   Text(
                     email,

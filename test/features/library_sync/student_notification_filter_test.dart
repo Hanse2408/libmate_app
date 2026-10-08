@@ -68,6 +68,8 @@ void main() {
       MaterialApp(home: StudentNotificationsScreen(library: library)),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('filter-Status-All')));
+    await tester.pumpAndSettle();
 
     Future<void> tapChip(String group, String text) async {
       await tester.tap(find.byKey(ValueKey('filter-$group-$text')));
@@ -159,6 +161,8 @@ void main() {
       MaterialApp(home: StudentNotificationsScreen(library: library)),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('filter-Status-All')));
+    await tester.pumpAndSettle();
     expect(find.byTooltip('Search'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Search'));
@@ -234,6 +238,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: StudentNotificationsScreen(library: library)),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('filter-Status-All')));
     await tester.pumpAndSettle();
 
     double y(String s) => tester.getTopLeft(find.text(s)).dy;

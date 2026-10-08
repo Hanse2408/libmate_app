@@ -65,6 +65,8 @@ class ReservationCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
+                Text(reservation.displayReference, style: textTheme.bodySmall),
                 if (showDate) ...[
                   const SizedBox(height: 2),
                   Text(

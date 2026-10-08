@@ -1,3 +1,4 @@
+import '../../../models/reservation_display_reference.dart';
 import 'package:flutter/material.dart';
 
 import '../models/reservation_record.dart';
@@ -9,16 +10,17 @@ import 'info_section_card.dart';
 
 /// The "#RSV-1001" reference line under the page header.
 class ReservationReference extends StatelessWidget {
-  const ReservationReference({super.key, required this.reservationId});
+  const ReservationReference({super.key, required this.reservationId, this.isReservation = true});
 
   final String reservationId;
+  final bool isReservation;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: LibrarianSpacing.sm + 4),
       child: Text(
-        '#$reservationId',
+        '#${isReservation ? ReservationDisplayReference.forId(reservationId) : reservationId}',
         style: TextStyle(
           color: LibrarianColors.secondaryText,
           fontSize: 18,

@@ -1,3 +1,4 @@
+import 'package:libmate_app/models/reservation_display_reference.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -447,14 +448,15 @@ void main() {
       expect(find.byType(ModifySeatReservationScreen), findsNothing);
     });
 
-    widgetTest('My Reservations: a cancelled seat has Modify disabled', (
+    widgetTest('My Reservations: a cancelled seat hides its actions', (
       tester,
     ) async {
       await student.cancelReservation(reservationId);
       await flush();
       await pump(MyReservationsScreen(library: student, showSeats: true));
 
-      expect(tester.widget<TextButton>(modifyButtonOnCard()).onPressed, isNull);
+      expect(find.text('Modify'), findsNothing);
+      expect(find.text('Cancel'), findsNothing);
     });
 
     widgetTest('H04 Modify Reservation opens H05 with the booking pre-filled', (
@@ -500,7 +502,7 @@ void main() {
       expect(find.byType(SeatReservationDetailsScreen), findsOneWidget);
       expect(find.text('Reservation updated successfully.'), findsOneWidget);
       expect(find.text('A02'), findsOneWidget);
-      expect(find.text(reservationId), findsOneWidget);
+      expect(find.text(ReservationDisplayReference.forId(reservationId)), findsOneWidget);
       expect(find.text('Confirmed'), findsNWidgets(2));
 
       final docs = (await db.collection('reservations').get()).docs;

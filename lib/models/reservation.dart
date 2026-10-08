@@ -1,3 +1,4 @@
+import 'reservation_display_reference.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ReservationType {
@@ -49,6 +50,8 @@ class ReservationRecord {
   });
 
   final String id;
+
+  String get displayReference => ReservationDisplayReference.forId(id);
   final ReservationType type;
   final ReservationStatus status;
   final String studentUid;
