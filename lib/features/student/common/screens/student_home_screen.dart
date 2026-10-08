@@ -14,15 +14,25 @@ import '../../../../models/reservation.dart' as shared;
 import '../../book_reservation/screens/find_books_screen.dart';
 import '../../book_reservation/screens/my_reservations_screen.dart';
 import '../../seat_booking/screens/seat_booking_screen.dart';
+import '../../../../core/services/push_messaging_client.dart';
+import '../../notifications/providers/student_push_controller.dart';
+import '../../notifications/widgets/in_app_notification_banner.dart';
 import '../data/student_library_repository.dart';
 import 'profile_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
-  const StudentHomeScreen({super.key, required this.createLibrary});
+  const StudentHomeScreen({
+    super.key,
+    required this.createLibrary,
+    this.createPushClient,
+  });
 
   /// Creates the student's live library data (Firestore). The home screen
   /// owns it, so its listeners stop when the student signs out.
   final StudentLibraryRepository Function() createLibrary;
+
+  /// Creates the push (FCM) client; null disables push (tests, web).
+  final PushMessagingClient Function()? createPushClient;
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
@@ -37,9 +47,30 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   static const Color accentGold = Color(0xFFF2B84B);
   final int _selectedNavIndex = 0;
   late final StudentLibraryRepository _library = widget.createLibrary();
+  late final InAppNotificationBanner _banner;
+  StudentPushController? _push;
 
   @override
-  void dispose() { _library.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _banner = InAppNotificationBanner(context: context, library: _library);
+    final createPush = widget.createPushClient;
+    if (createPush != null) {
+      _push = StudentPushController(
+        context: context,
+        library: _library,
+        client: createPush(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _push?.dispose();
+    _banner.dispose();
+    _library.dispose();
+    super.dispose();
+  }
 
   void _open(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   void _openFindBooks() => _open(FindBooksScreen(library: _library));

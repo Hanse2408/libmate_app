@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../book_reservation/screens/reserve_book_screen.dart';
-import '../../book_reservation/screens/book_details_screen.dart';
-import '../../book_reservation/screens/reservation_details_screen.dart';
-import '../../book_reservation/screens/my_reservations_screen.dart';
-import '../../seat_booking/screens/seat_reservation_details_screen.dart';
-import '../../../../models/reservation.dart';
-import '../../book_reservation/widgets/reservation_notice.dart';
-
 import '../../../../models/action_result.dart';
 import '../../../../models/notification.dart';
+import '../../../../models/reservation.dart';
 import '../../common/data/student_library_repository.dart';
+import '../widgets/notification_navigation.dart';
 
 enum _TypeFilter { all, books, seats }
 
@@ -23,6 +17,10 @@ class StudentNotificationsScreen extends StatefulWidget {
 
   final StudentLibraryRepository library;
 
+  /// True while a Notifications screen is on screen (no banner is needed).
+  static bool get isOpen => _openCount > 0;
+  static int _openCount = 0;
+
   @override
   State<StudentNotificationsScreen> createState() =>
       _StudentNotificationsScreenState();
@@ -31,7 +29,6 @@ class StudentNotificationsScreen extends StatefulWidget {
 class _StudentNotificationsScreenState
     extends State<StudentNotificationsScreen> {
   StudentLibraryRepository get library => widget.library;
-  bool _opening = false;
   final Set<String> _selected = {};
 
   bool get _selecting => _selected.isNotEmpty;
@@ -43,7 +40,14 @@ class _StudentNotificationsScreenState
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    StudentNotificationsScreen._openCount++;
+  }
+
+  @override
   void dispose() {
+    StudentNotificationsScreen._openCount--;
     _searchController.dispose();
     super.dispose();
   }
@@ -172,69 +176,8 @@ class _StudentNotificationsScreenState
       ..showSnackBar(SnackBar(content: Text(result.message!)));
   }
 
-  Future<void> _openNotification(StudentNotification notification) async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      Widget destination = MyReservationsScreen(library: library);
-      final reservation = library.myReservations
-          .where((r) => r.id == notification.reservationId)
-          .firstOrNull;
-      final book = library.bookById(notification.itemId ?? '');
-      if (notification.type == StudentNotificationType.bookAvailable) {
-        if (book == null) {
-          await showReservationNotice(
-            context,
-            title: 'Book unavailable',
-            message:
-                'This book is no longer in the catalogue, or is still loading.',
-          );
-          return;
-        }
-        destination = book.isAvailable
-            ? ReserveBookScreen(library: library, bookId: book.id)
-            : BookDetailsScreen(library: library, bookId: book.id);
-      } else if (reservation != null) {
-        destination = reservation.type == ReservationType.seat
-            ? SeatReservationDetailsScreen(
-                library: library,
-                reservation: reservation,
-              )
-            : ReservationDetailsScreen(
-                library: library,
-                reservationId: reservation.id,
-              );
-      } else if (book != null) {
-        destination = BookDetailsScreen(library: library, bookId: book.id);
-      }
-      final missing =
-          reservation == null &&
-          book == null &&
-          (notification.reservationId ?? '').isNotEmpty;
-      final result = await library.markNotificationRead(notification.id);
-      if (!mounted) return;
-      if (!result.success) {
-        await showReservationNotice(
-          context,
-          title: 'Could not open notification',
-          message: result.message ?? 'Please try again.',
-        );
-        return;
-      }
-      if (missing) {
-        await showReservationNotice(
-          context,
-          title: 'Not available',
-          message: 'This reservation is no longer available.',
-        );
-        return;
-      }
-      Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => destination));
-    } finally {
-      _opening = false;
-    }
-  }
+  Future<void> _openNotification(StudentNotification notification) =>
+      openStudentNotification(context, library, notification);
 
   Future<void> _deleteSelected() async {
     final confirmed = await showDialog<bool>(
@@ -631,51 +574,10 @@ class _StudentNotificationsScreenState
     return items;
   }
 
-  (IconData, Color) _style(BuildContext context, StudentNotificationType type) {
-    final colors = Theme.of(context).colorScheme;
-    return switch (type) {
-      StudentNotificationType.bookAvailable => (
-        Icons.notifications_active_rounded,
-        colors.primary,
-      ),
-      StudentNotificationType.reservationApproved => (
-        Icons.check_circle_rounded,
-        const Color(0xFF22A06B),
-      ),
-      StudentNotificationType.reservationRejected => (
-        Icons.cancel_rounded,
-        const Color(0xFFDC4C4C),
-      ),
-      StudentNotificationType.reservationCancelled => (
-        Icons.event_busy_rounded,
-        const Color(0xFFDC4C4C),
-      ),
-      StudentNotificationType.reservationRequested => (
-        Icons.hourglass_top_rounded,
-        const Color(0xFFF2B84B),
-      ),
-      StudentNotificationType.bookCollected => (
-        Icons.menu_book_rounded,
-        colors.primary,
-      ),
-      StudentNotificationType.bookReturned => (
-        Icons.assignment_return_rounded,
-        const Color(0xFF22A06B),
-      ),
-      StudentNotificationType.loanRenewed => (
-        Icons.update_rounded,
-        colors.primary,
-      ),
-      StudentNotificationType.seatBookingConfirmed => (
-        Icons.event_seat_rounded,
-        const Color(0xFF22A06B),
-      ),
-      StudentNotificationType.seatReservationUpdated => (
-        Icons.edit_calendar_rounded,
-        colors.primary,
-      ),
-    };
-  }
+  (IconData, Color) _style(
+    BuildContext context,
+    StudentNotificationType type,
+  ) => studentNotificationStyle(context, type);
 
   static String _ago(DateTime time) {
     final diff = DateTime.now().difference(time);
