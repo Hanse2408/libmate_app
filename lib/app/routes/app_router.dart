@@ -127,10 +127,14 @@ class AppRouter {
         ),
         GoRoute(
           path: AppRoutes.managerReservationDetails,
-          builder: (context, state) => ManagerReservationDetailsScreen(
-            reservation: state.extra is ManagerReservation
-                ? state.extra! as ManagerReservation
-                : managerReservations[1],
+          builder: (context, state) => ManagerScope(
+            repository: _managerRepositoryFor(authProvider),
+            authProvider: authProvider,
+            child: ManagerReservationDetailsScreen(
+              reservationId: state.extra is ManagerReservation
+                  ? (state.extra! as ManagerReservation).id
+                  : state.extra is String ? state.extra! as String : state.uri.queryParameters['id'],
+            ),
           ),
         ),
         GoRoute(
@@ -154,9 +158,7 @@ class AppRouter {
           builder: (context, state) => ManagerScope(
             repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
-            child: ManagerResolvedScreen(
-              newSeat: state.extra is String ? state.extra! as String : 'A08',
-            ),
+            child: const ManagerResolvedScreen(),
           ),
         ),
         GoRoute(

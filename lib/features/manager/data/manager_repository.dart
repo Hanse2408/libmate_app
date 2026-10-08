@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../../models/action_result.dart';
 import '../../../models/user.dart';
+import '../../../models/seat.dart';
+import '../../../models/reservation.dart';
 import 'manager_mock_data.dart';
 
 abstract class ManagerRepository extends ChangeNotifier {
@@ -13,6 +15,43 @@ abstract class ManagerRepository extends ChangeNotifier {
   bool get isLoading => false;
   String? get loadError => null;
   bool get isDemoData => false;
+
+  List<SeatRecord> get seats => const [];
+  bool get reservationsLoading => isLoading;
+  String? get reservationsError => loadError;
+  bool get seatsLoading => false;
+  String? get seatsError => null;
+  DateTime get monitoringTime => DateTime.now();
+
+  SeatStatus seatStatus(SeatRecord seat, {DateTime? at}) {
+    if (seat.status != SeatStatus.available) return seat.status;
+    final now = at ?? monitoringTime;
+    for (final reservation in reservations) {
+      final day = reservation.bookingDate;
+      if (reservation.type != ReservationType.seat ||
+          reservation.status != ManagerReservationStatus.confirmed ||
+          reservation.itemId != seat.id || day == null ||
+          day.year != now.year || day.month != now.month || day.day != now.day) {
+        continue;
+      }
+      final parts = reservation.time.split('-');
+      if (parts.length != 2) continue;
+      int? minutes(String part) {
+        final hm = part.trim().split(':');
+        if (hm.length != 2) return null;
+        final h = int.tryParse(hm[0]);
+        final m = int.tryParse(hm[1]);
+        return h == null || m == null ? null : h * 60 + m;
+      }
+      final start = minutes(parts.first);
+      final end = minutes(parts.last);
+      final current = now.hour * 60 + now.minute;
+      if (start != null && end != null && start <= current && current < end) {
+        return SeatStatus.reserved;
+      }
+    }
+    return SeatStatus.available;
+  }
 
   ManagerUser? findUserById(String id) {
     for (final user in users) {
@@ -107,23 +146,8 @@ abstract class ManagerRepository extends ChangeNotifier {
     return null;
   }
 
-  void resolveConflict(String reservationId, {required String newSeat}) {
-    final current = List<ManagerReservation>.from(reservations);
-    final index = current.indexWhere((it) => it.id == reservationId);
-    if (index == -1) throw StateError('Reservation not found.');
-    final reservation = current[index];
-    current[index] = ManagerReservation(
-      id: reservation.id,
-      book: reservation.book,
-      student: reservation.student,
-      studentId: reservation.studentId,
-      date: reservation.date,
-      time: reservation.time,
-      status: ManagerReservationStatus.confirmed,
-      seat: newSeat,
-    );
-    replaceReservations(current);
-    notifyListeners();
+  Future<ActionResult> resolveConflict(String reservationId, {required String newSeat}) async {
+    return const ActionResult.failure('Seat reassignment is unavailable. No conflict engine is configured.');
   }
 
   void updatePolicyValue(int index, int value) {
