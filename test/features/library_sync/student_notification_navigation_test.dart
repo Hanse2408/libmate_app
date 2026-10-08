@@ -35,7 +35,7 @@ void main() {
       });
       for (final id in ['open-me', 'keep-me']) {
         await db.collection('notifications').doc(id).set({
-          'recipientUid': studentUid, 'type': 'reservationApproved', 'isRead': false,
+          'recipientUid': studentUid, 'type': !seat ? 'reservationApproved' : id == 'open-me' ? 'seatReservationUpdated' : 'seatBookingConfirmed', 'isRead': false,
           'title': id, 'reservationId': 'reservation', 'itemId': 'item',
         });
       }

@@ -234,6 +234,8 @@ class _StudentNotificationsScreenState extends State<StudentNotificationsScreen>
       StudentNotificationType.bookCollected => (Icons.menu_book_rounded, colors.primary),
       StudentNotificationType.bookReturned => (Icons.assignment_return_rounded, const Color(0xFF22A06B)),
       StudentNotificationType.loanRenewed => (Icons.update_rounded, colors.primary),
+      StudentNotificationType.seatBookingConfirmed => (Icons.event_seat_rounded, const Color(0xFF22A06B)),
+      StudentNotificationType.seatReservationUpdated => (Icons.edit_calendar_rounded, colors.primary),
     };
   }
 
