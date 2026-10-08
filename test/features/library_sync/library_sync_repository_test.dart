@@ -300,7 +300,7 @@ void main() {
       expect(result.message, contains('already exists'));
     });
 
-    test('seat edits and a seat photo persist after reopening', () async {
+    test('seat edits persist after reopening; no seat image is uploaded', () async {
       final seat = await addSeat('A01');
       final result = await librarian.updateSeat(
         id: seat.id,
@@ -310,7 +310,6 @@ void main() {
         type: SeatType.individualDesk,
         isNearWindow: true,
         note: 'By the window',
-        newImage: pngUpload('seat.png'),
       );
       expect(result.success, isTrue, reason: result.message);
       librarian.dispose();
@@ -321,9 +320,34 @@ void main() {
       expect(saved.seatNumber, 'A02');
       expect(saved.isNearWindow, isTrue);
       expect(saved.note, 'By the window');
-      expect(saved.imagePath, isNull);
-      expect(saved.imagePublicId, startsWith('seat_images/test-'));
-      expect(student.seatById(seat.id)!.imageUrl, saved.imageUrl);
+      expect(saved.imageUrl, isNull);
+      expect(storage.files, isEmpty); // nothing sent to Cloudinary
+    });
+
+    test('editing an older seat leaves its saved image fields untouched', () async {
+      final seat = await addSeat('A01');
+      // A seat saved when seats still had photos.
+      const url = 'https://res.cloudinary.com/test/image/upload/seat_images/old.png';
+      await db.collection('seats').doc(seat.id).update({
+        'imageUrl': url,
+        'imagePublicId': 'seat_images/old',
+      });
+      await settle();
+
+      final result = await librarian.updateSeat(
+        id: seat.id,
+        seatNumber: 'A01',
+        zone: 'Row B',
+        readingRoom: 'Reading Room A',
+        type: SeatType.quietZone,
+      );
+      expect(result.success, isTrue, reason: result.message);
+      await settle();
+      final data = (await db.collection('seats').doc(seat.id).get()).data()!;
+      expect(data['zone'], 'Row B');
+      expect(data['imageUrl'], url);
+      expect(data['imagePublicId'], 'seat_images/old');
+      expect(storage.files, isEmpty);
     });
 
     test('a seat with an upcoming booking cannot be deleted', () async {

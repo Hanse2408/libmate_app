@@ -459,10 +459,10 @@ abstract class LibrarianRepository extends ChangeNotifier {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? image,
-    void Function(double progress)? onUploadProgress,
   });
 
+  /// Seats have no photo: an existing seat's saved image fields (older
+  /// data) are kept as they are.
   Future<ActionResult> updateSeat({
     required String id,
     required String seatNumber,
@@ -474,9 +474,6 @@ abstract class LibrarianRepository extends ChangeNotifier {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? newImage,
-    bool removeImage = false,
-    void Function(double progress)? onUploadProgress,
   });
 
   /// Deletes a seat; refused if [seatDeleteBlocker] gives a reason.

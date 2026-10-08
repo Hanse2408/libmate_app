@@ -227,7 +227,10 @@ class _ReservationActionsCardState extends State<ReservationActionsCard> {
     if (!context.mounted) return;
 
     if (result.success) {
-      context.go(LibrarianRoutes.reservationConfirmation(reservation.id));
+      context.go(
+        LibrarianRoutes.reservationConfirmation(reservation.id),
+        extra: ReservationStatus.approved,
+      );
     } else {
       await showDialog<void>(
         context: context,
@@ -259,7 +262,10 @@ class _ReservationActionsCardState extends State<ReservationActionsCard> {
     if (!context.mounted) return;
 
     if (result.success) {
-      context.go(LibrarianRoutes.reservationConfirmation(reservation.id));
+      context.go(
+        LibrarianRoutes.reservationConfirmation(reservation.id),
+        extra: ReservationStatus.rejected,
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message!)),

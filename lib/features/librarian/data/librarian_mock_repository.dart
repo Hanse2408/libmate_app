@@ -34,9 +34,6 @@ class LibrarianMockRepository extends LibrarianRepository {
   final List<MemberRecord> _members;
   LibrarianSettings _settings = const LibrarianSettings();
 
-  static const String _noImages =
-      'Images cannot be uploaded with demo data. Run the app with Firebase '
-      'to upload images.';
 
   @override
   List<BookRecord> get books => List.unmodifiable(_books);
@@ -294,10 +291,7 @@ class LibrarianMockRepository extends LibrarianRepository {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? image,
-    void Function(double progress)? onUploadProgress,
   }) async {
-    if (image != null) return const ActionResult.failure(_noImages);
     final error = seatInputError(
       seatNumber: seatNumber,
       readingRoom: readingRoom,
@@ -341,11 +335,7 @@ class LibrarianMockRepository extends LibrarianRepository {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? newImage,
-    bool removeImage = false,
-    void Function(double progress)? onUploadProgress,
   }) async {
-    if (newImage != null) return const ActionResult.failure(_noImages);
     final index = _seats.indexWhere((s) => s.id == id);
     if (index == -1) return const ActionResult.failure('Seat not found.');
     final error = seatInputError(
@@ -365,7 +355,6 @@ class LibrarianMockRepository extends LibrarianRepository {
       isAccessible: isAccessible,
       isNearWindow: isNearWindow,
       note: note.trim(),
-      clearImage: removeImage,
     );
     notifyListeners();
     return const ActionResult.success();

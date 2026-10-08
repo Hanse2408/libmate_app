@@ -133,6 +133,9 @@ class LibrarianRoutes {
                       path: 'confirmation',
                       builder: (context, state) => BookingConfirmationScreen(
                         reservationId: state.pathParameters['id']!,
+                        decision: state.extra is ReservationStatus
+                            ? state.extra! as ReservationStatus
+                            : null,
                       ),
                     ),
                   ],

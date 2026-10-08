@@ -624,8 +624,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? image,
-    void Function(double progress)? onUploadProgress,
   }) async {
     final error = seatInputError(
       seatNumber: seatNumber,
@@ -634,12 +632,8 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     if (error != null) return ActionResult.failure(error);
 
     final ref = _col(FirestoreCollections.seats).doc();
-    CloudMediaAsset? uploadedAsset;
     final result = await _run(() async {
       await _checkSeatFree(seatNumber, readingRoom);
-      if (image != null) {
-        uploadedAsset = await _upload(image, onUploadProgress);
-      }
       final seat = SeatRecord(
         id: ref.id,
         seatNumber: seatNumber.trim().toUpperCase(),
@@ -652,8 +646,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         isAccessible: isAccessible,
         isNearWindow: isNearWindow,
         note: note.trim(),
-        imageUrl: uploadedAsset?.secureUrl,
-        imagePublicId: uploadedAsset?.publicId,
       );
       final batch = _db.batch()
         ..set(ref, {
@@ -686,9 +678,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     bool isAccessible = false,
     bool isNearWindow = false,
     String note = '',
-    ImageUpload? newImage,
-    bool removeImage = false,
-    void Function(double progress)? onUploadProgress,
   }) async {
     final seat = seatById(id);
     if (seat == null) return const ActionResult.failure('Seat not found.');
@@ -699,12 +688,9 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
     );
     if (error != null) return ActionResult.failure(error);
 
-    CloudMediaAsset? uploadedAsset;
     final result = await _run(() async {
       await _checkSeatFree(seatNumber, readingRoom, exceptSeatId: id);
-      if (newImage != null) {
-        uploadedAsset = await _upload(newImage, onUploadProgress);
-      }
+      // Image fields of older seats are left as they are.
       final updated = seat.copyWith(
         seatNumber: seatNumber.trim().toUpperCase(),
         zone: zone.trim(),
@@ -715,10 +701,6 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
         isAccessible: isAccessible,
         isNearWindow: isNearWindow,
         note: note.trim(),
-        imageUrl: uploadedAsset?.secureUrl,
-        imagePublicId: uploadedAsset?.publicId,
-        clearImage: removeImage && newImage == null,
-        clearLegacyImagePath: newImage != null || removeImage,
       );
       final map = updated.toMap()
         ..remove('status'); // status has its own action

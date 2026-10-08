@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
-import '../../../core/services/image_storage_service.dart';
 import '../data/librarian_repository.dart';
 import '../models/action_result.dart';
 import '../models/seat_record.dart';
@@ -10,7 +9,6 @@ import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import '../utils/librarian_validators.dart';
 import '../widgets/form_action_buttons.dart';
-import '../widgets/image_upload_field.dart';
 import '../widgets/info_section_card.dart';
 import '../widgets/labeled_text_field.dart';
 import '../widgets/librarian_empty_state.dart';
@@ -18,7 +16,7 @@ import '../widgets/librarian_page.dart';
 import '../widgets/librarian_page_header.dart';
 
 /// Add New Seat form (Figma): seat details, seat type and features.
-/// With a [seatId] the same form edits that seat (including its photo).
+/// With a [seatId] the same form edits that seat. Seats have no photo.
 class AddSeatScreen extends StatefulWidget {
   const AddSeatScreen({super.key, this.seatId});
 
@@ -44,11 +42,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
   LibrarianRepository? _repository;
   SeatRecord? _editing;
 
-  /// New photo picked in this form (uploaded on save).
-  ImageUpload? _image;
-  bool _removeImage = false;
   bool _saving = false;
-  double? _uploadProgress;
 
   bool get _isEdit => widget.seatId != null;
 
@@ -118,13 +112,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
 
     final repository = LibrarianScope.read(context).repository;
     final seatNumber = _seatNumber.text.trim().toUpperCase();
-    setState(() {
-      _saving = true;
-      _uploadProgress = _image == null ? null : 0;
-    });
-    void onProgress(double value) {
-      if (mounted) setState(() => _uploadProgress = value);
-    }
+    setState(() => _saving = true);
 
     final ActionResult result;
     if (_isEdit) {
@@ -139,9 +127,6 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
         isAccessible: _accessible,
         isNearWindow: _window,
         note: _note.text,
-        newImage: _image,
-        removeImage: _removeImage,
-        onUploadProgress: onProgress,
       );
     } else {
       result = await repository.addSeat(
@@ -157,10 +142,7 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
       );
     }
     if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _uploadProgress = null;
-    });
+    setState(() => _saving = false);
 
     // Only report success when the repository confirms the save.
     if (result.success) {
@@ -250,39 +232,6 @@ class _AddSeatScreenState extends State<AddSeatScreen> {
         maxWidth: 760,
         children: [
           header,
-          // Seat photo: only when editing an existing seat (Add New Seat
-          // has no photo upload).
-          if (_isEdit)
-            InfoSectionCard(
-              children: [
-                ImageUploadField(
-                  label: 'Seat Photo',
-                  previewSize: const Size(200, 130),
-                  placeholder: Container(
-                    color: LibrarianColors.lightBlue,
-                    child: Icon(
-                      Icons.photo_outlined,
-                      size: 48,
-                      color: LibrarianColors.primary,
-                    ),
-                  ),
-                  picked: _image,
-                  savedUrl: _removeImage ? null : _editing?.imageUrl,
-                  enabled: repository.supportsImageUpload,
-                  disabledReason:
-                      'Seat photo uploads are unavailable with demo data.',
-                  uploadProgress: _uploadProgress,
-                  onPicked: (image) => setState(() {
-                    _image = image;
-                    _removeImage = false;
-                  }),
-                  onRemove: () => setState(() {
-                    _image = null;
-                    _removeImage = _editing?.imageUrl != null;
-                  }),
-                ),
-              ],
-            ),
           InfoSectionCard(
             title: 'Seat Details',
             children: [

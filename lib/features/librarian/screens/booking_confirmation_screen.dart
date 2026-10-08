@@ -10,16 +10,39 @@ import '../widgets/info_section_card.dart';
 import '../widgets/librarian_empty_state.dart';
 import '../widgets/librarian_page.dart';
 import '../widgets/librarian_page_header.dart';
+import '../widgets/status_chip.dart';
 
 /// Shown after a reservation is approved or rejected. Works for both book
-/// and seat reservations and reads the real status from the repository.
+/// and seat reservations and reads the real status from the repository,
+/// rebuilding when it changes.
+///
+/// Approval / rejection runs as a Firestore transaction; its result reaches
+/// the repository's live list a moment after the transaction completes.
+/// [decision] (passed by Approve / Reject) lets the screen show "Updating…"
+/// for that moment instead of "No decision yet".
 class BookingConfirmationScreen extends StatelessWidget {
-  const BookingConfirmationScreen({super.key, required this.reservationId});
+  const BookingConfirmationScreen({
+    super.key,
+    required this.reservationId,
+    this.decision,
+  });
 
   final String reservationId;
 
+  /// The decision the librarian just saved, if they came from Approve /
+  /// Reject (the stored status is still what is shown).
+  final ReservationStatus? decision;
+
   @override
   Widget build(BuildContext context) {
+    final repository = LibrarianScope.of(context).repository;
+    return ListenableBuilder(
+      listenable: repository,
+      builder: (context, _) => _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     final repository = LibrarianScope.of(context).repository;
     final reservation = repository.reservationById(reservationId);
     void backToReservations() => context.go(LibrarianRoutes.reservations);
@@ -28,6 +51,49 @@ class BookingConfirmationScreen extends StatelessWidget {
       title: 'Booking Confirmation',
       onBack: backToReservations,
     );
+
+    // Just decided, but the live list has not caught up yet.
+    final waitingForUpdate =
+        decision != null && (reservation == null || reservation.isPending);
+    if (waitingForUpdate) {
+      return LibrarianPage(
+        maxWidth: 760,
+        children: [
+          header,
+          const SizedBox(height: LibrarianSpacing.lg * 2),
+          const Center(child: CircularProgressIndicator()),
+          const SizedBox(height: LibrarianSpacing.md),
+          Text(
+            'Updating reservation…',
+            key: const ValueKey('confirmation-updating'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
+          ),
+        ],
+      );
+    }
+
+    if (reservation != null &&
+        reservation.status == ReservationStatus.cancelled) {
+      return LibrarianPage(
+        maxWidth: 760,
+        children: [
+          header,
+          const LibrarianEmptyState(
+            icon: Icons.event_busy,
+            title: 'Reservation cancelled',
+            message: 'The student cancelled this reservation.',
+          ),
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  context.go(LibrarianRoutes.reservationDetails(reservationId)),
+              child: const Text('Open reservation'),
+            ),
+          ),
+        ],
+      );
+    }
 
     if (reservation == null || reservation.isPending) {
       return LibrarianPage(
@@ -51,7 +117,9 @@ class BookingConfirmationScreen extends StatelessWidget {
       );
     }
 
-    final approved = reservation.status == ReservationStatus.approved;
+    // Approved, and the later book steps (Collected / Returned), show the
+    // approval; only a rejected reservation shows the rejection.
+    final approved = reservation.status != ReservationStatus.rejected;
     final isBook = reservation.type == ReservationType.book;
 
     return LibrarianPage(
@@ -71,7 +139,7 @@ class BookingConfirmationScreen extends StatelessWidget {
         ),
         const SizedBox(height: LibrarianSpacing.sm),
         Text(
-          _subtitle(approved: approved, isBook: isBook),
+          _subtitle(reservation, approved: approved, isBook: isBook),
           textAlign: TextAlign.center,
           style: TextStyle(color: LibrarianColors.secondaryText, fontSize: 17),
         ),
@@ -136,8 +204,14 @@ class BookingConfirmationScreen extends StatelessWidget {
     );
   }
 
-  static String _subtitle({required bool approved, required bool isBook}) {
+  static String _subtitle(
+    ReservationRecord r, {
+    required bool approved,
+    required bool isBook,
+  }) {
     if (!approved) return 'The request was rejected and the student will be informed.';
+    if (r.isCollected) return 'The student has collected the book.';
+    if (r.isReturned) return 'The student has returned the book.';
     return isBook
         ? 'The student has been notified and can pick up the book on the selected date.'
         : 'The student has been notified and can use the seat at the booked time.';
@@ -162,6 +236,9 @@ class BookingConfirmationScreen extends StatelessWidget {
           (Icons.schedule, 'Time Slot', LibrarianFormatters.timeRange(r.timeSlot!)),
       ],
       (Icons.person_outline, 'Student', r.studentName),
+      // Ready for Pickup / Collected / Returned for books.
+      if (approved && r.type == ReservationType.book)
+        (Icons.flag_outlined, 'Status', StatusChip.reservationLabel(r)),
       if (!approved) (Icons.block, 'Reason', r.rejectionReason ?? '-'),
       (Icons.receipt_long_outlined, 'Reference No', r.displayReference),
     ];

@@ -93,4 +93,23 @@ void main() {
     expect(seat.seatNumber, 'D09');
     expect(seat.hasPowerOutlet, isTrue);
   });
+
+  testWidgets('Edit Seat has no photo section and saves the seat details', (
+    tester,
+  ) async {
+    final router = await pumpLibrarian(tester, LibrarianRoutes.seats);
+    final seat = repositoryOf(tester).seats.first;
+    router.go(LibrarianRoutes.editSeat(seat.id));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Seat'), findsOneWidget);
+    expect(find.text('Seat Photo'), findsNothing);
+    expect(find.text('Choose Image'), findsNothing);
+
+    await _type(tester, 'ROW / ZONE', 'Row Z');
+    await tapVisible(tester, find.text('Save Changes'));
+    expect(router.currentPath, LibrarianRoutes.seats);
+    expect(find.text('Seat ${seat.seatNumber} was updated.'), findsOneWidget);
+    expect(repositoryOf(tester).seatById(seat.id)!.zone, 'Row Z');
+  });
 }
