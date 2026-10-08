@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/libmate_logo.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
-import '../../../app/theme/app_theme.dart';
-import '../../../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_widgets.dart';
 
+/// The single login form used by every role. There is no role picker here:
+/// after Firebase Auth succeeds, [AuthProvider] loads `users/{uid}` and the
+/// router sends the user to their Student / Librarian / Manager dashboard
+/// based on the Firestore `role` alone.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.authProvider});
 
@@ -22,8 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _passwordVisible = false;
-  bool _rememberMe = true;
-  String _selectedRole = 'Student';
 
   @override
   void initState() {
@@ -48,21 +47,58 @@ class _LoginScreenState extends State<LoginScreen> {
     await widget.authProvider.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      selectedRole: switch (_selectedRole) {
-        'Student' => UserRole.student,
-        'Librarian' => UserRole.librarian,
-        'Manager' => UserRole.manager,
-        _ => UserRole.student,
-      },
+    );
+  }
+
+  Future<void> _forgotPassword() async {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset password'),
+        content: TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Email address',
+            hintText: 'Enter your account email',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, emailController.text.trim()),
+            child: const Text('Send link'),
+          ),
+        ],
+      ),
+    );
+    emailController.dispose();
+    if (email == null || email.isEmpty || !mounted) return;
+
+    final success = await widget.authProvider.sendPasswordResetEmail(email);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'A password reset link has been sent to $email.'
+              : widget.authProvider.errorMessage ??
+                    'Could not send the reset link. Please try again.',
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = widget.authProvider;
-    if (_selectedRole == 'Manager') {
-      return _buildManagerLogin(authProvider);
-    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -93,41 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
                   ),
                   const SizedBox(height: 32),
-                  const Text(
-                    'Login as',
-                    style: TextStyle(
-                      color: Color(0xFF172033),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _RoleChoice(
-                        label: 'Student',
-                        icon: Icons.school_outlined,
-                        selected: _selectedRole == 'Student',
-                        onTap: () => setState(() => _selectedRole = 'Student'),
-                      ),
-                      const SizedBox(width: 12),
-                      _RoleChoice(
-                        label: 'Librarian',
-                        icon: Icons.people_outline,
-                        selected: _selectedRole == 'Librarian',
-                        onTap: () =>
-                            setState(() => _selectedRole = 'Librarian'),
-                      ),
-                      const SizedBox(width: 12),
-                      _RoleChoice(
-                        label: 'Manager',
-                        icon: Icons.location_on_outlined,
-                        selected: _selectedRole == 'Manager',
-                        onTap: () => setState(() => _selectedRole = 'Manager'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 29),
                   AuthInput(
                     label: 'Email Address',
                     hint: 'Enter your email address',
@@ -162,46 +163,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) =>
-                              setState(() => _rememberMe = value ?? false),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: authProvider.isLoading ? null : _forgotPassword,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Remember me',
+                      child: const Text(
+                        'Forgot password?',
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          color: Color(0xFF2563EB),
                           fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            color: Color(0xFF2563EB),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   if (authProvider.errorMessage != null) ...[
                     const SizedBox(height: 10),
@@ -212,37 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: 'Login',
                     isLoading: authProvider.isLoading,
                     onPressed: _signIn,
-                  ),
-                  const SizedBox(height: 17),
-                  const _OrDivider(),
-                  const SizedBox(height: 17),
-                  SizedBox(
-                    height: 47,
-                    child: OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Text(
-                        'G',
-                        style: TextStyle(
-                          color: Color(0xFF4285F4),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          color: Color(0xFF172033),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFFDCE4EF)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 34),
                   Row(
@@ -275,268 +223,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildManagerLogin(AuthProvider authProvider) {
-    return Theme(
-      data: AppTheme.light,
-      child: Builder(
-        builder: (context) {
-          final colors = Theme.of(context).colorScheme;
-          return Scaffold(
-            body: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 28,
-                      ),
-                      shrinkWrap: true,
-                      children: [
-                        const Center(child: LibMateLogo(size: 54)),
-                        const SizedBox(height: 7),
-                        Text(
-                          'LibMate',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: colors.primary,
-                            fontSize: 25,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'Library Management System',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(fontSize: 10),
-                        ),
-                        const SizedBox(height: 28),
-                        Text(
-                          'Manager Login',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontSize: 16),
-                        ),
-                        const SizedBox(height: 21),
-                        _ManagerLoginField(
-                          label: 'Email',
-                          hint: 'manager@libmate.com',
-                          controller: _emailController,
-                          validator: (value) => value?.trim().isEmpty ?? true
-                              ? 'Email is required.'
-                              : null,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 15),
-                        _ManagerLoginField(
-                          label: 'Password',
-                          hint: '••••••••',
-                          controller: _passwordController,
-                          validator: (value) => value?.isEmpty ?? true
-                              ? 'Password is required.'
-                              : null,
-                          obscureText: !_passwordVisible,
-                          suffixIcon: IconButton(
-                            onPressed: () => setState(
-                              () => _passwordVisible = !_passwordVisible,
-                            ),
-                            icon: Icon(
-                              _passwordVisible
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _rememberMe,
-                              onChanged: (value) =>
-                                  setState(() => _rememberMe = value ?? false),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            Text(
-                              'Remember me',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(fontSize: 11),
-                            ),
-                          ],
-                        ),
-                        if (authProvider.errorMessage != null) ...[
-                          const SizedBox(height: 7),
-                          _AuthErrorMessage(
-                            message: authProvider.errorMessage!,
-                          ),
-                        ],
-                        const SizedBox(height: 7),
-                        AuthPrimaryButton(
-                          label: 'Login',
-                          isLoading: authProvider.isLoading,
-                          onPressed: _signIn,
-                        ),
-                        const SizedBox(height: 7),
-                        TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              color: colors.primary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _selectedRole = 'Student'),
-                          child: const Text('Back to role selection'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ManagerLoginField extends StatelessWidget {
-  const _ManagerLoginField({
-    required this.label,
-    required this.hint,
-    required this.controller,
-    required this.validator,
-    this.keyboardType,
-    this.obscureText = false,
-    this.suffixIcon,
-  });
-
-  final String label;
-  final String hint;
-  final TextEditingController controller;
-  final String? Function(String?) validator;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final Widget? suffixIcon;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: Theme.of(context).textTheme.bodyMedium
-            ?.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 5),
-      TextFormField(
-        controller: controller,
-        validator: validator,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        style: const TextStyle(fontSize: 12),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: Theme.of(context).textTheme.bodySmall?.color,
-            fontSize: 11,
-          ),
-          suffixIcon: suffixIcon,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 11,
-          ),
-          isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    ],
-  );
-}
-
-class _RoleChoice extends StatelessWidget {
-  const _RoleChoice({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 72,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF93B8FF),
-              width: selected ? 1.5 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: const Color(0xFF64748B), size: 21),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF172033),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'OR',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-      ],
     );
   }
 }

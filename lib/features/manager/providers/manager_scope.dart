@@ -3,16 +3,22 @@ import 'package:flutter/widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/manager_repository.dart';
 
-class ManagerScope extends InheritedWidget {
+/// Shares the Manager's [repository] and [authProvider] with the Manager
+/// screens. Extends [InheritedNotifier] (not a plain [InheritedWidget]) so
+/// that every Firestore change the repository notifies about (new/updated
+/// user, etc.) rebuilds the screens that called [ManagerScope.of] - e.g. the
+/// Manage Users list updates live instead of only after a manual navigation.
+class ManagerScope extends InheritedNotifier<ManagerRepository> {
   const ManagerScope({
     super.key,
-    required this.repository,
+    required ManagerRepository repository,
     required this.authProvider,
     required super.child,
-  });
+  }) : super(notifier: repository);
 
-  final ManagerRepository repository;
   final AuthProvider authProvider;
+
+  ManagerRepository get repository => notifier!;
 
   static ManagerScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<ManagerScope>();
@@ -24,11 +30,5 @@ class ManagerScope extends InheritedWidget {
     final scope = context.getInheritedWidgetOfExactType<ManagerScope>();
     assert(scope != null, 'ManagerScope not found above this context.');
     return scope!;
-  }
-
-  @override
-  bool updateShouldNotify(ManagerScope oldWidget) {
-    return repository != oldWidget.repository ||
-        authProvider != oldWidget.authProvider;
   }
 }

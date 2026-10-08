@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../models/user.dart';
 import '../data/manager_mock_data.dart';
 import '../providers/manager_scope.dart';
 import '../widgets/manager_widgets.dart';
@@ -19,6 +20,7 @@ class ManagerUserDetailsScreen extends StatefulWidget {
 
 class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
   late ManagerUser _user;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -31,13 +33,20 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
     super.didChangeDependencies();
     final repository = ManagerScope.of(context).repository;
     final nextUser = repository.findUserById(widget.user.id) ?? widget.user;
-    if (_user.id != nextUser.id || _user.name != nextUser.name || _user.email != nextUser.email) {
+    if (_user.name != nextUser.name ||
+        _user.email != nextUser.email ||
+        _user.role != nextUser.role ||
+        _user.institutionId != nextUser.institutionId ||
+        _user.accountStatus != nextUser.accountStatus) {
       setState(() => _user = nextUser);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scope = ManagerScope.of(context);
+    final isOwnAccount = _user.id == scope.authProvider.user?.uid;
+
     return ManagerScaffold(
       title: 'User Details',
       body: ManagerPagePadding(
@@ -78,12 +87,15 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
                         ),
                         StatusBadge(
                           text: _user.status,
-                          type: _user.isActive ? 'available' : 'inactive',
+                          type: _statusBadgeType(_user.accountStatus),
                         ),
                       ],
                     ),
                     const Divider(height: 26),
-                    _UserDetailRow(label: 'University / Staff ID', value: _user.id),
+                    _UserDetailRow(
+                      label: 'Student ID / Staff ID',
+                      value: _user.institutionId ?? 'Not set',
+                    ),
                     _UserDetailRow(label: 'Role', value: _user.role),
                     _UserDetailRow(label: 'Status', value: _user.status),
                     _UserDetailRow(
@@ -102,39 +114,78 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
             PrimaryButton(
               label: 'Edit User',
               icon: Icons.edit_outlined,
-              onPressed: () async {
-                await context.push(
-                  AppRoutes.managerUserEdit,
-                  extra: _user,
-                );
-                if (!mounted) return;
-                if (!context.mounted) return;
-                final repository = ManagerScope.of(context).repository;
-                setState(() {
-                  _user = repository.findUserById(widget.user.id) ?? _user;
-                });
-              },
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      await context.push(AppRoutes.managerUserEdit, extra: _user);
+                      if (!mounted || !context.mounted) return;
+                      final repository = ManagerScope.of(context).repository;
+                      setState(() {
+                        _user = repository.findUserById(widget.user.id) ?? _user;
+                      });
+                    },
             ),
-            const SizedBox(height: 9),
-            OutlinedButton.icon(
-              onPressed: _user.isActive ? _confirmDeactivation : null,
-              icon: const Icon(Icons.person_off_outlined),
-              label: const Text('Deactivate User'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
+            if (isOwnAccount) ...[
+              const SizedBox(height: 9),
+              Text(
+                'You cannot change your own account status.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
-            const SizedBox(height: 9),
-            OutlinedButton.icon(
-              onPressed: _confirmDeletion,
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete User'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-              ),
-            ),
+            ] else ...[
+              if (_user.accountStatus != AccountStatus.active) ...[
+                const SizedBox(height: 9),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _changeStatus(AccountStatus.active, 'activated'),
+                  icon: const Icon(Icons.person_outline),
+                  label: const Text('Activate User'),
+                ),
+              ],
+              if (_user.accountStatus != AccountStatus.suspended) ...[
+                const SizedBox(height: 9),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _confirmStatusChange(
+                          AccountStatus.suspended,
+                          title: 'Suspend User?',
+                          actionLabel: 'Suspend',
+                          successMessage: 'User suspended successfully.',
+                        ),
+                  icon: const Icon(Icons.block_outlined),
+                  label: const Text('Suspend User'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                ),
+              ],
+              if (_user.accountStatus != AccountStatus.inactive) ...[
+                const SizedBox(height: 9),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _confirmStatusChange(
+                          AccountStatus.inactive,
+                          title: 'Remove Access?',
+                          actionLabel: 'Remove Access',
+                          successMessage: 'Access removed. The profile is kept for records.',
+                          description:
+                              'This revokes login for ${_user.name} by setting the account to '
+                              'inactive. The Firestore profile (and Firebase Auth account) is '
+                              'kept for audit/reference - this does not permanently delete '
+                              'anything.',
+                        ),
+                  icon: const Icon(Icons.person_off_outlined),
+                  label: const Text('Remove Access'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 10),
           ],
         ),
@@ -142,14 +193,28 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
     );
   }
 
-  Future<void> _confirmDeactivation() async {
+  String _statusBadgeType(AccountStatus status) => switch (status) {
+    AccountStatus.active => 'available',
+    AccountStatus.inactive => 'inactive',
+    AccountStatus.suspended => 'suspended',
+  };
+
+  Future<void> _confirmStatusChange(
+    AccountStatus status, {
+    required String title,
+    required String actionLabel,
+    required String successMessage,
+    String? description,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.person_off_outlined, color: AppColors.error),
-        title: const Text('Deactivate User?'),
+        icon: const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+        title: Text(title),
         content: Text(
-          '${_user.name}\n${_user.email}\n\nCurrent Role: ${_user.role}\n\nAre you sure you want to deactivate this account?',
+          description ??
+              '${_user.name}\n${_user.email}\n\nCurrent Role: ${_user.role}\n\n'
+                  'Are you sure you want to $actionLabel this account?',
         ),
         actions: [
           TextButton(
@@ -159,61 +224,31 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Deactivate'),
+            child: Text(actionLabel),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
-
-    try {
-      ManagerScope.of(context).repository.deactivateUser(_user.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User deactivated successfully.')),
-      );
-      context.pop(true);
-    } on StateError catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    }
+    await _changeStatus(status, successMessage);
   }
 
-  Future<void> _confirmDeletion() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline, color: AppColors.error),
-        title: const Text('Delete User?'),
-        content: Text(
-          'This will permanently remove ${_user.name} from the manager list and Firestore.\n\nThis action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+  Future<void> _changeStatus(AccountStatus status, String successMessage) async {
+    setState(() => _busy = true);
+    final repository = ManagerScope.of(context).repository;
+    final result = await repository.setAccountStatus(_user.id, status);
+    if (!mounted) return;
+    setState(() => _busy = false);
 
-    try {
-      ManagerScope.of(context).repository.deleteUser(_user.id);
+    if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User deleted successfully.')),
+        SnackBar(content: Text(result.message ?? 'The request could not be completed.')),
       );
-      context.pop(true);
-    } on StateError catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      return;
     }
+
+    setState(() => _user = _user.copyWith(accountStatus: status));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
   }
 
   String _formatDate(DateTime date) =>

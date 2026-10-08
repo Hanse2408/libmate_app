@@ -52,7 +52,7 @@ class _ManagerUsersScreenState extends State<ManagerUsersScreen> {
           query.isEmpty ||
           user.name.toLowerCase().contains(query) ||
           user.email.toLowerCase().contains(query) ||
-          user.id.toLowerCase().contains(query);
+          (user.institutionId?.toLowerCase().contains(query) ?? false);
       final matchesRole =
           _roleFilter == 'All Roles' || user.role == _roleFilter;
       final matchesStatus =
@@ -90,7 +90,7 @@ class _ManagerUsersScreenState extends State<ManagerUsersScreen> {
                 Expanded(
                   child: _UserFilterDropdown(
                     value: _statusFilter,
-                    values: const ['All Status', 'Active', 'Inactive'],
+                    values: const ['All Status', 'Active', 'Inactive', 'Suspended'],
                     onChanged: (value) => setState(() => _statusFilter = value),
                   ),
                 ),

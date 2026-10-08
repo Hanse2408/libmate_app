@@ -19,9 +19,11 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
-  late final TextEditingController _idController;
+  late final TextEditingController _institutionIdController;
+  late final TextEditingController _passwordController;
   late UserRole _role;
-  late bool _isActive;
+  late AccountStatus _accountStatus;
+  bool _passwordVisible = false;
   bool _saving = false;
 
   bool get _isEditing => widget.user != null;
@@ -32,23 +34,32 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
     final user = widget.user;
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
-    _idController = TextEditingController(text: user?.id ?? '');
-    _role = user == null
-        ? UserRole.student
-        : managerRoleFromLabel(user.role);
-    _isActive = user?.isActive ?? true;
+    _institutionIdController = TextEditingController(
+      text: user?.institutionId ?? '',
+    );
+    _passwordController = TextEditingController();
+    _role = user == null ? UserRole.student : managerRoleFromLabel(user.role);
+    _accountStatus = user?.accountStatus ?? AccountStatus.active;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _idController.dispose();
+    _institutionIdController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final scope = ManagerScope.of(context);
+    // A Manager cannot demote/suspend/deactivate themselves through this
+    // form, so role and account status are locked when editing their own
+    // profile (see also the Firestore rules and ManagerUserDetailsScreen).
+    final isOwnAccount =
+        _isEditing && widget.user!.id == scope.authProvider.user?.uid;
+
     return ManagerScaffold(
       title: _isEditing ? 'Edit User' : 'Add User',
       body: ManagerPagePadding(
@@ -72,6 +83,10 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                 label: 'Email',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                // Firestore and Firebase Auth email must stay in sync. We do
+                // not update the Auth email for another account from the
+                // client, so email is read-only once the account exists.
+                enabled: !_isEditing,
                 validator: (value) {
                   final requiredError = _required(value, 'Enter an email.');
                   if (requiredError != null) return requiredError;
@@ -81,13 +96,36 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                       : 'Enter a valid email address.';
                 },
               ),
+              if (!_isEditing) ...[
+                const SizedBox(height: 12),
+                _field(
+                  label: 'Temporary Password',
+                  controller: _passwordController,
+                  obscureText: !_passwordVisible,
+                  suffixIcon: IconButton(
+                    onPressed: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
+                    icon: Icon(
+                      _passwordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                  ),
+                  validator: (value) {
+                    final requiredError = _required(value, 'Enter a temporary password.');
+                    if (requiredError != null) return requiredError;
+                    if (value!.length < 6) {
+                      return 'Password must be at least 6 characters.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 12),
               _field(
-                label: 'University / Staff ID',
-                controller: _idController,
-                enabled: !_isEditing,
-                validator: (value) =>
-                    _required(value, 'Enter a university or staff ID.'),
+                label: 'Student ID / Staff ID',
+                controller: _institutionIdController,
+                validator: (value) => null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<UserRole>(
@@ -100,22 +138,47 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                       child: Text(managerRoleLabel(role)),
                     ),
                 ],
-                onChanged: (value) {
-                  if (value != null) setState(() => _role = value);
-                },
+                onChanged: isOwnAccount
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _role = value);
+                      },
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<bool>(
-                initialValue: _isActive,
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: const [
-                  DropdownMenuItem(value: true, child: Text('Active')),
-                  DropdownMenuItem(value: false, child: Text('Inactive')),
-                ],
-                onChanged: (value) {
-                  if (value != null) setState(() => _isActive = value);
-                },
-              ),
+              if (_isEditing) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<AccountStatus>(
+                  initialValue: _accountStatus,
+                  decoration: const InputDecoration(labelText: 'Account Status'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: AccountStatus.active,
+                      child: Text('Active'),
+                    ),
+                    DropdownMenuItem(
+                      value: AccountStatus.inactive,
+                      child: Text('Inactive'),
+                    ),
+                    DropdownMenuItem(
+                      value: AccountStatus.suspended,
+                      child: Text('Suspended'),
+                    ),
+                  ],
+                  onChanged: isOwnAccount
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() => _accountStatus = value);
+                          }
+                        },
+                ),
+              ],
+              if (isOwnAccount) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'You cannot change your own role or account status.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -128,8 +191,14 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: Text(_isEditing ? 'Save Changes' : 'Create User'),
+                      onPressed: _saving ? null : () => _save(scope),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(_isEditing ? 'Save Changes' : 'Create User'),
                     ),
                   ),
                 ],
@@ -149,55 +218,65 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
     TextInputType? keyboardType,
     TextCapitalization textCapitalization = TextCapitalization.none,
     bool enabled = true,
+    bool obscureText = false,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
+      obscureText: obscureText,
       validator: validator,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: label, suffixIcon: suffixIcon),
     );
   }
 
   String? _required(String? value, String message) =>
       value == null || value.trim().isEmpty ? message : null;
 
-  void _save() {
+  Future<void> _save(ManagerScope scope) async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
-    final user = ManagerUser(
-      name: _nameController.text.trim(),
-      id: _idController.text.trim(),
-      role: managerRoleLabel(_role),
-      email: _emailController.text.trim(),
-      isActive: _isActive,
-      createdAt: widget.user?.createdAt ?? DateTime.now(),
-    );
-    try {
-      final repository = ManagerScope.of(context).repository;
-      if (_isEditing) {
-        repository.updateUser(widget.user!.id, user);
-      } else {
-        repository.addUser(user);
-      }
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final institutionId = _institutionIdController.text.trim();
+    final repository = scope.repository;
+
+    final result = _isEditing
+        ? await repository.updateUser(
+            widget.user!.id,
+            name: name,
+            role: _role,
+            accountStatus: _accountStatus,
+            institutionId: institutionId,
+          )
+        : await repository.addUser(
+            name: name,
+            email: email,
+            password: _passwordController.text,
+            role: _role,
+            institutionId: institutionId,
+          );
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isEditing ? 'User updated successfully.' : 'User created successfully.'),
-        ),
+        SnackBar(content: Text(result.message ?? 'The request could not be completed.')),
       );
-      context.pop(true);
-    } on FormatException catch (error) {
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } on StateError catch (error) {
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isEditing ? 'User updated successfully.' : 'User created successfully.',
+        ),
+      ),
+    );
+    if (mounted) context.pop(true);
   }
 }

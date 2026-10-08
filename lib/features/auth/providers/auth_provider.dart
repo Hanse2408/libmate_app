@@ -35,7 +35,6 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isProfileLoading = false;
   String? _errorMessage;
-  UserRole? _expectedLoginRole;
 
   User? get user => _user;
   AppUser? get profile => _profile;
@@ -49,17 +48,32 @@ class AuthProvider extends ChangeNotifier {
   /// saved session is restored asynchronously after start-up).
   bool get isAuthResolved => _isAuthResolved;
 
-  Future<bool> signIn({
-    required String email,
-    required String password,
-    required UserRole selectedRole,
-  }) async {
-    _expectedLoginRole = selectedRole;
-    final success = await _runAuthAction(
+  /// Single login form for every role. The Firestore `role` on `users/{uid}`
+  /// decides the destination (see [fetchCurrentUserProfile]); the user never
+  /// picks it themselves.
+  Future<bool> signIn({required String email, required String password}) {
+    return _runAuthAction(
       () => _authRepository.signIn(email: email, password: password),
     );
-    if (!success) _expectedLoginRole = null;
-    return success;
+  }
+
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _authRepository.sendPasswordResetEmail(email: email);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _mapErrorMessage(e);
+      return false;
+    } catch (_) {
+      _errorMessage = 'Something went wrong. Please try again.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Security: public sign-up always creates a STUDENT account. Librarian and
@@ -95,7 +109,9 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
-  /// Fetches the signed-in user's Firestore profile and role.
+  /// Fetches the signed-in user's Firestore profile and decides, from the
+  /// Firestore `role` and `accountStatus` alone, whether sign-in may
+  /// continue. The user never picks their own role or destination.
   Future<void> fetchCurrentUserProfile() async {
     final uid = _user?.uid;
     if (uid == null) return;
@@ -103,25 +119,30 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final loadedProfile = await _userRepository.getUserProfile(uid);
-      final expectedRole = _expectedLoginRole;
-      _expectedLoginRole = null;
-
-      if (loadedProfile != null &&
-          expectedRole != null &&
-          loadedProfile.role != expectedRole) {
-        _profile = null;
-        _errorMessage =
-            'This account is registered as ${_roleLabel(loadedProfile.role)}. '
-            'Please select ${_roleLabel(expectedRole)}.';
-        try {
-          await _authRepository.signOut();
-          _user = null;
-        } catch (_) {
-          _errorMessage = '$_errorMessage Sign-out failed; please try again.';
-        }
-      } else {
-        _profile = loadedProfile;
+      if (loadedProfile == null) {
+        await _rejectLogin(
+          'User profile could not be found. Please contact the library.',
+        );
+        return;
       }
+      switch (loadedProfile.accountStatus) {
+        case AccountStatus.inactive:
+          await _rejectLogin(
+            'This account is inactive. Please contact the library.',
+          );
+          return;
+        case AccountStatus.suspended:
+          await _rejectLogin(
+            'This account is suspended. Please contact the library.',
+          );
+          return;
+        case AccountStatus.active:
+          _profile = loadedProfile;
+      }
+    } on InvalidUserRoleException {
+      await _rejectLogin(
+        'User profile could not be found. Please contact the library.',
+      );
     } catch (_) {
       _profile = null;
       _errorMessage = 'Failed to load user profile.';
@@ -131,8 +152,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  String _roleLabel(UserRole role) {
-    return '${role.name[0].toUpperCase()}${role.name.substring(1)}';
+  /// Signs out a user whose profile/role/account-status did not pass the
+  /// login checks above, so they never reach any dashboard.
+  Future<void> _rejectLogin(String message) async {
+    _profile = null;
+    _errorMessage = message;
+    try {
+      await _authRepository.signOut();
+    } catch (_) {
+      _errorMessage = '$message Sign-out failed; please restart the app.';
+    } finally {
+      _user = null;
+    }
   }
 
   Future<void> signOut() async {

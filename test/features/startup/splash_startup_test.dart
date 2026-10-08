@@ -55,6 +55,9 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async => restore(signedIn: false);
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {}
 }
 
 class _FakeUserRepository implements UserRepository {

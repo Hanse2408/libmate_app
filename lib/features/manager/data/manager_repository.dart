@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../models/action_result.dart';
+import '../../../models/user.dart';
 import 'manager_mock_data.dart';
 
 abstract class ManagerRepository extends ChangeNotifier {
@@ -19,59 +21,78 @@ abstract class ManagerRepository extends ChangeNotifier {
     return null;
   }
 
-  void addUser(ManagerUser user) {
+  /// Creates a user. For the live (Firestore) repository this also creates
+  /// the matching Firebase Auth account using [password] and never signs the
+  /// current Manager session out; the in-memory/demo repository ignores
+  /// [password] since it has no real Auth backing it.
+  Future<ActionResult> addUser({
+    required String name,
+    required String email,
+    required String password,
+    required UserRole role,
+    String? institutionId,
+  }) async {
+    final trimmedEmail = email.trim();
     final duplicate = users.any(
-      (existing) =>
-          existing.id.toLowerCase() == user.id.toLowerCase() ||
-          existing.email.toLowerCase() == user.email.toLowerCase(),
+      (existing) => existing.email.toLowerCase() == trimmedEmail.toLowerCase(),
     );
     if (duplicate) {
-      throw const FormatException('A user with this ID or email already exists.');
+      return const ActionResult.failure('A user with this email already exists.');
     }
-    final nextUsers = List<ManagerUser>.from(users)..add(user);
+    final newUser = ManagerUser(
+      id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim(),
+      email: trimmedEmail,
+      role: managerRoleLabel(role),
+      institutionId: institutionId?.trim().isEmpty ?? true ? null : institutionId!.trim(),
+      accountStatus: AccountStatus.active,
+      createdAt: DateTime.now(),
+    );
+    final nextUsers = List<ManagerUser>.from(users)..add(newUser);
     replaceUsers(nextUsers);
     notifyListeners();
+    return const ActionResult.success();
   }
 
-  void updateUser(String id, ManagerUser updatedUser) {
+  /// Updates the safe admin fields (name/role/institution id/accountStatus).
+  /// Email is read-only here; see the class comment on the Firestore
+  /// implementation for why.
+  Future<ActionResult> updateUser(
+    String id, {
+    required String name,
+    required UserRole role,
+    required AccountStatus accountStatus,
+    String? institutionId,
+  }) async {
     final current = List<ManagerUser>.from(users);
     final index = current.indexWhere((user) => user.id == id);
     if (index == -1) {
-      throw StateError('The user no longer exists.');
+      return const ActionResult.failure('The user no longer exists.');
     }
-    final duplicate = current.any(
-      (existing) =>
-          existing.id != id &&
-          existing.email.toLowerCase() == updatedUser.email.toLowerCase(),
+    current[index] = current[index].copyWith(
+      name: name.trim(),
+      role: managerRoleLabel(role),
+      institutionId: institutionId?.trim().isEmpty ?? true ? null : institutionId!.trim(),
+      accountStatus: accountStatus,
     );
-    if (duplicate) {
-      throw const FormatException('A user with this email already exists.');
-    }
-    current[index] = updatedUser;
     replaceUsers(current);
     notifyListeners();
+    return const ActionResult.success();
   }
 
-  void deactivateUser(String id) {
+  /// Sets `accountStatus`. Used for Activate / Deactivate / Suspend and for
+  /// "Remove Access" (which sets [AccountStatus.inactive] rather than
+  /// deleting the Firestore profile or the Firebase Auth account).
+  Future<ActionResult> setAccountStatus(String id, AccountStatus status) async {
     final current = List<ManagerUser>.from(users);
     final index = current.indexWhere((user) => user.id == id);
     if (index == -1) {
-      throw StateError('The user no longer exists.');
+      return const ActionResult.failure('The user no longer exists.');
     }
-    current[index] = current[index].copyWith(isActive: false);
+    current[index] = current[index].copyWith(accountStatus: status);
     replaceUsers(current);
     notifyListeners();
-  }
-
-  void deleteUser(String id) {
-    final current = List<ManagerUser>.from(users);
-    final index = current.indexWhere((user) => user.id == id);
-    if (index == -1) {
-      throw StateError('The user no longer exists.');
-    }
-    current.removeAt(index);
-    replaceUsers(current);
-    notifyListeners();
+    return const ActionResult.success();
   }
 
   ManagerReservation? findReservationById(String id) {
@@ -113,28 +134,6 @@ abstract class ManagerRepository extends ChangeNotifier {
   void replaceUsers(List<ManagerUser> users);
   void replaceReservations(List<ManagerReservation> reservations);
   void replacePolicyValues(List<int> values);
-}
-
-class ManagerUserStore {
-  const ManagerUserStore._();
-
-  static final instance = _ManagerUserStoreAdapter();
-}
-
-class _ManagerUserStoreAdapter {
-  List<ManagerUser> get users => ManagerMockRepository.instance.users;
-
-  ManagerUser? findById(String id) => ManagerMockRepository.instance.findUserById(id);
-
-  void add(ManagerUser user) => ManagerMockRepository.instance.addUser(user);
-
-  void update(String id, ManagerUser updatedUser) =>
-      ManagerMockRepository.instance.updateUser(id, updatedUser);
-
-  void deactivate(String id) =>
-      ManagerMockRepository.instance.deactivateUser(id);
-
-  void delete(String id) => ManagerMockRepository.instance.deleteUser(id);
 }
 
 class ManagerMockRepository extends ManagerRepository {

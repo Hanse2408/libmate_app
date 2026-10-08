@@ -42,25 +42,40 @@ class ManagerUser {
     required this.id,
     required this.role,
     required this.email,
-    this.isActive = true,
+    this.institutionId,
+    this.accountStatus = AccountStatus.active,
     this.createdAt,
   });
 
   final String name;
+
+  /// Firebase Auth UID / `users/{uid}` document id. Read-only once created;
+  /// the Manager never types this in manually.
   final String id;
+
   final String role;
   final String email;
-  final bool isActive;
+
+  /// Human Student ID / Staff ID (e.g. "IT23801234"), separate from [id].
+  final String? institutionId;
+  final AccountStatus accountStatus;
   final DateTime? createdAt;
 
-  String get status => isActive ? 'Active' : 'Inactive';
+  bool get isActive => accountStatus == AccountStatus.active;
+
+  String get status => switch (accountStatus) {
+    AccountStatus.active => 'Active',
+    AccountStatus.inactive => 'Inactive',
+    AccountStatus.suspended => 'Suspended',
+  };
 
   ManagerUser copyWith({
     String? name,
     String? id,
     String? role,
     String? email,
-    bool? isActive,
+    String? institutionId,
+    AccountStatus? accountStatus,
     DateTime? createdAt,
   }) {
     return ManagerUser(
@@ -68,7 +83,8 @@ class ManagerUser {
       id: id ?? this.id,
       role: role ?? this.role,
       email: email ?? this.email,
-      isActive: isActive ?? this.isActive,
+      institutionId: institutionId ?? this.institutionId,
+      accountStatus: accountStatus ?? this.accountStatus,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -179,30 +195,35 @@ const managerUsers = [
   ManagerUser(
     name: 'Neranjala Gunarathne',
     id: 'IT23801234',
+    institutionId: 'IT23801234',
     role: 'Student',
     email: 'neranjala@libmate.com',
   ),
   ManagerUser(
     name: 'Hanse Perera',
     id: 'LIB001',
+    institutionId: 'LIB001',
     role: 'Librarian',
     email: 'hanse@libmate.com',
   ),
   ManagerUser(
     name: 'Sasindu Fernando',
     id: 'IT23804567',
+    institutionId: 'IT23804567',
     role: 'Student',
     email: 'sasindu@libmate.com',
   ),
   ManagerUser(
     name: 'Tharindu Silva',
     id: 'IT23807890',
+    institutionId: 'IT23807890',
     role: 'Student',
     email: 'tharindu@libmate.com',
   ),
   ManagerUser(
     name: 'Admin',
     id: 'ADMIN001',
+    institutionId: 'ADMIN001',
     role: 'Manager',
     email: 'admin@libmate.com',
   ),
