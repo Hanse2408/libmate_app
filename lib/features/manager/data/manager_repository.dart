@@ -37,14 +37,18 @@ abstract class ManagerRepository extends ChangeNotifier {
       (existing) => existing.email.toLowerCase() == trimmedEmail.toLowerCase(),
     );
     if (duplicate) {
-      return const ActionResult.failure('A user with this email already exists.');
+      return const ActionResult.failure(
+        'A user with this email already exists.',
+      );
     }
     final newUser = ManagerUser(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
       name: name.trim(),
       email: trimmedEmail,
       role: managerRoleLabel(role),
-      institutionId: institutionId?.trim().isEmpty ?? true ? null : institutionId!.trim(),
+      institutionId: institutionId?.trim().isEmpty ?? true
+          ? null
+          : institutionId!.trim(),
       accountStatus: AccountStatus.active,
       createdAt: DateTime.now(),
     );
@@ -54,14 +58,13 @@ abstract class ManagerRepository extends ChangeNotifier {
     return const ActionResult.success();
   }
 
-  /// Updates the safe admin fields (name/role/institution id/accountStatus).
+  /// Updates name, role and institution ID; status has separate actions.
   /// Email is read-only here; see the class comment on the Firestore
   /// implementation for why.
   Future<ActionResult> updateUser(
     String id, {
     required String name,
     required UserRole role,
-    required AccountStatus accountStatus,
     String? institutionId,
   }) async {
     final current = List<ManagerUser>.from(users);
@@ -72,18 +75,20 @@ abstract class ManagerRepository extends ChangeNotifier {
     current[index] = current[index].copyWith(
       name: name.trim(),
       role: managerRoleLabel(role),
-      institutionId: institutionId?.trim().isEmpty ?? true ? null : institutionId!.trim(),
-      accountStatus: accountStatus,
+      institutionId: institutionId?.trim().isEmpty ?? true
+          ? null
+          : institutionId!.trim(),
     );
     replaceUsers(current);
     notifyListeners();
     return const ActionResult.success();
   }
 
-  /// Sets `accountStatus`. Used for Activate / Deactivate / Suspend and for
-  /// "Remove Access" (which sets [AccountStatus.inactive] rather than
-  /// deleting the Firestore profile or the Firebase Auth account).
+  /// Sets account status through Activate / Deactivate.
   Future<ActionResult> setAccountStatus(String id, AccountStatus status) async {
+    if (status == AccountStatus.suspended) {
+      return const ActionResult.failure('Choose Active or Inactive.');
+    }
     final current = List<ManagerUser>.from(users);
     final index = current.indexWhere((user) => user.id == id);
     if (index == -1) {

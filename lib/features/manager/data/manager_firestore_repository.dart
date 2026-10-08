@@ -14,12 +14,28 @@ class ManagerFirestoreRepository extends ManagerRepository {
   ManagerFirestoreRepository({
     required FirebaseFirestore firestore,
     this.managerUid = '',
-  }) : _db = firestore {
+    Future<FirebaseApp> Function()? createSecondaryApp,
+    FirebaseAuth Function(FirebaseApp)? secondaryAuthFor,
+  }) : _db = firestore,
+       _createSecondaryApp = createSecondaryApp ?? _initializeSecondaryApp,
+       _secondaryAuthFor = secondaryAuthFor ?? _authForApp {
     _listen();
   }
 
   final FirebaseFirestore _db;
   final String managerUid;
+  final Future<FirebaseApp> Function() _createSecondaryApp;
+  final FirebaseAuth Function(FirebaseApp) _secondaryAuthFor;
+
+  static Future<FirebaseApp> _initializeSecondaryApp() =>
+      Firebase.initializeApp(
+        name:
+            'ManagerUserProvisioning-${DateTime.now().microsecondsSinceEpoch}',
+        options: Firebase.app().options,
+      );
+
+  static FirebaseAuth _authForApp(FirebaseApp app) =>
+      FirebaseAuth.instanceFor(app: app);
 
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool _isLoading = true;
@@ -66,23 +82,24 @@ class ManagerFirestoreRepository extends ManagerRepository {
     // createUserWithEmailAndPassword for *another* account without touching
     // (or signing out) the Manager's own signed-in session on the default app.
     FirebaseApp? secondaryApp;
+    FirebaseAuth? secondaryAuth;
     try {
-      secondaryApp = await Firebase.initializeApp(
-        name: 'ManagerUserProvisioning-${DateTime.now().microsecondsSinceEpoch}',
-        options: Firebase.app().options,
-      );
-      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      secondaryApp = await _createSecondaryApp();
+      secondaryAuth = _secondaryAuthFor(secondaryApp);
       final credential = await secondaryAuth.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
       );
-      final uid = credential.user?.uid;
-      if (uid == null) {
+      final createdUser = credential.user;
+      if (createdUser == null) {
         return const ActionResult.failure(
-          'Could not create the account. Please try again.',
+          'Could not confirm account creation. An incomplete Auth account may '
+          'need manual cleanup.',
         );
       }
+      final uid = createdUser.uid;
       try {
+        // _db belongs to the default app, authenticated as the Manager.
         await _db.collection(FirestoreCollections.users).doc(uid).set({
           'uid': uid,
           'name': trimmedName,
@@ -94,15 +111,20 @@ class ManagerFirestoreRepository extends ManagerRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (error) {
-        // The Firebase Auth account now exists but the Firestore profile
-        // write failed: say so plainly instead of reporting a false success.
+        try {
+          // Delete only the incomplete secondary account while still signed in.
+          await createdUser.delete();
+        } catch (rollbackError) {
+          return ActionResult.failure(
+            'Saving the profile failed ($error). Rollback also failed '
+            '($rollbackError). An incomplete Auth account for $trimmedEmail '
+            '($uid) may need manual cleanup.',
+          );
+        }
         return ActionResult.failure(
-          'The login account was created, but saving the profile failed. '
-          'Please try Add User again, or add the Firestore profile '
-          'manually for $trimmedEmail ($error).',
+          'Saving the profile failed ($error). The incomplete login account '
+          'was rolled back. Please try Add User again.',
         );
-      } finally {
-        await secondaryAuth.signOut();
       }
       return const ActionResult.success();
     } on FirebaseAuthException catch (error) {
@@ -110,8 +132,18 @@ class ManagerFirestoreRepository extends ManagerRepository {
     } catch (error) {
       return ActionResult.failure('Could not create the user: $error');
     } finally {
-      if (secondaryApp != null) {
-        await secondaryApp.delete();
+      // Cleanup must not mask the profile/rollback result, and app disposal
+      // must still run if sign-out fails. Never touch default FirebaseAuth.
+      try {
+        await secondaryAuth?.signOut();
+      } catch (_) {
+        // The temporary app is disposed below.
+      } finally {
+        try {
+          await secondaryApp?.delete();
+        } catch (_) {
+          // Account creation/rollback has already completed.
+        }
       }
     }
   }
@@ -121,9 +153,11 @@ class ManagerFirestoreRepository extends ManagerRepository {
     String id, {
     required String name,
     required UserRole role,
-    required AccountStatus accountStatus,
     String? institutionId,
   }) async {
+    if (id == managerUid && role != UserRole.manager) {
+      return const ActionResult.failure('You cannot change your own role.');
+    }
     final cleanInstitutionId = institutionId?.trim().isEmpty ?? true
         ? null
         : institutionId!.trim();
@@ -132,7 +166,6 @@ class ManagerFirestoreRepository extends ManagerRepository {
         'name': name.trim(),
         'role': role.value,
         'studentId': cleanInstitutionId,
-        'accountStatus': accountStatus.value,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       return const ActionResult.success();
@@ -143,6 +176,14 @@ class ManagerFirestoreRepository extends ManagerRepository {
 
   @override
   Future<ActionResult> setAccountStatus(String id, AccountStatus status) async {
+    if (id == managerUid) {
+      return const ActionResult.failure(
+        'You cannot change your own account status.',
+      );
+    }
+    if (status == AccountStatus.suspended) {
+      return const ActionResult.failure('Choose Active or Inactive.');
+    }
     try {
       await _db.collection(FirestoreCollections.users).doc(id).update({
         'accountStatus': status.value,
@@ -150,7 +191,9 @@ class ManagerFirestoreRepository extends ManagerRepository {
       });
       return const ActionResult.success();
     } catch (error) {
-      return ActionResult.failure('Could not update the account status: $error');
+      return ActionResult.failure(
+        'Could not update the account status: $error',
+      );
     }
   }
 
@@ -308,7 +351,7 @@ class ManagerFirestoreRepository extends ManagerRepository {
     final role = data['role'] as String? ?? UserRole.student.value;
     final userRole = managerRoleLabel(UserRole.fromValue(role));
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final institutionId = (data['studentId'] as String?)?.trim();
+    final institutionId = ((data['studentId'] ?? data['staffId']) as String?)?.trim();
     return ManagerUser(
       name: (data['name'] as String?) ?? 'Unknown User',
       id: (data['uid'] as String?) ?? id,

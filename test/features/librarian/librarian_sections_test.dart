@@ -173,18 +173,13 @@ void main() {
       expect(router.currentPath, LibrarianRoutes.memberDetails('IT23003341'));
     });
 
-    testWidgets('suspend account', (tester) async {
+    testWidgets('account status is read-only for Librarians', (tester) async {
       await pumpLibrarian(tester, LibrarianRoutes.memberDetails('IT23514658'));
-
-      await tapVisible(tester, find.text('Suspend Account'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Suspend'));
-      await tester.pumpAndSettle();
-
-      expect(
-        repositoryOf(tester).memberById('IT23514658')!.status,
-        MemberStatus.suspended,
-      );
-      await scrollTo(tester, find.text('Reactivate Account'));
+      await scrollTo(tester, find.text('Account Status'));
+      expect(find.text('Suspend Account'), findsNothing);
+      expect(find.text('Reactivate Account'), findsNothing);
+      expect(repositoryOf(tester).memberById('IT23514658')!.status,
+        MemberStatus.active);
     });
   });
 

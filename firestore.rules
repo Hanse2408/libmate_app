@@ -31,13 +31,18 @@ service cloud.firestore {
       return hasProfile() && role() in ['librarian', 'manager'];
     }
 
+    function isManager() {
+      return hasProfile() && role() == 'manager'
+        && get(profilePath()).data.get('accountStatus', 'active') == 'active';
+    }
+
     function isStudent() {
       return hasProfile() && role() == 'student';
     }
 
-    // Suspended members cannot make new reservations.
+    // Only active students may make new reservations.
     function isActiveStudent() {
-      return isStudent() && get(profilePath()).data.get('accountStatus', 'active') != 'suspended';
+      return isStudent() && get(profilePath()).data.get('accountStatus', 'active') == 'active';
     }
 
     function changedOnly(keys) {
@@ -48,36 +53,51 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
 
-      // Staff may provision new accounts for students, librarians, and managers.
-      // A regular user may still create their own profile document when it matches
-      // their authenticated UID. The document must carry the same uid and a valid role.
+      // Managers provision profiles under the real UID returned by secondary Auth.
+      // Public signup can only create the caller's active student profile.
       allow create: if signedIn()
-        && (request.auth.uid == uid || isStaff())
+        && (isManager()
+          || (request.auth.uid == uid && request.resource.data.role == 'student'))
         && request.resource.data.uid == uid
         && validUserRole(request.resource.data.role)
+        && request.resource.data.accountStatus == 'active'
         && request.resource.data.email is string
         && request.resource.data.name is string
-        && !('accountStatus' in request.resource.data);
+        && (!('studentId' in request.resource.data)
+          || request.resource.data.studentId == null
+          || request.resource.data.studentId is string)
+        && (!('staffId' in request.resource.data)
+          || request.resource.data.staffId == null
+          || request.resource.data.staffId is string);
 
-      // A user can update their own basic profile details, but not their UID or role.
-      // Staff can update a user profile, including name/email/role/status, while
-      // keeping the document ID and uid aligned with the Firebase Auth uid.
+      // Self-service profile edits cannot change identity or login eligibility.
       allow update: if (signedIn() && request.auth.uid == uid
           && request.resource.data.uid == uid
           && request.resource.data.name is string
           && request.resource.data.email is string
           && validUserRole(request.resource.data.role)
           && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['uid', 'role']))
-        || (isStaff()
+              .hasAny(['uid', 'email', 'role', 'accountStatus', 'isActive']))
+        || (isManager()
           && request.resource.data.uid == uid
           && request.resource.data.name is string
-          && request.resource.data.email is string
+          && request.resource.data.email == resource.data.email
           && validUserRole(request.resource.data.role)
-          && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['name', 'email', 'role', 'isActive', 'accountStatus', 'updatedAt']));
+          && (request.auth.uid != uid
+            || !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['role', 'accountStatus']))
+          && (!request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['accountStatus'])
+            || request.resource.data.accountStatus in ['active', 'inactive'])
+          && (!('studentId' in request.resource.data)
+            || request.resource.data.studentId == null
+            || request.resource.data.studentId is string)
+          && (!('staffId' in request.resource.data)
+            || request.resource.data.staffId == null
+            || request.resource.data.staffId is string)
+          && changedOnly(['name', 'role', 'studentId', 'staffId', 'accountStatus', 'updatedAt']));
 
-      allow delete: if isStaff();
+      allow delete: if false;
     }
 
     // ---------------- Catalogue ----------------

@@ -15,6 +15,7 @@ class AuthProvider extends ChangeNotifier {
     _authStateSubscription = _authRepository.authStateChanges.listen((user) {
       _isAuthResolved = true;
       _user = user;
+      _profile = null;
       if (user == null) {
         _profile = null;
         notifyListeners();
@@ -51,10 +52,14 @@ class AuthProvider extends ChangeNotifier {
   /// Single login form for every role. The Firestore `role` on `users/{uid}`
   /// decides the destination (see [fetchCurrentUserProfile]); the user never
   /// picks it themselves.
-  Future<bool> signIn({required String email, required String password}) {
-    return _runAuthAction(
+  Future<bool> signIn({required String email, required String password}) async {
+    _profile = null;
+    final authenticated = await _runAuthAction(
       () => _authRepository.signIn(email: email, password: password),
     );
+    if (!authenticated || _user == null) return false;
+    await fetchCurrentUserProfile();
+    return _user != null && _profile?.accountStatus == AccountStatus.active;
   }
 
   Future<bool> sendPasswordResetEmail(String email) async {
@@ -119,6 +124,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final loadedProfile = await _userRepository.getUserProfile(uid);
+      if (_user?.uid != uid) return;
       if (loadedProfile == null) {
         await _rejectLogin(
           'User profile could not be found. Please contact the library.',
@@ -133,7 +139,7 @@ class AuthProvider extends ChangeNotifier {
           return;
         case AccountStatus.suspended:
           await _rejectLogin(
-            'This account is suspended. Please contact the library.',
+            'This account is inactive. Please contact the library.',
           );
           return;
         case AccountStatus.active:

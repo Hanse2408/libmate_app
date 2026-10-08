@@ -117,7 +117,6 @@ class StatusBadge extends StatelessWidget {
       'unavailable' ||
       'error' ||
       'overdue' ||
-      'suspended' => (AppColors.error, 0.12),
       'pending' || 'warning' => (AppColors.gold, 0.2),
       'reserved' ||
       'info' ||
@@ -616,7 +615,7 @@ class UserListTile extends StatelessWidget {
                     type: switch (user.accountStatus) {
                       AccountStatus.active => 'available',
                       AccountStatus.inactive => 'inactive',
-                      AccountStatus.suspended => 'suspended',
+                      AccountStatus.suspended => 'inactive',
                     },
                   ),
                 ],

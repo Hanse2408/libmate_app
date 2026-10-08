@@ -907,27 +907,14 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
   // ---------------- Members ----------------
 
-  /// Only the `accountStatus` field is written; the role is never changed.
   @override
   Future<ActionResult> updateMemberStatus(
     String id,
     MemberStatus status,
   ) async {
-    final member = memberById(id);
-    if (member == null || member.uid.isEmpty) {
-      return const ActionResult.failure('Member not found.');
-    }
-    if (member.status == status) {
-      return ActionResult.failure(
-        'This account is already ${status.label.toLowerCase()}.',
-      );
-    }
-    return _run(() {
-      return _col(FirestoreCollections.users).doc(member.uid).update({
-        'accountStatus': status.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    });
+    return const ActionResult.failure(
+      'Only Managers can activate or deactivate users.',
+    );
   }
 
   // ---------------- Settings ----------------

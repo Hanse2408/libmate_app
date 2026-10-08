@@ -844,17 +844,20 @@ void main() {
       });
     });
 
-    test('a suspended member cannot reserve', () async {
+    test('Librarian cannot change status; legacy suspended member remains blocked', () async {
       final book = await addCleanCode();
       final member = librarian.memberById('IT23004512')!;
       expect(member.uid, studentUid);
-      expect(
-        (await librarian.updateMemberStatus(
-          member.id,
-          MemberStatus.suspended,
-        )).success,
-        isTrue,
-      );
+      for (final status in MemberStatus.values) {
+        final result = await librarian.updateMemberStatus(member.id, status);
+        expect(result.success, isFalse);
+        expect(result.message, contains('Only Managers'));
+      }
+      expect((await db.collection('users').doc(studentUid).get()).data()!['accountStatus'],
+        isNot('suspended'));
+      // Seed an existing legacy account without a Librarian write.
+      await db.collection('users').doc(studentUid).update({'accountStatus': 'suspended'});
+      await settle();
 
       final result = await student.reserveBook(
         book: book,
