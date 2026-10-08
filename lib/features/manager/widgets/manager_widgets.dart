@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_theme.dart';
+import '../../../models/user.dart';
 import '../data/manager_mock_data.dart';
 
 class ManagerScaffold extends StatelessWidget {
@@ -115,7 +116,8 @@ class StatusBadge extends StatelessWidget {
       'conflict' ||
       'unavailable' ||
       'error' ||
-      'overdue' => (AppColors.error, 0.12),
+      'overdue' ||
+      'suspended' => (AppColors.error, 0.12),
       'pending' || 'warning' => (AppColors.gold, 0.2),
       'reserved' ||
       'info' ||
@@ -591,7 +593,9 @@ class UserListTile extends StatelessWidget {
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        '${user.email}\n${user.id}',
+        user.institutionId != null && user.institutionId!.isNotEmpty
+            ? '${user.email}\n${user.institutionId}'
+            : user.email,
         style: const TextStyle(fontSize: 10),
       ),
       trailing: SizedBox(
@@ -609,7 +613,11 @@ class UserListTile extends StatelessWidget {
                   StatusBadge(text: user.role, type: user.role),
                   StatusBadge(
                     text: user.status,
-                    type: user.isActive ? 'available' : 'inactive',
+                    type: switch (user.accountStatus) {
+                      AccountStatus.active => 'available',
+                      AccountStatus.inactive => 'inactive',
+                      AccountStatus.suspended => 'suspended',
+                    },
                   ),
                 ],
               ),

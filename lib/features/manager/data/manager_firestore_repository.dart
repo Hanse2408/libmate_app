@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../../core/constants/firestore_collections.dart';
+import '../../../models/action_result.dart';
 import '../../../models/user.dart';
 import 'manager_mock_data.dart';
 import 'manager_repository.dart';
@@ -46,66 +49,122 @@ class ManagerFirestoreRepository extends ManagerRepository {
   String? get loadError => _loadError;
 
   @override
-  void addUser(ManagerUser user) {
-    final payload = {
-      'uid': user.id,
-      'name': user.name,
-      'email': user.email,
-      'role': UserRole.fromValue(user.role).value,
-      'isActive': user.isActive,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    _db.collection(FirestoreCollections.users).doc(user.id).set(payload, SetOptions(merge: true));
-    final next = List<ManagerUser>.from(_users)..add(user);
-    replaceUsers(next);
-    notifyListeners();
+  Future<ActionResult> addUser({
+    required String name,
+    required String email,
+    required String password,
+    required UserRole role,
+    String? institutionId,
+  }) async {
+    final trimmedEmail = email.trim();
+    final trimmedName = name.trim();
+    final cleanInstitutionId = institutionId?.trim().isEmpty ?? true
+        ? null
+        : institutionId!.trim();
+
+    // A secondary Firebase App + its own FirebaseAuth instance lets us call
+    // createUserWithEmailAndPassword for *another* account without touching
+    // (or signing out) the Manager's own signed-in session on the default app.
+    FirebaseApp? secondaryApp;
+    try {
+      secondaryApp = await Firebase.initializeApp(
+        name: 'ManagerUserProvisioning-${DateTime.now().microsecondsSinceEpoch}',
+        options: Firebase.app().options,
+      );
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: trimmedEmail,
+        password: password,
+      );
+      final uid = credential.user?.uid;
+      if (uid == null) {
+        return const ActionResult.failure(
+          'Could not create the account. Please try again.',
+        );
+      }
+      try {
+        await _db.collection(FirestoreCollections.users).doc(uid).set({
+          'uid': uid,
+          'name': trimmedName,
+          'email': trimmedEmail,
+          'role': role.value,
+          'studentId': cleanInstitutionId,
+          'accountStatus': AccountStatus.active.value,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        // The Firebase Auth account now exists but the Firestore profile
+        // write failed: say so plainly instead of reporting a false success.
+        return ActionResult.failure(
+          'The login account was created, but saving the profile failed. '
+          'Please try Add User again, or add the Firestore profile '
+          'manually for $trimmedEmail ($error).',
+        );
+      } finally {
+        await secondaryAuth.signOut();
+      }
+      return const ActionResult.success();
+    } on FirebaseAuthException catch (error) {
+      return ActionResult.failure(_authErrorMessage(error));
+    } catch (error) {
+      return ActionResult.failure('Could not create the user: $error');
+    } finally {
+      if (secondaryApp != null) {
+        await secondaryApp.delete();
+      }
+    }
   }
 
   @override
-  void updateUser(String id, ManagerUser updatedUser) {
-    final payload = {
-      'uid': id,
-      'name': updatedUser.name,
-      'email': updatedUser.email,
-      'role': UserRole.fromValue(updatedUser.role).value,
-      'isActive': updatedUser.isActive,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    _db.collection(FirestoreCollections.users).doc(id).set(payload, SetOptions(merge: true));
-    final next = List<ManagerUser>.from(_users);
-    final index = next.indexWhere((user) => user.id == id);
-    if (index != -1) {
-      next[index] = updatedUser;
-      replaceUsers(next);
+  Future<ActionResult> updateUser(
+    String id, {
+    required String name,
+    required UserRole role,
+    required AccountStatus accountStatus,
+    String? institutionId,
+  }) async {
+    final cleanInstitutionId = institutionId?.trim().isEmpty ?? true
+        ? null
+        : institutionId!.trim();
+    try {
+      await _db.collection(FirestoreCollections.users).doc(id).update({
+        'name': name.trim(),
+        'role': role.value,
+        'studentId': cleanInstitutionId,
+        'accountStatus': accountStatus.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return const ActionResult.success();
+    } catch (error) {
+      return ActionResult.failure('Could not update the user: $error');
     }
-    notifyListeners();
   }
 
   @override
-  void deactivateUser(String id) {
-    final payload = {'isActive': false, 'updatedAt': FieldValue.serverTimestamp()};
-    _db.collection(FirestoreCollections.users).doc(id).set(payload, SetOptions(merge: true));
-    final next = List<ManagerUser>.from(_users);
-    final index = next.indexWhere((user) => user.id == id);
-    if (index != -1) {
-      next[index] = next[index].copyWith(isActive: false);
-      replaceUsers(next);
+  Future<ActionResult> setAccountStatus(String id, AccountStatus status) async {
+    try {
+      await _db.collection(FirestoreCollections.users).doc(id).update({
+        'accountStatus': status.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return const ActionResult.success();
+    } catch (error) {
+      return ActionResult.failure('Could not update the account status: $error');
     }
-    notifyListeners();
   }
 
-  @override
-  void deleteUser(String id) {
-    final next = List<ManagerUser>.from(_users);
-    final index = next.indexWhere((user) => user.id == id);
-    if (index == -1) {
-      throw StateError('The user no longer exists.');
+  String _authErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'email-already-in-use':
+        return 'An account already exists with this email.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'Password is too weak (use at least 6 characters).';
+      default:
+        return error.message ?? 'Could not create the account.';
     }
-    next.removeAt(index);
-    replaceUsers(next);
-    unawaited(_db.collection(FirestoreCollections.users).doc(id).delete());
-    notifyListeners();
   }
 
   @override
@@ -249,12 +308,14 @@ class ManagerFirestoreRepository extends ManagerRepository {
     final role = data['role'] as String? ?? UserRole.student.value;
     final userRole = managerRoleLabel(UserRole.fromValue(role));
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final institutionId = (data['studentId'] as String?)?.trim();
     return ManagerUser(
       name: (data['name'] as String?) ?? 'Unknown User',
       id: (data['uid'] as String?) ?? id,
       role: userRole,
       email: (data['email'] as String?) ?? '',
-      isActive: data['isActive'] as bool? ?? true,
+      institutionId: institutionId == null || institutionId.isEmpty ? null : institutionId,
+      accountStatus: AccountStatus.fromMap(data),
       createdAt: createdAt,
     );
   }

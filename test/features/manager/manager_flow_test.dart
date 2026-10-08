@@ -56,6 +56,9 @@ class _FakeAuthRepository implements AuthRepository {
     _current = null;
     _controller.add(null);
   }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {}
 }
 
 class _FakeUserRepository implements UserRepository {
@@ -261,7 +264,8 @@ void main() {
       find.byType(TextFormField).at(1),
       'new.manager.test@libmate.com',
     );
-    await tester.enterText(find.byType(TextFormField).at(2), 'TEST-MGR-001');
+    await tester.enterText(find.byType(TextFormField).at(2), 'Temp1234');
+    await tester.enterText(find.byType(TextFormField).at(3), 'TEST-MGR-001');
     await tester.tap(find.byType(DropdownButtonFormField<UserRole>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Librarian').last);
@@ -288,12 +292,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Updated Manager'), findsOneWidget);
 
-    await tester.tap(find.text('Deactivate User'));
+    await tester.tap(find.text('Remove Access'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Deactivate').last);
+    await tester.tap(find.text('Remove Access').last);
     await tester.pumpAndSettle();
     expect(find.text('Updated Manager'), findsOneWidget);
-    expect(find.text('Inactive'), findsOneWidget);
+    expect(find.text('Inactive'), findsWidgets);
   });
 
   testWidgets('reports open preview and honest export confirmation', (
@@ -428,7 +432,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('manager profile logs out to role selection', (tester) async {
+  testWidgets('manager profile logs out to the unified login screen', (tester) async {
     tester.view.physicalSize = const Size(800, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -455,16 +459,14 @@ void main() {
     await tester.tap(find.text('Log Out'));
     await tester.pumpAndSettle();
     expect(
-      find.text('You will be returned to role selection.'),
+      find.text('You will be returned to the login screen.'),
       findsOneWidget,
     );
     await tester.tap(find.text('Log Out').last);
     await tester.pumpAndSettle();
 
-    expect(_path(router), AppRoutes.roleSelection);
-    expect(find.text('Login as'), findsOneWidget);
-    expect(find.text('Student'), findsOneWidget);
-    expect(find.text('Librarian'), findsOneWidget);
-    expect(find.text('Manager'), findsOneWidget);
+    expect(_path(router), AppRoutes.login);
+    expect(find.text('Welcome Back!'), findsOneWidget);
+    expect(find.text('Login as'), findsNothing);
   });
 }

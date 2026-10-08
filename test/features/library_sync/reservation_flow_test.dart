@@ -673,6 +673,9 @@ class _FakeAuthRepository implements AuthRepository {
     _current = null;
     _controller.add(null);
   }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {}
 }
 
 class _Profiles implements UserRepository {

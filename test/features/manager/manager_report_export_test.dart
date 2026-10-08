@@ -12,7 +12,7 @@ class _TestManagerRepository extends ManagerRepository {
           name: 'Repo Manager',
           email: 'repo.manager@libmate.com',
           role: 'manager',
-          isActive: true,
+          accountStatus: AccountStatus.active,
           createdAt: DateTime(2026, 10, 1),
         ),
       ],
@@ -149,15 +149,21 @@ void main() {
     });
 
     test(
-      'repository can delete a user and export a report from current rows',
-      () {
+      'Remove Access keeps the record but flips accountStatus to inactive',
+      () async {
         final repository = _TestManagerRepository();
-        repository.deleteUser('repo-user-1');
-
-        expect(
-          repository.users.any((user) => user.id == 'repo-user-1'),
-          isFalse,
+        final result = await repository.setAccountStatus(
+          'repo-user-1',
+          AccountStatus.inactive,
         );
+        expect(result.success, isTrue);
+
+        // The record is kept for audit/reference - it is not deleted.
+        final user = repository.users.singleWhere(
+          (user) => user.id == 'repo-user-1',
+        );
+        expect(user.accountStatus, AccountStatus.inactive);
+        expect(user.status, 'Inactive');
 
         final csv = ReportExportService.generateCsv(
           ManagerReportSelection(
@@ -170,7 +176,8 @@ void main() {
         );
 
         expect(csv, contains('name'));
-        expect(csv, isNot(contains('Repo Manager')));
+        expect(csv, contains('Repo Manager'));
+        expect(csv, contains('Inactive'));
       },
     );
   });

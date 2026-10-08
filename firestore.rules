@@ -31,13 +31,28 @@ service cloud.firestore {
       return hasProfile() && role() in ['librarian', 'manager'];
     }
 
+    function isLibrarian() {
+      return hasProfile() && role() == 'librarian';
+    }
+
+    function isManager() {
+      return hasProfile() && role() == 'manager';
+    }
+
     function isStudent() {
       return hasProfile() && role() == 'student';
     }
 
-    // Suspended members cannot make new reservations.
+    // Only accountStatus == "active" students may create/modify reservations
+    // and seat-slots. Missing accountStatus defaults to active for backwards
+    // compatibility with older documents, but "inactive" or "suspended" must
+    // never count as active.
     function isActiveStudent() {
-      return isStudent() && get(profilePath()).data.get('accountStatus', 'active') != 'suspended';
+      return isStudent() && get(profilePath()).data.get('accountStatus', 'active') == 'active';
+    }
+
+    function validAccountStatus(statusName) {
+      return statusName is string && statusName.lower() in ['active', 'inactive', 'suspended'];
     }
 
     function changedOnly(keys) {
@@ -48,36 +63,61 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
 
-      // Staff may provision new accounts for students, librarians, and managers.
-      // A regular user may still create their own profile document when it matches
-      // their authenticated UID. The document must carry the same uid and a valid role.
+      // A newly authenticated user may create ONLY their own profile, and it
+      // must always be role "student" + accountStatus "active" - public
+      // sign-up can never self-assign librarian/manager or another status.
+      // Provisioning any other role/status (Manage Users > Add User) is a
+      // Manager-only operation, for another uid, with a valid role/status.
       allow create: if signedIn()
-        && (request.auth.uid == uid || isStaff())
         && request.resource.data.uid == uid
-        && validUserRole(request.resource.data.role)
         && request.resource.data.email is string
         && request.resource.data.name is string
-        && !('accountStatus' in request.resource.data);
+        && (
+          (request.auth.uid == uid
+            && request.resource.data.role == 'student'
+            && request.resource.data.get('accountStatus', '') == 'active')
+          || (isManager()
+            && validUserRole(request.resource.data.role)
+            && validAccountStatus(request.resource.data.get('accountStatus', 'active')))
+        );
 
-      // A user can update their own basic profile details, but not their UID or role.
-      // Staff can update a user profile, including name/email/role/status, while
-      // keeping the document ID and uid aligned with the Firebase Auth uid.
-      allow update: if (signedIn() && request.auth.uid == uid
+      // A user may update only a safe allowlist of their own profile fields,
+      // and can never change their own uid, role or accountStatus.
+      // A Manager may administer any other profile's admin fields, but can
+      // never change their own role/accountStatus here (self-protection -
+      // see also ManagerUserDetailsScreen/ManagerUserFormScreen in the app).
+      // A Librarian may only suspend/reactivate a student member's
+      // accountStatus (the existing "Suspend member" feature) - nothing else.
+      allow update: if signedIn() && (
+        (request.auth.uid == uid
           && request.resource.data.uid == uid
           && request.resource.data.name is string
           && request.resource.data.email is string
           && validUserRole(request.resource.data.role)
-          && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['uid', 'role']))
-        || (isStaff()
+          && changedOnly([
+            'name', 'phone', 'photoUrl', 'photoPublicId', 'fcmTokens',
+            'bookAvailabilityNotifications', 'favoriteBookIds', 'favoriteEbookIds',
+            'updatedAt'
+          ]))
+        || (isManager()
           && request.resource.data.uid == uid
           && request.resource.data.name is string
           && request.resource.data.email is string
           && validUserRole(request.resource.data.role)
-          && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['name', 'email', 'role', 'isActive', 'accountStatus', 'updatedAt']));
+          && validAccountStatus(request.resource.data.get('accountStatus', 'active'))
+          && changedOnly(['name', 'role', 'studentId', 'accountStatus', 'updatedAt'])
+          && (request.auth.uid != uid
+              || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'accountStatus'])))
+        || (isLibrarian()
+          && resource.data.get('role', '') == 'student'
+          && changedOnly(['accountStatus', 'updatedAt'])
+          && request.resource.data.get('accountStatus', '') in ['active', 'suspended'])
+      );
 
-      allow delete: if isStaff();
+      // Hard delete of a user profile is never allowed from the client.
+      // "Remove Access" is a soft revocation (accountStatus = inactive via
+      // the update rule above), not a Firestore/Auth deletion.
+      allow delete: if false;
     }
 
     // ---------------- Catalogue ----------------

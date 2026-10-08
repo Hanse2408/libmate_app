@@ -48,7 +48,15 @@ class AppRouter {
     ManagerRepository Function()? createManagerRepository,
     StudentLibraryRepository Function()? createStudentLibrary,
   }) {
-    _managerRepository = createManagerRepository?.call() ?? ManagerMockRepository.instance;
+    _createManagerRepository =
+        createManagerRepository ?? () => ManagerMockRepository.instance;
+    // Signing out drops the cached Manager repository (and stops its
+    // Firestore listeners); the next Manager sign-in builds a fresh one.
+    // This keeps Manager-only listeners from ever starting before an
+    // authenticated Manager session exists.
+    authProvider.addListener(() {
+      if (authProvider.user == null) _disposeManagerRepository();
+    });
     router = GoRouter(
       initialLocation: AppRoutes.splash,
       refreshListenable: startup == null
@@ -76,14 +84,6 @@ class AppRouter {
           builder: (context, state) => LoginScreen(authProvider: authProvider),
         ),
         GoRoute(
-          path: AppRoutes.roleSelection,
-          builder: (context, state) =>
-              LoginScreen(
-                key: const ValueKey('role-selection'),
-                authProvider: authProvider,
-              ),
-        ),
-        GoRoute(
           path: AppRoutes.signup,
           builder: (context, state) => SignupScreen(authProvider: authProvider),
         ),
@@ -104,7 +104,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerDashboard,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerDashboardScreen(),
           ),
@@ -112,7 +112,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerProfile,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerProfileScreen(authProvider: authProvider),
           ),
@@ -120,7 +120,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerReservations,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerReservationsScreen(),
           ),
@@ -136,7 +136,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerConflict,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerConflictScreen(),
           ),
@@ -144,7 +144,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerReassignSeat,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerReassignSeatScreen(),
           ),
@@ -152,7 +152,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerResolved,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerResolvedScreen(
               newSeat: state.extra is String ? state.extra! as String : 'A08',
@@ -162,7 +162,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerReadingRoom,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerReadingRoomScreen(),
           ),
@@ -170,7 +170,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerReports,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerReportsScreen(),
           ),
@@ -178,7 +178,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerPolicies,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerPoliciesScreen(),
           ),
@@ -186,7 +186,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerUsers,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerUsersScreen(),
           ),
@@ -194,7 +194,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerUserDetails,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerUserDetailsScreen(
               user: state.extra is ManagerUser
@@ -206,7 +206,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerUserAdd,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerUserFormScreen(),
           ),
@@ -214,7 +214,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerUserEdit,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerUserFormScreen(
               user: state.extra is ManagerUser
@@ -226,7 +226,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerNotifications,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: const ManagerNotificationsScreen(),
           ),
@@ -234,7 +234,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerReportPreview,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerReportPreviewScreen(
               selection: state.extra is ManagerReportSelection
@@ -250,7 +250,7 @@ class AppRouter {
         GoRoute(
           path: AppRoutes.managerExportConfirmation,
           builder: (context, state) => ManagerScope(
-            repository: _managerRepository,
+            repository: _managerRepositoryFor(authProvider),
             authProvider: authProvider,
             child: ManagerExportConfirmationScreen(
               selection: state.extra is ManagerReportSelection
@@ -267,8 +267,28 @@ class AppRouter {
     );
   }
 
-  late final ManagerRepository _managerRepository;
+  late final ManagerRepository Function() _createManagerRepository;
+  ManagerRepository? _managerRepositoryInstance;
   late final GoRouter router;
+
+  /// Lazily creates (and caches) the Manager repository on first use, i.e.
+  /// only when a Manager route actually builds - which the redirect only
+  /// allows for an authenticated Manager. See [_disposeManagerRepository].
+  ManagerRepository _managerRepositoryFor(AuthProvider authProvider) {
+    return _managerRepositoryInstance ??= _createManagerRepository();
+  }
+
+  /// Stops the live Firestore listeners on sign-out. The shared mock/demo
+  /// singleton is left alone - it is reused across the app's lifetime (and
+  /// by tests), so it must never be disposed.
+  void _disposeManagerRepository() {
+    final repository = _managerRepositoryInstance;
+    if (repository == null) return;
+    _managerRepositoryInstance = null;
+    if (repository is ManagerFirestoreRepository) {
+      repository.dispose();
+    }
+  }
 
   /// Student data for the signed-in student (only built on the Student home,
   /// i.e. after sign-in with the student role).
@@ -313,7 +333,6 @@ class AppRouter {
       }
       return location == AppRoutes.getStarted ||
               location == AppRoutes.login ||
-              location == AppRoutes.roleSelection ||
               location == AppRoutes.signup
           ? null
           : AppRoutes.login;

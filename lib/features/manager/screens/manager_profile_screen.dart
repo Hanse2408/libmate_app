@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../models/user.dart';
@@ -158,7 +156,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.logout_rounded, color: AppColors.primary),
         title: const Text('Log out?'),
-        content: const Text('You will be returned to role selection.'),
+        content: const Text('You will be returned to the login screen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -175,7 +173,6 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
     try {
       await widget.authProvider.signOut();
-      if (mounted) context.go(AppRoutes.roleSelection);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
