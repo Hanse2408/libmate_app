@@ -521,7 +521,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, StudentNotificationsScreen(library: student));
-      expect(find.text('You have no notifications yet.'), findsOneWidget);
+      expect(find.text('No notifications yet'), findsOneWidget);
 
       await tester.runAsync(() async {
         final book = await addBook();

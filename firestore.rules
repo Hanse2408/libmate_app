@@ -239,7 +239,11 @@ service cloud.firestore {
           && request.resource.data.isRead == true
           && changedOnly(['isRead']));
 
-      allow delete: if isStaff();
+      // A student may delete only their own student notifications.
+      allow delete: if isStaff()
+        || (signedIn()
+          && resource.data.audience == 'student'
+          && resource.data.recipientUid == request.auth.uid);
 
       // Staff notify anyone. Students can send "new request" / "cancelled"
       // alerts to staff, and confirmations addressed to themselves only.

@@ -470,29 +470,31 @@ class StudentLibraryRepository extends ChangeNotifier with WidgetsBindingObserve
     await onSignOut?.call();
   }
 
-  /// Hide an opened notification persistently, without requiring delete rules.
-  /// Mark it read in the same batch so the badge stays accurate on every device.
-  Future<ActionResult> dismissNotification(String id) async {
-    if (_dismissedNotificationIds.contains(id)) return const ActionResult.success();
-    final notification = notifications.where((n) => n.id == id).firstOrNull;
-    if (notification == null) return const ActionResult.failure('Notification not found.');
+  /// Deletes the given notifications of this student. Ids that are not this
+  /// student's own are ignored. Book-availability alerts live in the student's
+  /// profile, so they are hidden there instead of deleted.
+  Future<ActionResult> deleteNotifications(Set<String> ids) async {
+    final own = notifications.where((n) => ids.contains(n.id)).toList();
+    if (own.isEmpty) return const ActionResult.success();
     return _run(() async {
       final batch = _db.batch();
-      final profile = _col(FirestoreCollections.users).doc(student.uid);
-      final profileUpdates = <String, dynamic>{
-        'dismissedNotificationIds': FieldValue.arrayUnion([id]),
-      };
-      if (notification.type == StudentNotificationType.bookAvailable && id.startsWith('availability_')) {
-        profileUpdates['bookAvailabilityNotifications.${id.substring('availability_'.length)}.isRead'] = true;
-      } else if (!notification.isRead) {
-        batch.update(_col(FirestoreCollections.notifications).doc(id), {'isRead': true});
+      final hidden = <String>[];
+      for (final n in own) {
+        if (n.id.startsWith('availability_')) {
+          hidden.add(n.id);
+        } else {
+          batch.delete(_col(FirestoreCollections.notifications).doc(n.id));
+        }
       }
-      batch.update(profile, profileUpdates);
+      if (hidden.isNotEmpty) {
+        batch.update(_col(FirestoreCollections.users).doc(student.uid), {
+          'dismissedNotificationIds': FieldValue.arrayUnion(hidden),
+        });
+      }
       await batch.commit();
       return null;
     });
   }
-
   /// Marks one of this student's notifications as read (already read: no-op).
   Future<ActionResult> markNotificationRead(String id) async {
     final notification = notifications.where((n) => n.id == id).firstOrNull;
