@@ -201,7 +201,9 @@ class _SeatReservationDetailsScreenState extends State<SeatReservationDetailsScr
       ReservationStatus.approved => ('Confirmed', SeatColors.green, SeatColors.greenFill),
       ReservationStatus.cancelled => ('Cancelled', SeatColors.red, SeatColors.redFill),
       ReservationStatus.rejected => ('Rejected', SeatColors.red, SeatColors.redFill),
-      ReservationStatus.completed => ('Completed', SeatColors.primary, SeatColors.lightBlue),
+      ReservationStatus.completed ||
+      ReservationStatus.collected ||
+      ReservationStatus.returned => ('Completed', SeatColors.primary, SeatColors.lightBlue),
       ReservationStatus.pending => ('Pending', SeatColors.secondary, SeatColors.greyFill),
     };
   }

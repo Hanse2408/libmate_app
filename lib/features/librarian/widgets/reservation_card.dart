@@ -87,7 +87,15 @@ class ReservationCard extends StatelessWidget {
                   style: textTheme.bodySmall,
                 ),
               const SizedBox(height: LibrarianSpacing.xs + 2),
-              StatusChip.reservation(reservation.status),
+              // "Ready for Pickup" is the longest label: on narrow phones it
+              // shrinks a little instead of overflowing the row.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 108),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: StatusChip.forReservation(reservation),
+                ),
+              ),
             ],
           ),
         ],

@@ -159,7 +159,8 @@ class LibrarianMockRepository extends LibrarianRepository {
     // The copy was set aside at approval and is now on loan, so the
     // available count does not change.
     _reservations[index] = reservation.copyWith(
-      status: ReservationStatus.completed,
+      status: ReservationStatus.collected,
+      collectedAt: now,
     );
     _addNotification(
       type: LibrarianNotificationType.bookCollected,
@@ -397,6 +398,35 @@ class LibrarianMockRepository extends LibrarianRepository {
 
   /// A returned loan cannot be returned again.
   @override
+  Future<ActionResult> markReservationReturned(String id) async {
+    final index = _reservations.indexWhere((r) => r.id == id);
+    if (index == -1) {
+      return const ActionResult.failure('Reservation not found.');
+    }
+    final reservation = _reservations[index];
+    final blocker = returnBlocker(reservation);
+    if (blocker != null) return ActionResult.failure(blocker);
+
+    // The loan made when it was collected (demo loans keep no link, so
+    // match the member and book).
+    final loanIndex = _borrowings.indexWhere(
+      (b) =>
+          !b.isReturned &&
+          b.memberId == reservation.studentId &&
+          b.bookId == reservation.itemId,
+    );
+    if (loanIndex != -1) {
+      return markBorrowingReturned(_borrowings[loanIndex].id);
+    }
+    _reservations[index] = reservation.copyWith(
+      status: ReservationStatus.returned,
+      returnedAt: DateTime.now(),
+    );
+    notifyListeners();
+    return const ActionResult.success();
+  }
+
+  @override
   Future<ActionResult> markBorrowingReturned(String id) async {
     final index = _borrowings.indexWhere((b) => b.id == id);
     if (index == -1) return const ActionResult.failure('Loan not found.');
@@ -405,7 +435,21 @@ class LibrarianMockRepository extends LibrarianRepository {
       return const ActionResult.failure('This book has already been returned.');
     }
 
-    _borrowings[index] = loan.copyWith(returnedAt: DateTime.now());
+    final now = DateTime.now();
+    _borrowings[index] = loan.copyWith(returnedAt: now);
+    // The reservation this loan came from is Returned too.
+    final resIndex = _reservations.indexWhere(
+      (r) =>
+          r.isCollected &&
+          r.studentId == loan.memberId &&
+          r.itemId == loan.bookId,
+    );
+    if (resIndex != -1) {
+      _reservations[resIndex] = _reservations[resIndex].copyWith(
+        status: ReservationStatus.returned,
+        returnedAt: now,
+      );
+    }
     final bookIndex = _books.indexWhere((b) => b.id == loan.bookId);
     if (bookIndex != -1) {
       final book = _books[bookIndex];

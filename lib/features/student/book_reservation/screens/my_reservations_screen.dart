@@ -61,6 +61,8 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
         r.type == shared.ReservationType.book
             ? ('Collected', ReservationStatus.reserved)
             : ('Completed', ReservationStatus.reserved),
+      shared.ReservationStatus.collected => ('Collected', ReservationStatus.reserved),
+      shared.ReservationStatus.returned => ('Returned', ReservationStatus.closed),
       shared.ReservationStatus.rejected => ('Rejected', ReservationStatus.rejected),
       shared.ReservationStatus.cancelled => ('Cancelled', ReservationStatus.closed),
     };

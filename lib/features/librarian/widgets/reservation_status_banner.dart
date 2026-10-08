@@ -35,12 +35,27 @@ class ReservationStatusBanner extends StatelessWidget {
         Icons.warning_amber_rounded,
       ),
       ReservationStatus.approved => (
-        'Reservation Approved',
+        reservation.type == ReservationType.book
+            ? 'Ready for Pickup'
+            : 'Reservation Approved',
         reservation.type == ReservationType.book
             ? 'The book is held for the student to collect.'
             : 'The seat is reserved for the student.',
         LibrarianColors.available,
         Icons.check_circle_outline,
+      ),
+      ReservationStatus.collected => (
+        'Book Collected',
+        'The student has collected the book. Mark it as returned when the '
+            'book comes back to the library.',
+        LibrarianColors.primary,
+        Icons.auto_stories_outlined,
+      ),
+      ReservationStatus.returned => (
+        'Book Returned',
+        'The student has returned the book. This reservation is complete.',
+        LibrarianColors.secondaryText,
+        Icons.assignment_turned_in_outlined,
       ),
       ReservationStatus.rejected => (
         'Reservation Rejected',

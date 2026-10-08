@@ -727,6 +727,14 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
       );
       return;
     }
+    // Collected / returned books are handled by the librarian.
+    if (_reservation?.isCollected == true || _reservation?.isReturned == true) {
+      showReservationNotice(
+        context,
+        message: 'This book has already been ${_reservation!.status.label.toLowerCase()}.',
+      );
+      return;
+    }
     showDialog<void>(
       context: context,
       builder: (dialogContext) {

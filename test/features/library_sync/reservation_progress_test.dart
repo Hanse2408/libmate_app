@@ -15,6 +15,14 @@ ReservationRecord reservation(ReservationStatus status) => ReservationRecord(
   requestedAt: DateTime(2026, 1, 1), date: DateTime(2026, 1, 2), rejectionReason: 'No copies remain',
 );
 
+/// The step the tracker highlights (its accessible label names it).
+String journeyStep(WidgetTester tester) {
+  final semantics = tester.widgetList<Semantics>(find.byType(Semantics))
+      .map((s) => s.properties.label ?? '')
+      .firstWhere((label) => label.startsWith('Reservation progress:'));
+  return semantics;
+}
+
 void main() {
   test('loans are linked by reservation and student, not just the book', () async {
     final db = await seededFirestore(); final library = studentRepo(db);
@@ -57,6 +65,10 @@ void main() {
       await show(ReservationStatus.completed, loan: ReservationLoanProgress(
         issuedAt: DateTime(2026, 1, 2), returnedAt: DateTime(2026, 1, 4)));
       expect(find.textContaining('Book returned on 4/1/2026'), findsOneWidget);
+      await show(ReservationStatus.collected);
+      expect(find.textContaining('Enjoy your book!'), findsOneWidget);
+      await show(ReservationStatus.returned);
+      expect(find.textContaining('Reading journey complete.'), findsOneWidget);
       await show(ReservationStatus.rejected);
       expect(find.text('No copies remain'), findsOneWidget);
       expect(find.text('Requested'), findsNothing);
@@ -64,6 +76,59 @@ void main() {
       expect(find.text('Reservation cancelled'), findsOneWidget);
     });
   }
+
+  testWidgets('journey shows Collected, then Returned, when the librarian marks them', (tester) async {
+    tester.view.physicalSize = const Size(440, 1400); tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = await seededFirestore();
+    final librarian = librarianRepo(db, FakeImageStorage());
+    final library = studentRepo(db);
+    addTearDown(library.dispose);
+    addTearDown(librarian.dispose);
+
+    late String id;
+    await tester.runAsync(() async {
+      await librarian.addBook(title: 'Clean Code', author: 'Robert C. Martin',
+        isbn: '9780132350884', category: 'Software Engineering', language: 'English',
+        shelfLocation: 'SE-1', totalCopies: 1);
+      await settle();
+      final booked = await library.reserveBook(book: library.books.single,
+        pickupDate: tomorrow(), loanPeriodDays: 14, pickupLocation: 'Main Desk');
+      expect(booked.success, isTrue, reason: booked.message);
+      await settle();
+      id = librarian.reservations.single.id;
+      await librarian.approveReservation(id);
+      await settle();
+    });
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.light,
+      home: ReservationDetailsScreen(library: library, reservationId: id)));
+    await tester.pumpAndSettle();
+    expect(journeyStep(tester), contains('Ready for Pickup'));
+    expect(find.textContaining('Your book is ready!'), findsOneWidget);
+
+    // Librarian: Mark as Collected -> the student's journey follows.
+    await tester.runAsync(() async {
+      expect((await librarian.markReservationCollected(id)).success, isTrue);
+      await settle();
+    });
+    await tester.pumpAndSettle();
+    expect(journeyStep(tester), contains('Collected'));
+    expect(find.textContaining('Enjoy your book!'), findsOneWidget);
+
+    // Librarian: Mark as Returned -> the student's journey follows.
+    await tester.runAsync(() async {
+      expect((await librarian.markReservationReturned(id)).success, isTrue);
+      await settle();
+    });
+    await tester.pumpAndSettle();
+    expect(journeyStep(tester), contains('Returned'));
+    expect(find.textContaining('Reading journey complete.'), findsOneWidget);
+    // No way for the student to change these steps.
+    expect(find.text('Mark as Collected'), findsNothing);
+    expect(find.text('Mark as Returned'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('details tracker updates live when the linked loan is returned', (tester) async {
     tester.view.physicalSize = const Size(440, 1400); tester.view.devicePixelRatio = 1;

@@ -683,16 +683,141 @@ void main() {
       final loan = librarian.borrowings.single;
       expect(loan.memberId, 'IT23004512');
       expect(loan.dueDate.difference(loan.issuedAt).inDays, 7);
-      expect(student.myReservations.single.status, ReservationStatus.completed);
+      expect(student.myReservations.single.status, ReservationStatus.collected);
 
       expect((await librarian.markBorrowingReturned(loan.id)).success, isTrue);
       await settle();
       expect(librarian.borrowings.single.isReturned, isTrue);
+      // Returning from Borrowing Management closes the reservation too.
+      expect(student.myReservations.single.status, ReservationStatus.returned);
       expect(student.bookById(book.id)!.availableCopies, 1);
       expect(
         (await db.collection('books').doc(book.id).get()).data()!['available'],
         isTrue,
       );
+    });
+
+    group('collection and return (librarian only)', () {
+      /// A book reservation taken to Ready for Pickup (approved).
+      Future<String> readyForPickup() async {
+        final book = await addCleanCode(copies: 1);
+        await student.reserveBook(
+          book: book,
+          pickupDate: tomorrow(),
+          loanPeriodDays: 14,
+          pickupLocation: 'Main Desk',
+        );
+        await settle();
+        final id = librarian.reservations.single.id;
+        expect(librarian.reservations.single.status, ReservationStatus.pending);
+        expect((await librarian.approveReservation(id)).success, isTrue);
+        await settle();
+        return id;
+      }
+
+      Future<Map<String, dynamic>> doc(String id) async =>
+          (await db.collection('reservations').doc(id).get()).data()!;
+
+      test('Ready for Pickup -> Collected -> Returned on one reservation', () async {
+        final id = await readyForPickup();
+        expect(student.myReservations.single.status, ReservationStatus.approved);
+
+        expect((await librarian.markReservationCollected(id)).success, isTrue);
+        await settle();
+        var data = await doc(id);
+        expect(data['status'], 'collected');
+        expect(data['collectedAt'], isA<Timestamp>());
+        // Student and librarian read the same document.
+        expect(student.myReservations.single.status, ReservationStatus.collected);
+        expect(student.myReservations.single.collectedAt, isNotNull);
+        expect(librarian.reservationById(id)!.status, ReservationStatus.collected);
+        expect(librarian.borrowings.single.isReturned, isFalse);
+
+        expect((await librarian.markReservationReturned(id)).success, isTrue);
+        await settle();
+        data = await doc(id);
+        expect(data['status'], 'returned');
+        expect(data['returnedAt'], isA<Timestamp>());
+        expect(student.myReservations.single.status, ReservationStatus.returned);
+        expect(student.myReservations.single.returnedAt, isNotNull);
+        expect(librarian.reservationById(id)!.status, ReservationStatus.returned);
+        // The loan is closed and the copy is back on the shelf.
+        expect(librarian.borrowings.single.isReturned, isTrue);
+        expect(librarian.books.single.availableCopies, 1);
+        // One reservation document, no second status field.
+        expect((await db.collection('reservations').get()).docs, hasLength(1));
+        expect(data.containsKey('studentStatus'), isFalse);
+        expect(data.containsKey('librarianStatus'), isFalse);
+      });
+
+      test('invalid transitions are refused and change nothing', () async {
+        final book = await addCleanCode(copies: 1);
+        await student.reserveBook(
+          book: book,
+          pickupDate: tomorrow(),
+          loanPeriodDays: 14,
+          pickupLocation: 'Main Desk',
+        );
+        await settle();
+        final id = librarian.reservations.single.id;
+
+        // Requested -> Collected / Returned.
+        var result = await librarian.markReservationCollected(id);
+        expect(result.success, isFalse);
+        expect(result.message, contains('Only approved reservations'));
+        result = await librarian.markReservationReturned(id);
+        expect(result.success, isFalse);
+        expect(result.message, contains('Only collected books'));
+        expect((await doc(id))['status'], 'pending');
+
+        // Ready for Pickup -> Returned.
+        await librarian.approveReservation(id);
+        await settle();
+        result = await librarian.markReservationReturned(id);
+        expect(result.success, isFalse);
+        expect(result.message, contains('Only collected books'));
+        expect((await doc(id))['status'], 'approved');
+
+        // Returned -> Collected / Returned.
+        await librarian.markReservationCollected(id);
+        await settle();
+        await librarian.markReservationReturned(id);
+        await settle();
+        result = await librarian.markReservationCollected(id);
+        expect(result.success, isFalse);
+        result = await librarian.markReservationReturned(id);
+        expect(result.success, isFalse);
+        expect(result.message, contains('already been returned'));
+        expect((await doc(id))['status'], 'returned');
+        expect(librarian.books.single.availableCopies, 1); // counted once
+      });
+
+      test('a missing reservation is reported, not thrown', () async {
+        final result = await librarian.markReservationReturned('missing');
+        expect(result.success, isFalse);
+        expect(result.message, 'Reservation not found.');
+      });
+
+      test('older collected reservations (`completed`) read as Collected', () async {
+        final id = await readyForPickup();
+        await librarian.markReservationCollected(id);
+        await settle();
+        // As saved before the Collected status existed.
+        await db.collection('reservations').doc(id).update({'status': 'completed'});
+        await settle();
+        expect(student.myReservations.single.status, ReservationStatus.collected);
+        expect((await librarian.markReservationReturned(id)).success, isTrue);
+        await settle();
+        expect(student.myReservations.single.status, ReservationStatus.returned);
+      });
+
+      test('students cannot mark a book collected or returned', () async {
+        final id = await readyForPickup();
+        // The only student action on an approved book is refused.
+        final cancel = await student.cancelReservation(id);
+        expect(cancel.success, isFalse);
+        expect((await doc(id))['status'], 'approved');
+      });
     });
 
     test('a suspended member cannot reserve', () async {

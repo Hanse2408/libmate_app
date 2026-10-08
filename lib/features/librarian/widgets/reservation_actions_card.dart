@@ -2,46 +2,87 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../models/action_result.dart';
 import '../models/reservation_record.dart';
 import '../providers/librarian_scope.dart';
 import '../theme/librarian_theme.dart';
 import 'info_section_card.dart';
 import 'reject_reason_dialog.dart';
 
-/// "Actions" card with Approve / Reject, shown only for pending reservations
-/// (decided reservations cannot be approved or rejected again). Approved book
-/// reservations instead offer "Mark as Collected", which creates the loan.
+/// "Actions" card for a reservation, following the book journey
+/// Requested -> Ready for Pickup -> Collected -> Returned:
+/// * pending: Approve / Reject (decided reservations cannot be decided again);
+/// * approved book (Ready for Pickup): "Mark as Collected", which creates the
+///   loan;
+/// * collected book: "Mark as Returned", which closes the loan;
+/// * returned book: shows "Returned" with no further action.
 ///
-/// The repository decides whether the action is allowed. On success the
-/// librarian is taken to the Booking Confirmation screen; if approval is
-/// refused (no copies / seat unavailable) a dialog explains why and the
-/// reservation stays pending.
-class ReservationActionsCard extends StatelessWidget {
+/// Collected / Returned are confirmed first and the button is disabled while
+/// the update runs. The repository decides whether the action is allowed. On
+/// approval the librarian is taken to the Booking Confirmation screen; if
+/// approval is refused (no copies / seat unavailable) a dialog explains why
+/// and the reservation stays pending.
+class ReservationActionsCard extends StatefulWidget {
   const ReservationActionsCard({super.key, required this.reservation});
 
   final ReservationRecord reservation;
 
   @override
+  State<ReservationActionsCard> createState() => _ReservationActionsCardState();
+}
+
+class _ReservationActionsCardState extends State<ReservationActionsCard> {
+  /// A Collected / Returned update is running (prevents a double tap).
+  bool _busy = false;
+
+  ReservationRecord get reservation => widget.reservation;
+
+  @override
   Widget build(BuildContext context) {
     const textStyle = TextStyle(fontSize: 19, fontWeight: FontWeight.w700);
-    if (reservation.status == ReservationStatus.approved &&
-        reservation.type == ReservationType.book) {
+    final isBook = reservation.type == ReservationType.book;
+    if (isBook && reservation.status == ReservationStatus.approved) {
+      return _stepCard(
+        label: 'Mark as Collected',
+        icon: Icons.outbox_outlined,
+        help: 'Use this when the student picks up the book. A loan is created '
+            'in Borrowing Management with the due date.',
+        onPressed: _collect,
+        textStyle: textStyle,
+      );
+    }
+    if (isBook && reservation.isCollected) {
+      return _stepCard(
+        label: 'Mark as Returned',
+        icon: Icons.assignment_return_outlined,
+        help: 'Use this when the student brings the book back. The loan is '
+            'closed and the copy is available again.',
+        onPressed: _return,
+        textStyle: textStyle,
+      );
+    }
+    if (isBook && reservation.isReturned) {
       return InfoSectionCard(
         title: 'Actions',
         children: [
-          FilledButton.icon(
-            onPressed: () => _collect(context),
-            icon: const Icon(Icons.outbox_outlined),
-            label: const Text('Mark as Collected'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 56),
-              textStyle: textStyle,
-            ),
+          Row(
+            children: [
+              Icon(Icons.assignment_turned_in_outlined, color: LibrarianColors.secondaryText),
+              const SizedBox(width: LibrarianSpacing.sm),
+              Text(
+                'Returned',
+                key: const ValueKey('reservation-returned-label'),
+                style: TextStyle(
+                  color: LibrarianColors.text,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: LibrarianSpacing.sm),
           Text(
-            'Use this when the student picks up the book. A loan is created '
-            'in Borrowing Management with the due date.',
+            'The book is back in the library. No further action is needed.',
             style: TextStyle(color: LibrarianColors.secondaryText),
           ),
         ],
@@ -78,21 +119,106 @@ class ReservationActionsCard extends StatelessWidget {
     );
   }
 
-  Future<void> _collect(BuildContext context) async {
-    final repository = LibrarianScope.read(context).repository;
-    final result = await repository.markReservationCollected(reservation.id);
-    if (!context.mounted) return;
+  Widget _stepCard({
+    required String label,
+    required IconData icon,
+    required String help,
+    required Future<void> Function() onPressed,
+    required TextStyle textStyle,
+  }) {
+    return InfoSectionCard(
+      title: 'Actions',
+      children: [
+        FilledButton.icon(
+          onPressed: _busy ? null : onPressed,
+          icon: _busy
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                )
+              : Icon(icon),
+          label: Text(label),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 56),
+            textStyle: textStyle,
+          ),
+        ),
+        const SizedBox(height: LibrarianSpacing.sm),
+        Text(help, style: TextStyle(color: LibrarianColors.secondaryText)),
+      ],
+    );
+  }
+
+  /// Yes / No confirmation before a Collected / Returned update.
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  /// Runs a status update once, with the button disabled meanwhile, and
+  /// reports the result (or the reason it was refused / failed).
+  Future<void> _runStep(
+    Future<ActionResult> Function() action,
+    String successMessage,
+  ) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final result = await action();
+    if (!mounted) return;
+    setState(() => _busy = false);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(
-            result.success
-                ? '"${reservation.itemName}" is now on loan to ${reservation.studentName}.'
-                : result.message!,
-          ),
-        ),
+        SnackBar(content: Text(result.success ? successMessage : result.message!)),
       );
+  }
+
+  Future<void> _collect() async {
+    final ok = await _confirm(
+      title: 'Mark as Collected?',
+      message: 'Has the student collected "${reservation.itemName}"?',
+      confirmLabel: 'Yes, Collected',
+    );
+    if (!ok || !mounted) return;
+    final repository = LibrarianScope.read(context).repository;
+    await _runStep(
+      () => repository.markReservationCollected(reservation.id),
+      '"${reservation.itemName}" is now on loan to ${reservation.studentName}.',
+    );
+  }
+
+  Future<void> _return() async {
+    final ok = await _confirm(
+      title: 'Mark as Returned?',
+      message: 'Has the student returned "${reservation.itemName}"?',
+      confirmLabel: 'Yes, Returned',
+    );
+    if (!ok || !mounted) return;
+    final repository = LibrarianScope.read(context).repository;
+    await _runStep(
+      () => repository.markReservationReturned(reservation.id),
+      '"${reservation.itemName}" was returned by ${reservation.studentName}.',
+    );
   }
 
   Future<void> _approve(BuildContext context) async {

@@ -8,12 +8,21 @@ class ReservationProgressCard extends StatelessWidget {
   final ReservationRecord reservation;
   final ReservationLoanProgress? loan;
 
+  /// Step from the reservation's own status (set by the librarian); the
+  /// linked loan only fills in for reservations saved before the Collected /
+  /// Returned statuses existed.
   int get _stage {
-    if (loan?.returnedAt != null) return 3;
-    if (loan != null || reservation.status == ReservationStatus.completed) return 2;
+    if (reservation.isReturned || loan?.returnedAt != null) return 3;
+    if (reservation.isCollected ||
+        reservation.status == ReservationStatus.completed ||
+        loan != null) {
+      return 2;
+    }
     if (reservation.status == ReservationStatus.approved) return 1;
     return 0;
   }
+
+  DateTime? get _returnedAt => reservation.returnedAt ?? loan?.returnedAt;
 
   String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
@@ -30,7 +39,7 @@ class ReservationProgressCard extends StatelessWidget {
       'Your request is with the librarian.',
       'Your book is ready! Collect at your pickup location.',
       'Enjoy your book! Waiting for its return.',
-      'Book returned${loan?.returnedAt == null ? '' : ' on ${_date(loan!.returnedAt!)}'}. Reading journey complete.',
+      'Book returned${_returnedAt == null ? '' : ' on ${_date(_returnedAt!)}'}. Reading journey complete.',
     ];
     final statusColor = rejected ? const Color(0xFFDC4C4C) : colors.onSurfaceVariant;
     return Container(

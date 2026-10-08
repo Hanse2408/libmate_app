@@ -15,6 +15,24 @@ class StatusChip extends StatelessWidget {
     return StatusChip(label: status.label, color: reservationColor(status));
   }
 
+  /// Like [StatusChip.reservation], but an approved book reads as
+  /// "Ready for Pickup" (the step the student sees too).
+  factory StatusChip.forReservation(ReservationRecord reservation) {
+    return StatusChip(
+      label: reservationLabel(reservation),
+      color: reservationColor(reservation.status),
+    );
+  }
+
+  /// Status text for a reservation: an approved book is "Ready for Pickup"
+  /// (then Collected / Returned); otherwise the plain status.
+  static String reservationLabel(ReservationRecord reservation) {
+    return reservation.type == ReservationType.book &&
+            reservation.status == ReservationStatus.approved
+        ? 'Ready for Pickup'
+        : reservation.status.label;
+  }
+
   factory StatusChip.seat(SeatStatus status) {
     return StatusChip(label: status.label, color: seatColor(status));
   }
@@ -58,6 +76,8 @@ class StatusChip extends StatelessWidget {
     return switch (status) {
       ReservationStatus.pending => LibrarianColors.gold,
       ReservationStatus.approved => LibrarianColors.available,
+      ReservationStatus.collected => LibrarianColors.primary,
+      ReservationStatus.returned => LibrarianColors.secondaryText,
       ReservationStatus.rejected => LibrarianColors.unavailable,
       ReservationStatus.completed => LibrarianColors.primary,
       ReservationStatus.cancelled => LibrarianColors.secondaryText,

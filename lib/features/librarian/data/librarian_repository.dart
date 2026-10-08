@@ -231,6 +231,19 @@ abstract class LibrarianRepository extends ChangeNotifier {
     return null;
   }
 
+  /// Why a book reservation cannot be marked as returned, or null if it can
+  /// (only Collected -> Returned is allowed).
+  String? returnBlocker(ReservationRecord reservation) {
+    if (reservation.type != ReservationType.book) {
+      return 'Only book reservations are returned.';
+    }
+    if (reservation.isReturned) return 'This book has already been returned.';
+    if (!reservation.isCollected) {
+      return 'Only collected books can be marked as returned.';
+    }
+    return null;
+  }
+
   /// Why [loan] cannot be renewed right now, or null if it can.
   /// Used by renewBorrowing and to enable/explain the Renew button.
   String? renewBlocker(BorrowingRecord loan) {
@@ -385,9 +398,15 @@ abstract class LibrarianRepository extends ChangeNotifier {
   /// Rejects a pending reservation (and frees its seat slots).
   Future<ActionResult> rejectReservation(String id, String reason);
 
-  /// The student collected an approved book: the reservation is completed and
-  /// a loan (borrowing) is created. Refused if [collectBlocker] gives a reason.
+  /// The student collected an approved book (Ready for Pickup -> Collected):
+  /// the reservation becomes `collected` and a loan (borrowing) is created.
+  /// Refused if [collectBlocker] gives a reason.
   Future<ActionResult> markReservationCollected(String id);
+
+  /// The student returned a collected book (Collected -> Returned): the
+  /// reservation becomes `returned`, its loan is closed and the copy is back
+  /// on the shelf. Refused if [returnBlocker] gives a reason.
+  Future<ActionResult> markReservationReturned(String id);
 
   Future<ActionResult> addBook({
     required String title,

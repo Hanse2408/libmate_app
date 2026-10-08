@@ -48,7 +48,7 @@ class BookReservationDetailsScreen extends StatelessWidget {
         LibrarianPageHeader(
           title: 'Book Reservation Details',
           subtitle: 'Reservation / Books',
-          trailing: StatusChip.reservation(reservation.status),
+          trailing: StatusChip.forReservation(reservation),
           onBack: onBack,
         ),
         ReservationReference(reservationId: reservation.id),
@@ -62,11 +62,15 @@ class BookReservationDetailsScreen extends StatelessWidget {
                 const InfoItem('Type', 'Book Reservation'),
                 InfoItem(
                   'Status',
-                  reservation.status.label,
+                  StatusChip.reservationLabel(reservation),
                   valueColor: StatusChip.reservationColor(reservation.status),
                 ),
                 InfoItem('Reserved On', LibrarianFormatters.date(reservation.requestedAt)),
                 InfoItem('Pickup By', pickup),
+                if (reservation.collectedAt != null)
+                  InfoItem('Collected On', LibrarianFormatters.date(reservation.collectedAt!)),
+                if (reservation.returnedAt != null)
+                  InfoItem('Returned On', LibrarianFormatters.date(reservation.returnedAt!)),
                 if (book != null)
                   InfoItem(
                     'Copies Available',

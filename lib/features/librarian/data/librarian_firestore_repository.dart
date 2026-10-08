@@ -406,10 +406,37 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
           ),
         );
         tx.update(resRef, {
-          'status': ReservationStatus.completed.name,
+          'status': ReservationStatus.collected.name,
+          'collectedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
+    });
+  }
+
+  @override
+  Future<ActionResult> markReservationReturned(String id) async {
+    final cached = reservationById(id);
+    if (cached == null) {
+      return const ActionResult.failure('Reservation not found.');
+    }
+    final blocker = returnBlocker(cached);
+    if (blocker != null) return ActionResult.failure(blocker);
+
+    return _run(() async {
+      // The loan created when the book was collected (a query cannot run
+      // inside a transaction; the transaction re-reads it).
+      final loans = await _col(FirestoreCollections.borrowings)
+          .where('reservationId', isEqualTo: id)
+          .limit(1)
+          .get();
+      await _db.runTransaction(
+        (tx) => _returnBook(
+          tx,
+          reservationId: id,
+          loanId: loans.docs.isEmpty ? null : loans.docs.first.id,
+        ),
+      );
     });
   }
 
@@ -745,49 +772,111 @@ class LibrarianFirestoreRepository extends LibrarianRepository {
 
   @override
   Future<ActionResult> markBorrowingReturned(String id) {
-    return _run(() {
-      return _db.runTransaction((tx) async {
-        final loanRef = _col(FirestoreCollections.borrowings).doc(id);
-        final loanSnap = await tx.get(loanRef);
-        if (!loanSnap.exists) throw const ActionRefused('Loan not found.');
-        final loan = BorrowingRecord.fromMap(id, loanSnap.data()!);
-        if (loan.isReturned) {
-          throw const ActionRefused('This book has already been returned.');
-        }
-        final bookRef = _col(FirestoreCollections.books).doc(loan.bookId);
-        final bookSnap = await tx.get(bookRef);
+    return _run(
+      () => _db.runTransaction((tx) => _returnBook(tx, loanId: id)),
+    );
+  }
 
-        tx.update(loanRef, {'returnedAt': FieldValue.serverTimestamp()});
-        _notifyStudent(
-          tx,
-          recipientUid: loanSnap.data()!['memberUid'] as String? ?? '',
-          type: StudentNotificationType.bookReturned,
-          title: 'Book Returned',
-          message: 'Thank you for returning "${loan.bookTitle}".',
-          reservationId: loanSnap.data()!['reservationId'] as String?,
-          itemId: loan.bookId,
-        );
-        if (bookSnap.exists) {
-          final book = BookRecord.fromMap(bookSnap.id, bookSnap.data()!);
-          if (book.availableCopies < book.totalCopies) {
-            tx.update(bookRef, {
-              'availableCopies': book.availableCopies + 1,
-              'totalCopies': book.totalCopies,
-              'available': true, // read by Student screens
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          }
+  /// Returns a book in one transaction, from Borrowing Management ([loanId])
+  /// or from the reservation ([reservationId]): closes the loan, sets the
+  /// linked reservation to `returned` (+ returnedAt), puts the copy back and
+  /// notifies both sides. The reservation status stays the one source of
+  /// truth for the student's "Your book journey".
+  Future<void> _returnBook(
+    Transaction tx, {
+    String? loanId,
+    String? reservationId,
+  }) async {
+    // Reads first (Firestore transactions require all reads before writes).
+    DocumentReference<Map<String, dynamic>>? loanRef;
+    Map<String, dynamic>? loanData;
+    BorrowingRecord? loan;
+    if (loanId != null) {
+      loanRef = _col(FirestoreCollections.borrowings).doc(loanId);
+      final loanSnap = await tx.get(loanRef);
+      if (!loanSnap.exists) throw const ActionRefused('Loan not found.');
+      loanData = loanSnap.data()!;
+      loan = BorrowingRecord.fromMap(loanId, loanData);
+    }
+
+    final fromReservation = reservationId != null;
+    final linkedId = reservationId ?? loanData?['reservationId'] as String?;
+    DocumentReference<Map<String, dynamic>>? resRef;
+    ReservationRecord? reservation;
+    if (linkedId != null && linkedId.isNotEmpty) {
+      resRef = _col(FirestoreCollections.reservations).doc(linkedId);
+      if (fromReservation) {
+        reservation = await _readReservation(tx, resRef);
+      } else {
+        final snap = await tx.get(resRef);
+        if (snap.exists) {
+          reservation = ReservationRecord.fromMap(snap.id, snap.data()!);
         }
-        tx.set(
-          _col(FirestoreCollections.notifications).doc(),
-          _notification(
-            LibrarianNotificationType.bookReturned,
-            'Book Returned',
-            '${loan.memberName} returned "${loan.bookTitle}".',
-          ),
+      }
+    }
+
+    if (fromReservation) {
+      // Only Collected -> Returned (re-checked against the server copy).
+      final r = reservation!;
+      if (r.isReturned) {
+        throw const ActionRefused('This book has already been returned.');
+      }
+      if (!r.isCollected) {
+        throw const ActionRefused(
+          'Only collected books can be marked as returned.',
         );
+      }
+    } else if (loan!.isReturned) {
+      throw const ActionRefused('This book has already been returned.');
+    }
+
+    final bookId = loan?.bookId ?? reservation!.itemId;
+    final bookRef = _col(FirestoreCollections.books).doc(bookId);
+    final bookSnap = await tx.get(bookRef);
+    final bookTitle = loan?.bookTitle ?? reservation!.itemName;
+    final memberName = loan?.memberName ?? reservation!.studentName;
+
+    // Writes.
+    if (loanRef != null && !loan!.isReturned) {
+      tx.update(loanRef, {'returnedAt': FieldValue.serverTimestamp()});
+    }
+    if (resRef != null && reservation != null && reservation.isCollected) {
+      tx.update(resRef, {
+        'status': ReservationStatus.returned.name,
+        'returnedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
-    });
+    }
+    _notifyStudent(
+      tx,
+      recipientUid:
+          loanData?['memberUid'] as String? ?? reservation?.studentUid ?? '',
+      type: StudentNotificationType.bookReturned,
+      title: 'Book Returned',
+      message: 'Thank you for returning "$bookTitle".',
+      reservationId: linkedId,
+      itemId: bookId,
+    );
+    // The copy set aside at approval (and on loan since) is back.
+    if (bookSnap.exists) {
+      final book = BookRecord.fromMap(bookSnap.id, bookSnap.data()!);
+      if (book.availableCopies < book.totalCopies) {
+        tx.update(bookRef, {
+          'availableCopies': book.availableCopies + 1,
+          'totalCopies': book.totalCopies,
+          'available': true, // read by Student screens
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+    tx.set(
+      _col(FirestoreCollections.notifications).doc(),
+      _notification(
+        LibrarianNotificationType.bookReturned,
+        'Book Returned',
+        '$memberName returned "$bookTitle".',
+      ),
+    );
   }
 
   @override

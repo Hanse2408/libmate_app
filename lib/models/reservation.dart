@@ -12,9 +12,16 @@ enum ReservationType {
   final String cardLabel;
 }
 
+/// Book reservations move Requested (`pending`) -> Ready for Pickup
+/// (`approved`) -> Collected (`collected`) -> Returned (`returned`); only a
+/// librarian changes it after the request. Seat bookings are `approved` at
+/// once. `completed` is the older value for a collected book (read as
+/// [collected], see ReservationRecord.fromMap).
 enum ReservationStatus {
   pending('Pending'),
   approved('Approved'),
+  collected('Collected'),
+  returned('Returned'),
   rejected('Rejected'),
   completed('Completed'),
   cancelled('Cancelled');
@@ -47,6 +54,8 @@ class ReservationRecord {
     this.rejectionReason,
     this.pickupLocation,
     this.loanPeriodDays,
+    this.collectedAt,
+    this.returnedAt,
   });
 
   final String id;
@@ -73,6 +82,15 @@ class ReservationRecord {
   /// Book reservations only: where and for how long the student wants it.
   final String? pickupLocation;
   final int? loanPeriodDays;
+
+  /// Book reservations: when the librarian marked it Collected / Returned.
+  final DateTime? collectedAt;
+  final DateTime? returnedAt;
+
+  /// The student has the book (marked Collected by the librarian).
+  bool get isCollected => status == ReservationStatus.collected;
+
+  bool get isReturned => status == ReservationStatus.returned;
 
   bool get isPending => status == ReservationStatus.pending;
 
@@ -128,10 +146,17 @@ class ReservationRecord {
   }
 
   factory ReservationRecord.fromMap(String id, Map<String, dynamic> map) {
+    final type = _byName(ReservationType.values, map['type'], ReservationType.book);
+    var status = _byName(ReservationStatus.values, map['status'], ReservationStatus.pending);
+    // Book reservations collected before the Collected status existed were
+    // saved as `completed`.
+    if (type == ReservationType.book && status == ReservationStatus.completed) {
+      status = ReservationStatus.collected;
+    }
     return ReservationRecord(
       id: id,
-      type: _byName(ReservationType.values, map['type'], ReservationType.book),
-      status: _byName(ReservationStatus.values, map['status'], ReservationStatus.pending),
+      type: type,
+      status: status,
       studentUid: map['studentUid'] as String? ?? '',
       studentId: map['studentId'] as String? ?? '',
       studentName: map['studentName'] as String? ?? '',
@@ -146,6 +171,8 @@ class ReservationRecord {
       rejectionReason: map['rejectionReason'] as String?,
       pickupLocation: map['pickupLocation'] as String?,
       loanPeriodDays: (map['loanPeriodDays'] as num?)?.toInt(),
+      collectedAt: (map['collectedAt'] as Timestamp?)?.toDate(),
+      returnedAt: (map['returnedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -173,6 +200,8 @@ class ReservationRecord {
   ReservationRecord copyWith({
     ReservationStatus? status,
     String? rejectionReason,
+    DateTime? collectedAt,
+    DateTime? returnedAt,
   }) {
     return ReservationRecord(
       id: id,
@@ -191,6 +220,8 @@ class ReservationRecord {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       pickupLocation: pickupLocation,
       loanPeriodDays: loanPeriodDays,
+      collectedAt: collectedAt ?? this.collectedAt,
+      returnedAt: returnedAt ?? this.returnedAt,
     );
   }
 }
