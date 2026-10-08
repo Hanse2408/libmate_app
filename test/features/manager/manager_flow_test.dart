@@ -292,9 +292,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Updated Manager'), findsOneWidget);
 
-    await tester.tap(find.text('Remove Access'));
+    await tester.tap(find.text('Deactivate User'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove Access').last);
+    await tester.tap(find.text('Deactivate User').last);
     await tester.pumpAndSettle();
     expect(find.text('Updated Manager'), findsOneWidget);
     expect(find.text('Inactive'), findsWidgets);

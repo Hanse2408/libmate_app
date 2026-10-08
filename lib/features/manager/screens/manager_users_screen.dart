@@ -90,7 +90,7 @@ class _ManagerUsersScreenState extends State<ManagerUsersScreen> {
                 Expanded(
                   child: _UserFilterDropdown(
                     value: _statusFilter,
-                    values: const ['All Status', 'Active', 'Inactive', 'Suspended'],
+                    values: const ['All Status', 'Active', 'Inactive'],
                     onChanged: (value) => setState(() => _statusFilter = value),
                   ),
                 ),

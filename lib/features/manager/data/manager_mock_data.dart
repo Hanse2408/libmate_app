@@ -66,7 +66,7 @@ class ManagerUser {
   String get status => switch (accountStatus) {
     AccountStatus.active => 'Active',
     AccountStatus.inactive => 'Inactive',
-    AccountStatus.suspended => 'Suspended',
+    AccountStatus.suspended => 'Inactive',
   };
 
   ManagerUser copyWith({

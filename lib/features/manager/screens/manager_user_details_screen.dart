@@ -109,7 +109,10 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            Text('Quick Actions', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Quick Actions',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 9),
             PrimaryButton(
               label: 'Edit User',
@@ -117,11 +120,15 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
               onPressed: _busy
                   ? null
                   : () async {
-                      await context.push(AppRoutes.managerUserEdit, extra: _user);
+                      await context.push(
+                        AppRoutes.managerUserEdit,
+                        extra: _user,
+                      );
                       if (!mounted || !context.mounted) return;
                       final repository = ManagerScope.of(context).repository;
                       setState(() {
-                        _user = repository.findUserById(widget.user.id) ?? _user;
+                        _user =
+                            repository.findUserById(widget.user.id) ?? _user;
                       });
                     },
             ),
@@ -137,48 +144,31 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
                 OutlinedButton.icon(
                   onPressed: _busy
                       ? null
-                      : () => _changeStatus(AccountStatus.active, 'activated'),
+                      : () => _confirmStatusChange(
+                          AccountStatus.active,
+                          title: 'Activate this user?',
+                          actionLabel: 'Activate User',
+                          successMessage: 'User activated successfully.',
+                          description: 'This user will be able to sign in to LibMate again.',
+                        ),
                   icon: const Icon(Icons.person_outline),
                   label: const Text('Activate User'),
                 ),
               ],
-              if (_user.accountStatus != AccountStatus.suspended) ...[
-                const SizedBox(height: 9),
-                OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _confirmStatusChange(
-                          AccountStatus.suspended,
-                          title: 'Suspend User?',
-                          actionLabel: 'Suspend',
-                          successMessage: 'User suspended successfully.',
-                        ),
-                  icon: const Icon(Icons.block_outlined),
-                  label: const Text('Suspend User'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                  ),
-                ),
-              ],
-              if (_user.accountStatus != AccountStatus.inactive) ...[
+              if (_user.accountStatus == AccountStatus.active) ...[
                 const SizedBox(height: 9),
                 OutlinedButton.icon(
                   onPressed: _busy
                       ? null
                       : () => _confirmStatusChange(
                           AccountStatus.inactive,
-                          title: 'Remove Access?',
-                          actionLabel: 'Remove Access',
-                          successMessage: 'Access removed. The profile is kept for records.',
-                          description:
-                              'This revokes login for ${_user.name} by setting the account to '
-                              'inactive. The Firestore profile (and Firebase Auth account) is '
-                              'kept for audit/reference - this does not permanently delete '
-                              'anything.',
+                          title: 'Deactivate this user?',
+                          actionLabel: 'Deactivate User',
+                          successMessage: 'User deactivated successfully.',
+                          description: 'This user will not be able to sign in until the account is activated again.',
                         ),
                   icon: const Icon(Icons.person_off_outlined),
-                  label: const Text('Remove Access'),
+                  label: const Text('Deactivate User'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: const BorderSide(color: AppColors.error),
@@ -196,7 +186,7 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
   String _statusBadgeType(AccountStatus status) => switch (status) {
     AccountStatus.active => 'available',
     AccountStatus.inactive => 'inactive',
-    AccountStatus.suspended => 'suspended',
+    AccountStatus.suspended => 'inactive',
   };
 
   Future<void> _confirmStatusChange(
@@ -233,7 +223,10 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
     await _changeStatus(status, successMessage);
   }
 
-  Future<void> _changeStatus(AccountStatus status, String successMessage) async {
+  Future<void> _changeStatus(
+    AccountStatus status,
+    String successMessage,
+  ) async {
     setState(() => _busy = true);
     final repository = ManagerScope.of(context).repository;
     final result = await repository.setAccountStatus(_user.id, status);
@@ -242,13 +235,18 @@ class _ManagerUserDetailsScreenState extends State<ManagerUserDetailsScreen> {
 
     if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message ?? 'The request could not be completed.')),
+        SnackBar(
+          content: Text(
+            result.message ?? 'The request could not be completed.',
+          ),
+        ),
       );
       return;
     }
 
     setState(() => _user = _user.copyWith(accountStatus: status));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(successMessage)));
   }
 
   String _formatDate(DateTime date) =>

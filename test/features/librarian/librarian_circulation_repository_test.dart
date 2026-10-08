@@ -149,29 +149,13 @@ void main() {
       );
     });
 
-    test('suspend and reactivate', () async {
-      expect(
-        (await repository.updateMemberStatus(
-          'IT23004512',
-          MemberStatus.suspended,
-        )).success,
-        isTrue,
-      );
-      expect(repository.memberById('IT23004512')!.isActive, isFalse);
-      expect(
-        (await repository.updateMemberStatus(
-          'IT23004512',
-          MemberStatus.suspended,
-        )).success,
-        isFalse,
-      );
-      expect(
-        (await repository.updateMemberStatus(
-          'IT23004512',
-          MemberStatus.active,
-        )).success,
-        isTrue,
-      );
+    test('Librarians cannot change member account status', () async {
+      for (final status in MemberStatus.values) {
+        final result = await repository.updateMemberStatus('IT23004512', status);
+        expect(result.success, isFalse);
+        expect(result.message, contains('Only Managers'));
+      }
+      expect(repository.memberById('IT23004512')!.isActive, isTrue);
     });
   });
 

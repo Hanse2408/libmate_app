@@ -22,7 +22,6 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
   late final TextEditingController _institutionIdController;
   late final TextEditingController _passwordController;
   late UserRole _role;
-  late AccountStatus _accountStatus;
   bool _passwordVisible = false;
   bool _saving = false;
 
@@ -39,7 +38,6 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
     );
     _passwordController = TextEditingController();
     _role = user == null ? UserRole.student : managerRoleFromLabel(user.role);
-    _accountStatus = user?.accountStatus ?? AccountStatus.active;
   }
 
   @override
@@ -54,9 +52,7 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
   @override
   Widget build(BuildContext context) {
     final scope = ManagerScope.of(context);
-    // A Manager cannot demote/suspend/deactivate themselves through this
-    // form, so role and account status are locked when editing their own
-    // profile (see also the Firestore rules and ManagerUserDetailsScreen).
+    // Managers cannot change their own role.
     final isOwnAccount =
         _isEditing && widget.user!.id == scope.authProvider.user?.uid;
 
@@ -112,7 +108,10 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
                     ),
                   ),
                   validator: (value) {
-                    final requiredError = _required(value, 'Enter a temporary password.');
+                    final requiredError = _required(
+                      value,
+                      'Enter a temporary password.',
+                    );
                     if (requiredError != null) return requiredError;
                     if (value!.length < 6) {
                       return 'Password must be at least 6 characters.';
@@ -146,30 +145,12 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
               ),
               if (_isEditing) ...[
                 const SizedBox(height: 12),
-                DropdownButtonFormField<AccountStatus>(
-                  initialValue: _accountStatus,
-                  decoration: const InputDecoration(labelText: 'Account Status'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: AccountStatus.active,
-                      child: Text('Active'),
-                    ),
-                    DropdownMenuItem(
-                      value: AccountStatus.inactive,
-                      child: Text('Inactive'),
-                    ),
-                    DropdownMenuItem(
-                      value: AccountStatus.suspended,
-                      child: Text('Suspended'),
-                    ),
-                  ],
-                  onChanged: isOwnAccount
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() => _accountStatus = value);
-                          }
-                        },
+                _field(
+                  label: 'Firebase UID',
+                  controller: null,
+                  initialValue: widget.user!.id,
+                  validator: (_) => null,
+                  enabled: false,
                 ),
               ],
               if (isOwnAccount) ...[
@@ -213,7 +194,8 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
 
   Widget _field({
     required String label,
-    required TextEditingController controller,
+    TextEditingController? controller,
+    String? initialValue,
     required String? Function(String?) validator,
     TextInputType? keyboardType,
     TextCapitalization textCapitalization = TextCapitalization.none,
@@ -223,6 +205,7 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
   }) {
     return TextFormField(
       controller: controller,
+      initialValue: initialValue,
       enabled: enabled,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
@@ -249,7 +232,6 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
             widget.user!.id,
             name: name,
             role: _role,
-            accountStatus: _accountStatus,
             institutionId: institutionId,
           )
         : await repository.addUser(
@@ -265,7 +247,11 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
 
     if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message ?? 'The request could not be completed.')),
+        SnackBar(
+          content: Text(
+            result.message ?? 'The request could not be completed.',
+          ),
+        ),
       );
       return;
     }
@@ -273,7 +259,9 @@ class _ManagerUserFormScreenState extends State<ManagerUserFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _isEditing ? 'User updated successfully.' : 'User created successfully.',
+          _isEditing
+              ? 'User updated successfully.'
+              : 'User created successfully.',
         ),
       ),
     );

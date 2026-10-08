@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
-import '../data/librarian_repository.dart';
 import '../models/borrowing_record.dart';
 import '../models/member_record.dart';
 import '../models/reservation_record.dart';
@@ -21,8 +20,8 @@ import '../widgets/reservation_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/status_chip.dart';
 
-/// Member Details: profile, contact, loans, reservations, history and the
-/// account status action. Laid out like the Reservation Details screens.
+/// Member Details: profile, contact, loans, reservations, history and
+/// read-only account status. Laid out like the Reservation Details screens.
 class MemberDetailsScreen extends StatelessWidget {
   const MemberDetailsScreen({super.key, required this.memberId});
 
@@ -146,7 +145,7 @@ class MemberDetailsScreen extends StatelessWidget {
             else
               ...pastReservations.map(reservationCard),
             const SizedBox(height: LibrarianSpacing.lg),
-            _AccountStatusCard(member: member, repository: repository),
+            _AccountStatusCard(member: member),
           ],
         );
       },
@@ -219,57 +218,11 @@ class _NoneText extends StatelessWidget {
   }
 }
 
-/// Shows the account status with a Suspend / Reactivate action.
+/// Account administration belongs to Managers; Librarians can only view it.
 class _AccountStatusCard extends StatelessWidget {
-  const _AccountStatusCard({required this.member, required this.repository});
+  const _AccountStatusCard({required this.member});
 
   final MemberRecord member;
-  final LibrarianRepository repository;
-
-  Future<void> _changeStatus(BuildContext context) async {
-    final suspend = member.isActive;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(suspend ? 'Suspend account?' : 'Reactivate account?'),
-        content: Text(
-          suspend
-              ? '${member.name} will not be able to borrow or reserve until reactivated.'
-              : '${member.name} will be able to borrow and reserve again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              backgroundColor: suspend ? LibrarianColors.unavailable : null,
-            ),
-            child: Text(suspend ? 'Suspend' : 'Reactivate'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final result = await repository.updateMemberStatus(
-      member.id,
-      suspend ? MemberStatus.suspended : MemberStatus.active,
-    );
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result.success
-              ? '${member.name} is now ${suspend ? 'suspended' : 'active'}.'
-              : result.message!,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,22 +240,7 @@ class _AccountStatusCard extends StatelessWidget {
             StatusChip.member(member.status),
           ],
         ),
-        const SizedBox(height: LibrarianSpacing.md),
-        member.isActive
-            ? OutlinedButton(
-                onPressed: () => _changeStatus(context),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 52),
-                  foregroundColor: LibrarianColors.unavailable,
-                  side: BorderSide(color: LibrarianColors.unavailable, width: 1.5),
-                ),
-                child: const Text('Suspend Account'),
-              )
-            : FilledButton(
-                onPressed: () => _changeStatus(context),
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
-                child: const Text('Reactivate Account'),
-              ),
+
       ],
     );
   }

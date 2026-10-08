@@ -487,16 +487,9 @@ class LibrarianMockRepository extends LibrarianRepository {
     String id,
     MemberStatus status,
   ) async {
-    final index = _members.indexWhere((m) => m.id == id);
-    if (index == -1) return const ActionResult.failure('Member not found.');
-    if (_members[index].status == status) {
-      return ActionResult.failure(
-        'This account is already ${status.label.toLowerCase()}.',
-      );
-    }
-    _members[index] = _members[index].copyWith(status: status);
-    notifyListeners();
-    return const ActionResult.success();
+    return const ActionResult.failure(
+      'Only Managers can activate or deactivate users.',
+    );
   }
 
   // ---------------- Settings ----------------
