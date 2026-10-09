@@ -251,9 +251,9 @@ class _StudentNotificationsScreenState
             IconButton(
               tooltip: 'Delete',
               onPressed: _deleteSelected,
-              icon: const Icon(
+              icon: Icon(
                 Icons.delete_outline_rounded,
-                color: Color(0xFFDC4C4C),
+                color: Theme.of(context).colorScheme.error,
               ),
             ),
           ],

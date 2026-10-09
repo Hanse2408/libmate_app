@@ -40,7 +40,9 @@ class InAppNotificationBanner {
     if (_entry != null || !context.mounted) return;
     while (_queue.isNotEmpty) {
       final n = _queue.removeFirst();
-      final current = library.notifications.where((x) => x.id == n.id).firstOrNull;
+      final current = library.notifications
+          .where((x) => x.id == n.id)
+          .firstOrNull;
       // Already read or deleted, or the list is already visible: skip.
       if (current == null || current.isRead) continue;
       if (StudentNotificationsScreen.isOpen) continue;
@@ -87,25 +89,32 @@ class InAppNotificationBanner {
 }
 
 class _BannerCard extends StatelessWidget {
-  const _BannerCard({required this.notification, required this.onClose, required this.onView});
+  const _BannerCard({
+    required this.notification,
+    required this.onClose,
+    required this.onView,
+    this.local = false,
+  });
 
   final StudentNotification notification;
   final VoidCallback onClose;
   final VoidCallback onView;
+  final bool local;
 
   @override
   Widget build(BuildContext context) {
     final (icon, color) = studentNotificationStyle(context, notification.type);
-    final primary = Theme.of(context).colorScheme.primary;
+    final colors = Theme.of(context).colorScheme;
+    final primary = colors.primary;
     return Positioned(
       top: MediaQuery.of(context).padding.top + 8,
       left: 16,
       right: 16,
       child: Material(
-        key: const ValueKey('in-app-banner'),
-        color: Colors.white,
+        key: ValueKey(local ? 'local-top-notice' : 'in-app-banner'),
+        color: colors.surface,
         elevation: 6,
-        shadowColor: const Color(0x331E3A8A),
+        shadowColor: colors.shadow.withValues(alpha: .2),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -129,8 +138,8 @@ class _BannerCard extends StatelessWidget {
                         notification.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF172033),
+                        style: TextStyle(
+                          color: colors.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -140,17 +149,21 @@ class _BannerCard extends StatelessWidget {
                         notification.message,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'View',
                         style: TextStyle(
-                          color: primary,
+                          color: colors.onSurfaceVariant,
                           fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      if (!local)
+                        Text(
+                          'View',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -158,7 +171,11 @@ class _BannerCard extends StatelessWidget {
                   tooltip: 'Close',
                   visualDensity: VisualDensity.compact,
                   onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -167,4 +184,68 @@ class _BannerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A transient confirmation using the notification card, without saving history.
+void showStudentTopNotice(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) {
+  final overlay = Overlay.maybeOf(context);
+  if (overlay == null) return;
+  late final OverlayEntry entry;
+  void close() {
+    entry.remove();
+    entry.dispose();
+  }
+
+  entry = OverlayEntry(
+    builder: (_) =>
+        _LocalNotice(title: title, message: message, onClose: close),
+  );
+  overlay.insert(entry);
+}
+
+class _LocalNotice extends StatefulWidget {
+  const _LocalNotice({
+    required this.title,
+    required this.message,
+    required this.onClose,
+  });
+  final String title;
+  final String message;
+  final VoidCallback onClose;
+  @override
+  State<_LocalNotice> createState() => _LocalNoticeState();
+}
+
+class _LocalNoticeState extends State<_LocalNotice> {
+  late final Timer _timer;
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 4), widget.onClose);
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _BannerCard(
+    local: true,
+    notification: StudentNotification(
+      id: '',
+      recipientUid: '',
+      type: StudentNotificationType.bookReservationUpdated,
+      title: widget.title,
+      message: widget.message,
+      createdAt: DateTime.now(),
+    ),
+    onClose: widget.onClose,
+    onView: widget.onClose,
+  );
 }

@@ -170,7 +170,7 @@ void main() {
     expect(doc.exists, isTrue); // kept, not deleted
     expect(doc.data()!['status'], 'cancelled');
     expect((await db.collection('seatSlots').get()).docs, isEmpty);
-    expect(find.text('Seat reservation cancelled.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.text('Cancelled'), findsNWidgets(2));
     expect(find.text('Modify Reservation'), findsNothing);
     expect(find.text('Cancel Reservation'), findsNothing);

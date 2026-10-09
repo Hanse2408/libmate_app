@@ -83,26 +83,27 @@ Future<void> openStudentNotification(
     StudentNotificationType.bookAvailable => (Icons.notifications_active_rounded, colors.primary),
     StudentNotificationType.reservationApproved => (
       Icons.check_circle_rounded,
-      const Color(0xFF22A06B),
+      colors.primary,
     ),
-    StudentNotificationType.reservationRejected => (Icons.cancel_rounded, const Color(0xFFDC4C4C)),
+    StudentNotificationType.reservationRejected => (Icons.cancel_rounded, colors.error),
     StudentNotificationType.reservationCancelled => (
       Icons.event_busy_rounded,
-      const Color(0xFFDC4C4C),
+      colors.error,
     ),
     StudentNotificationType.reservationRequested => (
       Icons.hourglass_top_rounded,
-      const Color(0xFFF2B84B),
+      colors.secondary,
     ),
     StudentNotificationType.bookCollected => (Icons.menu_book_rounded, colors.primary),
     StudentNotificationType.bookReturned => (
       Icons.assignment_return_rounded,
-      const Color(0xFF22A06B),
+      colors.primary,
     ),
+    StudentNotificationType.bookReservationUpdated => (Icons.edit_calendar_rounded, colors.primary),
     StudentNotificationType.loanRenewed => (Icons.update_rounded, colors.primary),
     StudentNotificationType.seatBookingConfirmed => (
       Icons.event_seat_rounded,
-      const Color(0xFF22A06B),
+      colors.primary,
     ),
     StudentNotificationType.seatReservationUpdated => (Icons.edit_calendar_rounded, colors.primary),
   };

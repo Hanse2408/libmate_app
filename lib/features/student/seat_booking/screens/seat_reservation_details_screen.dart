@@ -106,7 +106,7 @@ class _SeatReservationDetailsScreenState extends State<SeatReservationDetailsScr
       _isCancelling = false;
       _cancelled = result.success;
     });
-    _showMessage(result.success ? 'Seat reservation cancelled.' : result.message!);
+    if (!result.success) _showMessage(result.message!);
   }
 
   @override

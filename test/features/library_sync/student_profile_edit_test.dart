@@ -72,6 +72,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(EditProfileDialog), findsNothing);
       expect(find.text('Edited Student'), findsOneWidget);
+      expect(find.text('Profile Updated'), findsOneWidget);
+      expect(find.byKey(const ValueKey('local-top-notice')), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+      expect((await db.collection('notifications').get()).docs, isEmpty);
       expect(library.student.phone, '0771234567');
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
