@@ -132,7 +132,8 @@ void main() {
       auth.emitSignedIn(); // Firebase reports a signed-in user with role librarian
       await tester.pumpAndSettle();
       expect(_path(router), LibrarianRoutes.dashboard);
-      expect(find.textContaining(', Janith'), findsOneWidget);
+      // Dashboard greeting addresses the user as "librarian".
+      expect(find.textContaining(', librarian'), findsOneWidget);
 
       for (final path in _librarianPaths) {
         router.go(path);

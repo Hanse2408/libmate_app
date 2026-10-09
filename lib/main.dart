@@ -71,6 +71,7 @@ class _LibMateStartupState extends State<_LibMateStartup> {
     if (router != null) return MyApp(router: router);
     return MaterialApp(
       title: 'LibMate',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light, // the splash is always light
       home: SplashScreen(errorMessage: _error),
     );
@@ -91,6 +92,7 @@ class MyApp extends StatelessWidget {
       listenable: _themeController,
       builder: (context, _) => MaterialApp.router(
         title: 'LibMate',
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: _themeController.themeMode,

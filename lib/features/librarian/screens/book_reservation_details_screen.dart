@@ -53,7 +53,12 @@ class BookReservationDetailsScreen extends StatelessWidget {
         ),
         ReservationReference(reservationId: reservation.id),
         ReservationStatusBanner(reservation: reservation, blocker: blocker),
-        BookSummaryCard(book: book, fallbackTitle: reservation.itemName),
+        BookSummaryCard(
+          book: book,
+          fallbackTitle: reservation.itemName,
+          // The cover of the book this reservation is for.
+          coverAsset: book?.coverAsset,
+        ),
         InfoSectionCard(
           title: 'Reservation Info',
           children: [
