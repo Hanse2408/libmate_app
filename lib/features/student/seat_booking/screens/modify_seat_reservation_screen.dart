@@ -89,11 +89,7 @@ class _ModifySeatReservationScreenState extends State<ModifySeatReservationScree
     }
     // The reservation ID is unchanged, so going back shows the same booking
     // (H04 or My Reservations) with its new data.
-    final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop(true);
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Reservation updated successfully.')));
   }
 
   @override

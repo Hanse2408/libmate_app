@@ -298,6 +298,8 @@ class StudentLibraryRepository extends ChangeNotifier
       StreamController<StudentNotification>.broadcast();
   final Set<String> _seenNotificationIds = {};
   bool _notificationsBaselined = false;
+  final Set<String> _seenAvailabilityNotificationIds = {};
+  bool _availabilityNotificationsBaselined = false;
 
   /// Notifications that arrive after the initial load (unread, recent only).
   Stream<StudentNotification> get newNotifications => _newNotifications.stream;
@@ -404,6 +406,14 @@ class StudentLibraryRepository extends ChangeNotifier
                   Map<String, dynamic>.from(entry.value as Map),
                 ),
             ];
+            for (final n in _availabilityNotifications) {
+              final isNew = _seenAvailabilityNotificationIds.add(n.id);
+              if (isNew && _availabilityNotificationsBaselined && !n.isRead &&
+                  !_dismissedNotificationIds.contains(n.id)) {
+                _newNotifications.add(n);
+              }
+            }
+            _availabilityNotificationsBaselined = true;
             _checkAvailabilityAlerts();
             _favoriteBookIds = Set<String>.from(
               data['favoriteBookIds'] as List? ?? const [],
@@ -955,6 +965,17 @@ class StudentLibraryRepository extends ChangeNotifier
           if (notes != null) 'notes': notes.trim(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.bookReservationUpdated,
+            title: 'Reservation Updated',
+            message: 'Your reservation for ${reservation.itemName} has been updated.',
+            reservationId: reservation.id,
+            itemId: reservation.itemId,
+          ),
+        );
       });
 
       return null;

@@ -500,7 +500,7 @@ void main() {
       // Back on H04 with the new data.
       expect(find.byType(ModifySeatReservationScreen), findsNothing);
       expect(find.byType(SeatReservationDetailsScreen), findsOneWidget);
-      expect(find.text('Reservation updated successfully.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
       expect(find.text('A02'), findsOneWidget);
       expect(find.text(ReservationDisplayReference.forId(reservationId)), findsOneWidget);
       expect(find.text('Confirmed'), findsNWidgets(2));

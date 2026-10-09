@@ -6,6 +6,7 @@ enum StudentNotificationType {
   reservationApproved,
   reservationRejected,
   reservationCancelled,
+  bookReservationUpdated,
   bookCollected,
   bookReturned,
   loanRenewed,

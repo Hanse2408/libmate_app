@@ -6,6 +6,7 @@ import '../widgets/student_avatar.dart';
 import '../widgets/student_notification_button.dart';
 
 import 'package:flutter/material.dart';
+import '../../notifications/widgets/in_app_notification_banner.dart';
 
 import '../../../../app/theme/app_theme.dart';
 import '../data/student_library_repository.dart';
@@ -464,15 +465,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (value) {
               AppThemeController.instance.setDarkMode(value);
 
-              ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      value ? 'Dark mode enabled' : 'Dark mode disabled',
-                    ),
-                  ),
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                showStudentTopNotice(context,
+                  title: value ? 'Dark Mode Enabled' : 'Dark Mode Disabled',
+                  message: 'Your appearance preference was updated.',
                 );
+              });
             },
             activeThumbColor: _primaryColor,
             activeTrackColor: StudentPalette.of(context).blueBorder,
@@ -725,11 +724,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   );
 
   Future<void> _editProfile() async {
-    await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => EditProfileDialog(library: widget.library),
     );
+    if (saved == true && mounted) {
+      showStudentTopNotice(context, title: 'Profile Updated',
+        message: 'Your profile details were updated successfully.');
+    }
   }
 
   void _openNotifications() {

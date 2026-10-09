@@ -668,14 +668,13 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
     final result = await widget.library.cancelReservation(reservation.id);
     if (!mounted) return;
     setState(() => _cancellingId = null);
+    if (result.success) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: Text(
-            result.success
-                ? '${reservation.title} reservation cancelled.'
-                : result.message!,
+            result.message!,
           ),
         ),
       );

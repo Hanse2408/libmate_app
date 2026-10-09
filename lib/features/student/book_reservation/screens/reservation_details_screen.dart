@@ -706,9 +706,6 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                         Navigator.pop(dialogContext);
                         if (!mounted) return;
                         setState(() {});
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Reservation updated.')),
-                        );
                       },
                 child: Text(saving ? 'Saving...' : 'OK'),
               ),
@@ -788,15 +785,15 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                   if (result.success) _cancelledLocally = true;
                 });
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      result.success
-                          ? 'Reservation cancelled.'
-                          : result.message ?? 'Unable to cancel reservation.',
+                if (!result.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        result.message ?? 'Unable to cancel reservation.',
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
               },
               child: Text(
                 'Cancel Reservation',
