@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/librarian_routes.dart';
+import '../../../core/widgets/libmate_logo.dart';
 import '../models/borrowing_record.dart';
 import '../models/reservation_record.dart';
 import '../providers/librarian_dashboard_summary.dart';
@@ -65,7 +66,7 @@ class LibrarianDashboardScreen extends StatelessWidget {
                 return ListView(
                   padding: const EdgeInsets.all(LibrarianSpacing.md + 4),
                   children: [
-                    _Greeting(firstName: name.split(' ').first),
+                    const _Greeting(),
                     const SizedBox(height: LibrarianSpacing.md),
                     _StatCards(summary: summary),
                     if (isWide)
@@ -281,18 +282,8 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: LibrarianSpacing.md + 4,
       title: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: LibrarianColors.lightBlue,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.menu_book,
-              color: LibrarianColors.primary,
-              size: 28,
-            ),
-          ),
+          // The LibMate app logo (same asset and widget as the login header).
+          const LibMateLogo(size: 44),
           const SizedBox(width: LibrarianSpacing.sm + 4),
           Flexible(
             child: Text(
@@ -341,9 +332,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.firstName});
-
-  final String firstName;
+  const _Greeting();
 
   @override
   Widget build(BuildContext context) {
@@ -353,7 +342,7 @@ class _Greeting extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$greeting, $firstName',
+          '$greeting, librarian',
           style: TextStyle(
             color: LibrarianColors.text,
             fontSize: 28,

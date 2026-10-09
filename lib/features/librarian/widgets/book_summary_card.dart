@@ -13,12 +13,17 @@ class BookSummaryCard extends StatelessWidget {
     required this.book,
     required this.fallbackTitle,
     this.fallbackIsbn,
+    this.coverAsset,
   });
 
   /// Null if the book was removed from the catalogue.
   final BookRecord? book;
   final String fallbackTitle;
   final String? fallbackIsbn;
+
+  /// The book's cover (Cloudinary URL or bundled asset). Without one, or if
+  /// it cannot be loaded, the generated cover is shown.
+  final String? coverAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +35,12 @@ class BookSummaryCard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BookCover(title: title, width: 92, height: 124),
+            BookCover(
+              title: title,
+              width: 92,
+              height: 124,
+              coverAsset: coverAsset,
+            ),
             const SizedBox(width: LibrarianSpacing.md + 4),
             Expanded(
               child: Column(
