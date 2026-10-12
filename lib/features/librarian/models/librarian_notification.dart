@@ -9,6 +9,7 @@ enum LibrarianNotificationType {
   approved(NotificationCategory.reservations),
   rejected(NotificationCategory.reservations),
   cancelled(NotificationCategory.reservations),
+  deleted(NotificationCategory.reservations),
   bookReturned(NotificationCategory.books),
   bookCollected(NotificationCategory.books),
   loanRenewed(NotificationCategory.books),

@@ -86,6 +86,7 @@ Future<void> openStudentNotification(
       colors.primary,
     ),
     StudentNotificationType.reservationRejected => (Icons.cancel_rounded, colors.error),
+    StudentNotificationType.reservationDeleted => (Icons.delete_outline_rounded, colors.error),
     StudentNotificationType.reservationCancelled => (
       Icons.event_busy_rounded,
       colors.error,

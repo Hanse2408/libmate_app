@@ -158,7 +158,7 @@ service cloud.firestore {
     }
 
     // ---------------- Reservations ----------------
-    match /reservations/{reservationId} {
+    match /reservations/{reservationId} {  //firestore rules for reservations collection
       // Students only see their own reservations.
       allow read: if isStaff()
         || (signedIn() && resource.data.studentUid == request.auth.uid);
@@ -219,7 +219,11 @@ service cloud.firestore {
           'timeSlot',
           'updatedAt'
         ]);
-      allow delete: if false;
+      // Students can permanently remove only their own cancelled book requests.
+      allow delete: if isStudent()
+        && resource.data.studentUid == request.auth.uid
+        && resource.data.type == 'book'
+        && resource.data.status == 'cancelled';
     }
 
     // One document per booked seat-hour: {seatId}_{yyyyMMdd}_{HH}.
@@ -270,12 +274,12 @@ service cloud.firestore {
       allow create: if isStaff()
         || (isStudent()
           && request.resource.data.audience == 'librarian'
-          && request.resource.data.type in ['newRequest', 'cancelled']
+          && request.resource.data.type in ['newRequest', 'cancelled', 'deleted']
           && request.resource.data.isRead == false)
         || (isStudent()
           && request.resource.data.audience == 'student'
           && request.resource.data.recipientUid == request.auth.uid
-          && request.resource.data.type in ['reservationRequested', 'reservationCancelled', 'bookReservationUpdated', 'seatBookingConfirmed', 'seatReservationUpdated']
+          && request.resource.data.type in ['reservationRequested', 'reservationCancelled', 'reservationDeleted', 'bookReservationUpdated', 'seatBookingConfirmed', 'seatReservationUpdated']
           && request.resource.data.isRead == false);
     }
 

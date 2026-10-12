@@ -171,10 +171,10 @@ class StudentLibraryRepository extends ChangeNotifier
   }
 
   /// Saved in the student's profile; no Cloud Functions or new rules needed.
-  Future<ActionResult> setAvailabilityWatch(String bookId, bool enabled) async {
+  Future<ActionResult> setAvailabilityWatch(String bookId, bool enabled) async {    //this method use to enables or disables the alert. (//toggle)
     try {
       final profile = _col(FirestoreCollections.users).doc(student.uid);
-      final token = _db.collection('notifications').doc().id;
+      final token = _db.collection('notifications').doc().id;       
       await _db.runTransaction((tx) async {
         final user = await tx.get(profile);
         final book = await tx.get(_col(FirestoreCollections.books).doc(bookId));
@@ -216,7 +216,7 @@ class StudentLibraryRepository extends ChangeNotifier
     }
   }
 
-  void _checkAvailabilityAlerts() {
+  void _checkAvailabilityAlerts() {        //checks whether watched books are available. //availability
     if (!_alertsActive || _disposed) return;
     for (final entry in _availabilityWatches.entries) {
       if (bookById(entry.key)?.isAvailable != true ||
@@ -227,7 +227,8 @@ class StudentLibraryRepository extends ChangeNotifier
     }
   }
 
-  Future<void> _saveAvailabilityAlert(String bookId, dynamic token) async {
+
+  Future<void> _saveAvailabilityAlert(String bookId, dynamic token) async {  //saves the //notification.
     try {
       final profile = _col(FirestoreCollections.users).doc(student.uid);
       await _db.runTransaction((tx) async {
@@ -346,7 +347,8 @@ class StudentLibraryRepository extends ChangeNotifier
   String? get loadError => _loadError;
 
   CollectionReference<Map<String, dynamic>> _col(String name) =>
-      _db.collection(name);
+      _db.collection(name);  //instance of firestore (selects the backend collection.)
+
 
   BookRecord? bookById(String id) {
     for (final book in _books) {
@@ -439,6 +441,7 @@ class StudentLibraryRepository extends ChangeNotifier
         });
     });
 
+//read operation (//read all)
     _watch(
       _col(FirestoreCollections.reservations)
           .where('studentUid', isEqualTo: student.uid),
@@ -521,7 +524,7 @@ class StudentLibraryRepository extends ChangeNotifier
     _waiting.add(name);
 
     _subscriptions.add(
-      query.snapshots().listen((snapshot) {
+      query.snapshots().listen((snapshot) {   //snapashot listener for real-time updates from Firestore
         onData(snapshot.docs);
         _received(name);
       }, onError: (Object error) => _failed(name, error)),
@@ -801,6 +804,8 @@ class StudentLibraryRepository extends ChangeNotifier
   }
 
   /// Atomic per-user favourites: separate IDs for physical and digital books.
+
+  //fav books set
   Future<ActionResult> setFavorite(
     String id, {
     required bool favorite,
@@ -819,6 +824,8 @@ class StudentLibraryRepository extends ChangeNotifier
 
   /// Sends a book reservation request (status pending until a librarian
   /// approves it, which sets a copy aside).
+
+  //create operation
   Future<ActionResult> reserveBook({
     required BookRecord book,
     required DateTime pickupDate,
@@ -845,8 +852,10 @@ class StudentLibraryRepository extends ChangeNotifier
       await _db.runTransaction((tx) async {
         await _checkAccountActive(tx);
 
-        final bookSnap = await tx.get(
-          _col(FirestoreCollections.books).doc(book.id),
+        //firebase calls
+        //database access - reads the selected book document from Firestore using the book ID
+        final bookSnap = await tx.get(    //api call(read a book document)
+          _col(FirestoreCollections.books).doc(book.id),   //select (read a document)
         );
 
         if (!bookSnap.exists) {
@@ -859,19 +868,20 @@ class StudentLibraryRepository extends ChangeNotifier
           throw const ActionRefused('No copies are available right now.');
         }
 
+        //select (create a new doc)
         final ref = _col(FirestoreCollections.reservations).doc();
 
         // Store the ID of the reservation just created.
         createdReservationId = ref.id;
 
-        tx.set(
+        tx.set(     //api call(create a document)
           ref,
           ReservationRecord(
             id: ref.id,
             type: ReservationType.book,
             status: ReservationStatus.pending,
             studentUid: student.uid,
-            studentId: student.studentId,
+            studentId: student.studentId, //not relational but hv have logical relationships through IDs
             studentName: student.name,
             studentEmail: student.email,
             itemId: latest.id,
@@ -908,6 +918,8 @@ class StudentLibraryRepository extends ChangeNotifier
   }
 
   /// Updates the student's own active book reservation.
+
+  //update operation  
   Future<ActionResult> updateBookReservation({
     required String reservationId,
     required DateTime pickupDate,
@@ -923,8 +935,8 @@ class StudentLibraryRepository extends ChangeNotifier
     if (fieldError != null)
       return Future.value(ActionResult.failure(fieldError));
     return _run(() async {
-      await _db.runTransaction((tx) async {
-        final ref = _col(FirestoreCollections.reservations).doc(reservationId);
+      await _db.runTransaction((tx) async {   //select (update a document)
+        final ref = _col(FirestoreCollections.reservations).doc(reservationId); //read operation (//read only one)
 
         final snap = await tx.get(ref);
 
@@ -958,7 +970,7 @@ class StudentLibraryRepository extends ChangeNotifier
           );
         }
 
-        tx.update(ref, {
+        tx.update(ref, {    //api call (update a reservation document)
           'date': Timestamp.fromDate(pickupDate),
           'pickupLocation': pickupLocation,
           'loanPeriodDays': loanPeriodDays,
@@ -1328,6 +1340,50 @@ class StudentLibraryRepository extends ChangeNotifier
     });
   }
 
+  /// Permanently deletes only the student's own cancelled book request.
+
+  //delete operation
+  Future<ActionResult> deleteCancelledBookReservation(String id) {
+    return _run(() async {
+      await _db.runTransaction((tx) async {
+        final ref = _col(FirestoreCollections.reservations).doc(id);     //select (delete a document)
+        final snapshot = await tx.get(ref);
+        if (!snapshot.exists) {
+          throw const ActionRefused('Reservation not found.');
+        }
+        final reservation = ReservationRecord.fromMap(id, snapshot.data()!);
+        if (reservation.studentUid != student.uid ||
+            reservation.type != ReservationType.book ||
+            reservation.status != ReservationStatus.cancelled) {
+          throw const ActionRefused(
+            'Only your own cancelled book reservations can be deleted.',
+          );
+        }
+        tx.delete(ref);
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          LibrarianNotification(
+            id: '',
+            type: LibrarianNotificationType.deleted,
+            title: 'Reservation Deleted',
+            message: '${student.name} deleted their cancelled reservation for ${reservation.itemName}.',
+            createdAt: DateTime.now(),
+          ).toMap(),
+        );
+        tx.set(
+          _col(FirestoreCollections.notifications).doc(),
+          StudentNotification.create(
+            recipientUid: student.uid,
+            type: StudentNotificationType.reservationDeleted,
+            title: 'Reservation Deleted',
+            message: 'You permanently deleted your cancelled reservation for ${reservation.itemName}.',
+          ),
+        );   //api call (delete a reservation document)
+      });
+      return null;
+    });
+  }
+
   // ---------------- Helpers ----------------
 
   Future<ActionResult> _run(Future<String?> Function() action) async {
@@ -1363,7 +1419,7 @@ class StudentLibraryRepository extends ChangeNotifier
   Future<void> _checkNoActiveBookReservation(String bookId) async {
     final mine = await _col(FirestoreCollections.reservations)
         .where('studentUid', isEqualTo: student.uid)
-        .get();
+        .get();   //api call(read reservations)
 
     final duplicate = mine.docs
         .map((d) => ReservationRecord.fromMap(d.id, d.data()))

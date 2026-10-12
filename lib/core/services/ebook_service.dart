@@ -268,6 +268,9 @@ class EbookService {
 
   /// Live list of published e-books only (what students may read; the
   /// security rules refuse drafts to students, so the query must match).
+
+
+  //catch ebooks from Firestore’s shared ebooks collection.
   Stream<List<EbookRecord>> watchPublishedEbooks() {
     return _ebooks
         .where('status', isEqualTo: EbookStatus.published.name)

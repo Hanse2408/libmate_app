@@ -34,6 +34,7 @@ class MyReservationsScreen extends StatefulWidget {
 class _MyReservationsScreenState extends State<MyReservationsScreen> {
   late bool _showSeats = widget.showSeats;
   String? _cancellingId;
+  String? _deletingId;
   shared.ReservationStatus? _bookFilter;
   shared.ReservationStatus? _seatFilter;
 
@@ -384,7 +385,31 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
                 child: _buildBookInformation(reservation),
               ),
               SizedBox(width: 5),
-              _buildStatusBadge(reservation),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (!reservation.isSeat &&
+                      reservation.statusType == ReservationStatus.closed)
+                    IconButton(
+                      key: ValueKey('delete-reservation-${reservation.id}'),
+                      tooltip: 'Delete cancelled reservation',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: colors.muted,
+                      onPressed: _deletingId == null
+                          ? () => _deleteCancelled(reservation)
+                          : null,
+                      icon: _deletingId == reservation.id
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.close_rounded),
+                    ),
+                  _buildStatusBadge(reservation),
+                ],
+              ),
             ],
           ),
 
@@ -659,6 +684,76 @@ class _MyReservationsScreenState extends State<MyReservationsScreen> {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _deleteCancelled(BookReservation reservation) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: Text(
+          'Delete Reservation?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete your reservation for ${reservation.title}? This cannot be undone.',
+          style: TextStyle(color: StudentPalette.of(context).muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              'Delete Reservation',
+              style: TextStyle(
+                color: StudentPalette.of(context).error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deletingId = reservation.id);
+    final result = await widget.library.deleteCancelledBookReservation(reservation.id);
+    if (!mounted) return;
+    setState(() => _deletingId = null);
+    if (result.success) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: Text(
+          result.success ? 'Reservation Deleted' : 'Could Not Delete Reservation',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(result.success
+            ? 'Your cancelled book reservation has been permanently deleted.'
+            : result.message ?? 'Please try again.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 

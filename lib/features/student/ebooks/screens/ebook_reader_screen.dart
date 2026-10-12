@@ -107,6 +107,8 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
 
   void _retry() => setState(() => _requestedUrl = null);
 
+
+//increase and decrease the PDF page size
   void _zoom({required bool up}) {
     if (!_controller.isReady) return;
     up ? _controller.zoomUp() : _controller.zoomDown();

@@ -19,6 +19,7 @@ class NotificationTile extends StatelessWidget {
       LibrarianNotificationType.awaitingApproval => (Icons.warning_amber_rounded, LibrarianColors.unavailable),
       LibrarianNotificationType.approved => (Icons.check, LibrarianColors.available),
       LibrarianNotificationType.rejected => (Icons.block, LibrarianColors.unavailable),
+      LibrarianNotificationType.deleted => (Icons.delete_outline, LibrarianColors.secondaryText),
       LibrarianNotificationType.cancelled => (Icons.event_busy, LibrarianColors.secondaryText),
       LibrarianNotificationType.bookReturned => (Icons.web_asset, LibrarianColors.primary),
       LibrarianNotificationType.bookCollected => (Icons.outbox_outlined, LibrarianColors.primary),
