@@ -182,8 +182,8 @@ class _EbookReaderScreenState extends State<EbookReaderScreen> {
                                   right: 16,
                                   bottom: 16,
                                   child: _ZoomButtons(
-                                    onZoomIn: () => _zoom(up: true),
-                                    onZoomOut: () => _zoom(up: false),
+                                    onZoomIn: () => _zoom(up: true),  //zoom in
+                                    onZoomOut: () => _zoom(up: false),  //zoom out
                                   ),
                                 ),
                             ],

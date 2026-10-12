@@ -270,9 +270,9 @@ class EbookService {
   /// security rules refuse drafts to students, so the query must match).
 
 
-  //catch ebooks from Firestore’s shared ebooks collection.
+  //ebooks from Firestore’s shared ebooks collection.
   Stream<List<EbookRecord>> watchPublishedEbooks() {
-    return _ebooks
+    return _ebooks      //ebooks , return ebook
         .where('status', isEqualTo: EbookStatus.published.name)
         .snapshots()
         .map(

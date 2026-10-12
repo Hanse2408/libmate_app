@@ -19,7 +19,7 @@ class ReservationProgressCard extends StatelessWidget {
       return 2;
     }
     if (reservation.status == ReservationStatus.approved) return 1;
-    return 0;
+    return 0;  //pending
   }
 
   DateTime? get _returnedAt => reservation.returnedAt ?? loan?.returnedAt;

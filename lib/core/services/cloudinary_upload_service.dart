@@ -52,7 +52,7 @@ class CloudinaryUploadClient {
     required String uploadPreset,
     void Function(double progress)? onProgress,
   }) async {
-    final request =           //direct HTTP API call
+    final request =           //direct HTTP API call //POST
         http.MultipartRequest(
             'POST',
             Uri.https(
