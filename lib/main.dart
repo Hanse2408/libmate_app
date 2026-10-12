@@ -41,7 +41,7 @@ class _LibMateStartupState extends State<_LibMateStartup> {
 
   Future<void> _start() async {
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);    //backend connected (Firebase is initialized when the application starts)
       registerPushBackgroundHandler();
     } catch (_) {
       if (mounted) {

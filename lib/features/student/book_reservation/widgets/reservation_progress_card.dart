@@ -8,6 +8,7 @@ class ReservationProgressCard extends StatelessWidget {
   final ReservationRecord reservation;
   final ReservationLoanProgress? loan;
 
+//progress card shows the progress of the book reservation and loan process. 
   int get _stage {
     if (loan?.returnedAt != null) return 3;
     if (loan != null || reservation.status == ReservationStatus.completed) return 2;
